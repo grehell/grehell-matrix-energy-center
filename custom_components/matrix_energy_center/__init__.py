@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import voluptuous as vol
 
@@ -11,7 +10,8 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import service
+from homeassistant.helpers import config_validation as cv, service
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_CURRENCY,
@@ -36,8 +36,10 @@ from .websocket_api import async_register_websocket_commands
 SERVICE_RELOAD = "reload_configuration"
 SERVICE_RESET = "reset_configuration"
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up integration-level resources."""
     hass.data.setdefault(DOMAIN, {})
     return True
@@ -55,12 +57,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         current["general"].update(
             {
                 "installation_name": entry.data.get(
-                    CONF_INSTALLATION_NAME, current["general"]["installation_name"]
+                    CONF_INSTALLATION_NAME,
+                    current["general"]["installation_name"],
                 ),
                 "panel_title": entry.data.get(
-                    CONF_PANEL_TITLE, current["general"]["panel_title"]
+                    CONF_PANEL_TITLE,
+                    current["general"]["panel_title"],
                 ),
-                "currency": entry.data.get(CONF_CURRENCY, current["general"]["currency"]),
+                "currency": entry.data.get(
+                    CONF_CURRENCY,
+                    current["general"]["currency"],
+                ),
             }
         )
         await store.async_save(current)
@@ -94,15 +101,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
     if unloaded:
         domain_data = hass.data.get(DOMAIN, {})
         domain_data.pop(entry.entry_id, None)
-        frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)
+
+        frontend.async_remove_panel(
+            hass,
+            PANEL_URL_PATH,
+            warn_if_unknown=False,
+        )
+
         domain_data[DATA_PANEL_REGISTERED] = False
+
     return unloaded
 
 
-async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_reload_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+) -> None:
     """Reload when technical options change."""
     await hass.config_entries.async_reload(entry.entry_id)
 
@@ -113,28 +131,45 @@ async def _async_register_frontend(
 ) -> None:
     """Serve and register the Matrix Energy Center custom panel."""
     domain_data = hass.data[DOMAIN]
+
     if domain_data.get(DATA_PANEL_REGISTERED):
         return
 
     frontend_dir = Path(__file__).parent / "frontend"
+
     if not domain_data.get("static_registered"):
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), True)]
+            [
+                StaticPathConfig(
+                    PANEL_STATIC_URL,
+                    str(frontend_dir),
+                    True,
+                )
+            ]
         )
         domain_data["static_registered"] = True
+
     config = store.config
+
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL_PATH,
         webcomponent_name=PANEL_COMPONENT,
-        sidebar_title=config["general"].get("panel_title", PANEL_TITLE),
+        sidebar_title=config["general"].get(
+            "panel_title",
+            PANEL_TITLE,
+        ),
         sidebar_icon=PANEL_ICON,
-        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v=0.2.0",
+        module_url=(
+            f"{PANEL_STATIC_URL}/"
+            "matrix-energy-center-panel.js?v=0.2.0"
+        ),
         embed_iframe=False,
         require_admin=False,
         config={"domain": DOMAIN},
         config_panel_domain=DOMAIN,
     )
+
     domain_data[DATA_PANEL_REGISTERED] = True
 
 
@@ -143,18 +178,31 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_reload(call: ServiceCall) -> None:
         entry_id = hass.data[DOMAIN].get(DATA_ENTRY_ID)
+
         if entry_id:
             await hass.config_entries.async_reload(entry_id)
 
     async def handle_reset(call: ServiceCall) -> None:
         store: MatrixEnergyStore = hass.data[DOMAIN][DATA_STORE]
         await store.async_reset()
-        coordinator: MatrixEnergyCoordinator = hass.data[DOMAIN][DATA_COORDINATOR]
+
+        coordinator: MatrixEnergyCoordinator = hass.data[DOMAIN][
+            DATA_COORDINATOR
+        ]
         await coordinator.async_request_refresh()
 
     service.async_register_admin_service(
-        hass, DOMAIN, SERVICE_RELOAD, handle_reload, vol.Schema({})
+        hass,
+        DOMAIN,
+        SERVICE_RELOAD,
+        handle_reload,
+        vol.Schema({}),
     )
+
     service.async_register_admin_service(
-        hass, DOMAIN, SERVICE_RESET, handle_reset, vol.Schema({})
+        hass,
+        DOMAIN,
+        SERVICE_RESET,
+        handle_reset,
+        vol.Schema({}),
     )
