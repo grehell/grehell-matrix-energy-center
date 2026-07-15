@@ -87,7 +87,7 @@ Soboty, niedziele i święta są domyślnie zaliczane do pozostałych godzin prz
 Szczegóły i opis wszystkich opłat: [TAURON_G13_PL.md](TAURON_G13_PL.md).
 
 
-## Wyszukiwanie encji w v0.3
+## Wyszukiwanie encji w v0.4
 
 Każde pole mapowania otwiera wyszukiwarkę korzystającą z aktualnych stanów Home Assistant. Lista pokazuje:
 
@@ -126,7 +126,22 @@ Wyłącz odpowiednią opcję, jeżeli urządzenie raportuje przeciwny znak.
    - wschód,
    - zachód.
 6. Każdej sekcji możesz przypisać osobny sensor albo procentowy udział w stringu.
-7. Zapisz zmiany.
+7. Zaznacz **Pokaż w przepływie**, aby string pojawił się jako osobny węzeł nad głównym węzłem PV.
+8. Ustaw opcjonalną nazwę, ikonę i kolejność w diagramie.
+9. Zapisz zmiany.
+
+## Konfiguracja głównego okna przepływów
+
+W zakładce **Konfiguracja** znajduje się sekcja **Konfiguracja okna przepływów** z podglądem na żywo. Można tam ustawić:
+
+- układ automatyczny, kompaktowy albo szeroki,
+- wielkość diagramu i styl węzłów,
+- szybkość animacji i odstępy między gałęziami,
+- maksymalną liczbę widocznych stringów PV i urządzeń,
+- widoczność wartości, stanów i linii połączeń,
+- automatyczne ukrywanie urządzeń poniżej ich progu pracy.
+
+Stringi PV są łączone z głównym węzłem PV. Urządzenia oznaczone jako źródło trafiają na górną magistralę, a odbiorniki i urządzenia dwukierunkowe na dolną magistralę połączoną z domem.
 
 ## Dodatkowe urządzenia
 
@@ -142,18 +157,26 @@ W zakładce **Urządzenia** można dodać dowolny odbiornik. Każde urządzenie 
 - sensor energii,
 - opcjonalną encję sterowania.
 
-Przycisk sterowania w v0.3 obsługuje `switch`, `input_boolean`, `light` i `button`.
+Dodatkowo każde urządzenie może być pokazane w głównym przepływie. Ustaw wtedy:
+
+- **Pokaż w przepływie**,
+- rolę: **odbiornik**, **źródło** albo **dwukierunkowe**,
+- kolejność oraz opcjonalną krótszą nazwę w diagramie.
+
+Przycisk sterowania w v0.4 obsługuje `switch`, `input_boolean`, `light` i `button`.
 
 Bieżący koszt pracy urządzenia na godzinę jest obliczany na podstawie jego mocy oraz aktywnej ceny zakupu.
 
-## Aktualizacja do v0.3
+## Aktualizacja do v0.4
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
 3. Uruchom ponownie Home Assistant.
-4. Otwórz panel i skonfiguruj nową zakładkę **Ceny / G13**.
+4. Otwórz **Konfiguracja → Konfiguracja okna przepływów**.
+5. W zakładce **PV** wybierz stringi widoczne w przepływie.
+6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 
-Dane z v0.1 i v0.2 są automatycznie uzupełniane do schematu v3. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.3 zawiera nowy plik frontendowy.
+Dane z v0.1–v0.3 są automatycznie uzupełniane do schematu v4. Istniejące stringi PV są domyślnie dostępne w przepływie, natomiast istniejące urządzenia trzeba świadomie zaznaczyć, aby nie przeładować diagramu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.4 zawiera nowy plik frontendowy.
 
 ## Usuwanie
 

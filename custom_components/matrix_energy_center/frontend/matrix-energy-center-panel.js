@@ -332,6 +332,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const disabled = this._isAdmin() ? "" : "disabled";
     const f = this._config.features || {};
     const appearance = this._config.appearance || {};
+    const flow = this._config.flow || {};
     const featureDescriptions = {
       grid: "Sieć, import, eksport, napięcie i parametry przyłącza.",
       pv: "Falownik, produkcja, prognozy, stringi i sekcje paneli.",
@@ -385,6 +386,36 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           ${f.battery ? `<label class="check-row"><input type="checkbox" data-path="signs.battery_positive_is_charge" ${this._config.signs.battery_positive_is_charge ? "checked" : ""} ${disabled}><span><b>Dodatnia moc baterii oznacza ładowanie</b><small>Wyłącz, gdy dodatnia wartość oznacza rozładowanie.</small></span></label>` : ""}
           <label class="check-row"><input type="checkbox" data-path="permissions.show_configuration_to_non_admin" ${this._config.permissions.show_configuration_to_non_admin ? "checked" : ""} ${disabled}><span><b>Pokaż konfigurację zwykłym użytkownikom</b><small>Tryb tylko do odczytu; zapis nadal wymaga administratora.</small></span></label>
           <label class="check-row"><input type="checkbox" data-path="permissions.allow_non_admin_control" ${this._config.permissions.allow_non_admin_control ? "checked" : ""} ${disabled}><span><b>Zezwól na sterowanie urządzeniami</b><small>Dotyczy wyłącznie przypisanych encji sterujących odbiorników.</small></span></label>
+        </article>
+      </section>
+
+      <section class="flow-config-section">
+        <article class="panel config-card flow-config-editor">
+          <div class="panel-title"><span>KONFIGURACJA OKNA PRZEPŁYWÓW</span><ha-icon icon="mdi:transit-connection-variant"></ha-icon></div>
+          <p class="hint">Ustaw, które gałęzie mają być widoczne w głównym diagramie. Stringi PV trafiają nad węzeł PV, źródła dodatkowe do górnej magistrali, a odbiorniki pod węzeł domu.</p>
+          <div class="four-grid">
+            ${this._field("flow.title", "Tytuł diagramu", flow.title || "PRZEPŁYW ENERGII — NA ŻYWO", "Przepływ energii", disabled)}
+            ${this._selectField("flow.layout", "Układ", flow.layout || "automatic", [["automatic","Automatyczny"],["compact","Kompaktowy"],["wide","Szeroki"]], disabled, true)}
+            ${this._selectField("flow.node_style", "Styl węzłów", flow.node_style || "rounded", [["rounded","Zaokrąglony"],["technical","Techniczny"],["soft","Miękki"]], disabled, true)}
+            ${this._selectField("flow.animation_speed", "Szybkość animacji", flow.animation_speed || "normal", [["slow","Wolna"],["normal","Normalna"],["fast","Szybka"]], disabled, true)}
+            ${this._numberField("flow.max_pv_strings", "Maks. stringów PV", flow.max_pv_strings ?? 6, 0, 16, 1, disabled, true)}
+            ${this._numberField("flow.max_devices", "Maks. dodatkowych urządzeń", flow.max_devices ?? 6, 0, 24, 1, disabled, true)}
+            ${this._numberField("flow.branch_gap", "Odstęp gałęzi [px]", flow.branch_gap ?? 12, 4, 40, 1, disabled, true)}
+            ${this._selectField("appearance.flow_density", "Wielkość całego diagramu", appearance.flow_density || "comfortable", [["compact","Mały"],["comfortable","Standardowy"],["spacious","Duży"]], disabled, true)}
+          </div>
+          <div class="four-grid checks flow-checks">
+            <label class="check-row"><input type="checkbox" data-path="flow.show_pv_strings" data-live-rerender="1" ${flow.show_pv_strings !== false ? "checked" : ""} ${disabled}><span><b>Stringi PV</b><small>Pokaż osobne MPPT/stringi nad głównym PV.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.show_devices" data-live-rerender="1" ${flow.show_devices !== false ? "checked" : ""} ${disabled}><span><b>Dodatkowe urządzenia</b><small>Pokaż zaznaczone źródła i odbiorniki.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.show_labels" data-live-rerender="1" ${flow.show_labels !== false ? "checked" : ""} ${disabled}><span><b>Nazwy węzłów</b><small>Wyświetlaj nazwy modułów, stringów i urządzeń.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.show_values" data-live-rerender="1" ${flow.show_values !== false ? "checked" : ""} ${disabled}><span><b>Wartości mocy</b><small>Wyświetlaj moc w węzłach.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.show_status" data-live-rerender="1" ${flow.show_status !== false ? "checked" : ""} ${disabled}><span><b>Stany urządzeń</b><small>Pokazuj status, MPPT lub obszar.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.show_connectors" data-live-rerender="1" ${flow.show_connectors !== false ? "checked" : ""} ${disabled}><span><b>Linie przepływu</b><small>Pokaż magistrale i animowane połączenia.</small></span></label>
+            <label class="check-row"><input type="checkbox" data-path="flow.hide_inactive_devices" data-live-rerender="1" ${flow.hide_inactive_devices ? "checked" : ""} ${disabled}><span><b>Ukrywaj nieaktywne</b><small>Nie pokazuj urządzeń pobierających mniej niż próg pracy.</small></span></label>
+          </div>
+        </article>
+        <article class="panel flow-config-preview">
+          <div class="preview-badge"><ha-icon icon="mdi:eye-outline"></ha-icon>PODGLĄD NA ŻYWO</div>
+          ${this._flowDiagram(false, true)}
         </article>
       </section>
 
@@ -519,11 +550,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         ${this._entityField(`pv_strings.${index}.energy_entity`, "Sensor energii stringu", item.energy_entity, "Wh lub kWh.", disabled, "energy")}
         ${this._entityField(`pv_strings.${index}.voltage_entity`, "Napięcie DC", item.voltage_entity, "Napięcie stringu lub MPPT.", disabled, "voltage")}
         ${this._entityField(`pv_strings.${index}.current_entity`, "Prąd DC", item.current_entity, "Prąd stringu lub MPPT.", disabled, "current")}
+        ${this._field(`pv_strings.${index}.flow_label`, "Nazwa w przepływie", item.flow_label || "", "Puste = nazwa stringu", disabled)}
+        ${this._field(`pv_strings.${index}.flow_icon`, "Ikona w przepływie", item.flow_icon || "mdi:solar-panel-large", "mdi:solar-panel-large", disabled)}
+        ${this._numberField(`pv_strings.${index}.flow_order`, "Kolejność w przepływie", item.flow_order ?? index + 1, 0, 10000, 1, disabled)}
       </div>
       ${this._textarea(`pv_strings.${index}.description`, "Opis stringu", item.description, "Informacje o MPPT, falowniku, przewodach, panelach lub lokalizacji.", disabled)}
-      <div class="two-grid checks">
+      <div class="three-grid checks">
         <label class="check-row"><input type="checkbox" data-path="pv_strings.${index}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""} ${disabled}><span><b>String aktywny</b><small>Uwzględniaj w sumie PV i diagnostyce.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="pv_strings.${index}.show_on_overview" data-live-rerender="1" ${item.show_on_overview !== false ? "checked" : ""} ${disabled}><span><b>Pokaż na przeglądzie PV</b><small>String może pozostać skonfigurowany, ale ukryty.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="pv_strings.${index}.show_in_flow" data-live-rerender="1" ${item.show_in_flow !== false ? "checked" : ""} ${disabled}><span><b>Pokaż w przepływie</b><small>Dodaj osobny węzeł stringu nad głównym węzłem PV.</small></span></label>
       </div>
       <div class="section-grid">${(item.sections || []).map((section, sIndex) => this._pvSectionCard(section, index, sIndex, disabled)).join("") || `<div class="mini-empty">Brak sekcji. String może działać jako jedna pozycja.</div>`}</div>
     </article>`;
@@ -589,13 +624,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         ${this._numberField(`devices.${index}.priority`, "Kolejność", item.priority, 0, 10000, 1, disabled)}
         ${this._numberField(`devices.${index}.active_threshold_w`, "Próg pracy [W]", item.active_threshold_w, 0, 1000000, 1, disabled)}
         ${this._numberField(`devices.${index}.standby_threshold_w`, "Próg czuwania [W]", item.standby_threshold_w, 0, 1000000, 1, disabled)}
+        ${this._field(`devices.${index}.flow_label`, "Nazwa w przepływie", item.flow_label || "", "Puste = nazwa urządzenia", disabled)}
+        ${this._selectField(`devices.${index}.flow_direction`, "Rola w przepływie", item.flow_direction || "consumer", [["consumer","Odbiornik — energia z domu"],["source","Źródło — energia do domu"],["bidirectional","Dwukierunkowe"]], disabled, true)}
+        ${this._numberField(`devices.${index}.flow_order`, "Kolejność w przepływie", item.flow_order ?? item.priority ?? index + 1, 0, 10000, 1, disabled)}
       </div>
       <div class="two-grid">
         ${this._textarea(`devices.${index}.active_description`, "Opis podczas pracy", item.active_description, "Zmywarka pracuje", disabled)}
         ${this._textarea(`devices.${index}.idle_description`, "Opis po zakończeniu", item.idle_description, "Koniec pracy — opróżnij zmywarkę", disabled)}
       </div>
       ${this._textarea(`devices.${index}.description`, "Opis techniczny", item.description, "Co urządzenie mierzy, jak jest podłączone i jakie ma ograniczenia.", disabled)}
-      <div class="three-grid checks"><label class="check-row"><input type="checkbox" data-path="devices.${index}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""} ${disabled}><span><b>Aktywne</b><small>Pokaż urządzenie w jego widoku.</small></span></label><label class="check-row"><input type="checkbox" data-path="devices.${index}.show_on_overview" data-live-rerender="1" ${item.show_on_overview !== false ? "checked" : ""} ${disabled}><span><b>Pokaż na podsumowaniu</b><small>Uwzględniaj w największych odbiornikach.</small></span></label><label class="check-row"><input type="checkbox" data-path="devices.${index}.include_in_home_total" ${item.include_in_home_total ? "checked" : ""} ${disabled}><span><b>Wliczaj do domu</b><small>Znacznik dla raportów kosztowych.</small></span></label></div>
+      <div class="four-grid checks"><label class="check-row"><input type="checkbox" data-path="devices.${index}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""} ${disabled}><span><b>Aktywne</b><small>Pokaż urządzenie w jego widoku.</small></span></label><label class="check-row"><input type="checkbox" data-path="devices.${index}.show_on_overview" data-live-rerender="1" ${item.show_on_overview !== false ? "checked" : ""} ${disabled}><span><b>Pokaż na podsumowaniu</b><small>Uwzględniaj w największych odbiornikach.</small></span></label><label class="check-row"><input type="checkbox" data-path="devices.${index}.show_in_flow" data-live-rerender="1" ${item.show_in_flow ? "checked" : ""} ${disabled}><span><b>Pokaż w przepływie</b><small>Dodaj urządzenie do górnej lub dolnej magistrali.</small></span></label><label class="check-row"><input type="checkbox" data-path="devices.${index}.include_in_home_total" ${item.include_in_home_total ? "checked" : ""} ${disabled}><span><b>Wliczaj do domu</b><small>Znacznik dla raportów kosztowych.</small></span></label></div>
     </article>`;
   }
 
@@ -614,22 +652,94 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       <article class="panel json-panel"><div class="panel-title"><span>DANE RUNTIME</span><ha-icon icon="mdi:code-json"></ha-icon></div><pre>${this._esc(JSON.stringify(this._runtime || {}, null, 2))}</pre></article>`;
   }
 
-  _flowDiagram(large = false) {
-    const f = this._config.features || {};
+  _flowDiagram(large = false, preview = false) {
     const density = this._config.appearance?.flow_density || "comfortable";
-    const node = (cls, icon, title, liveKey, extra = "") => `<div class="flow-node ${cls}"><ha-icon icon="${icon}"></ha-icon><b>${title}</b><strong data-live="${liveKey}">--</strong><small>${extra || "kW"}</small></div>`;
-    return `<div class="panel-title"><span>PRZEPŁYW ENERGII — NA ŻYWO</span><small>Wartości rzeczywiste</small></div>
-      <div class="flow-canvas ${large ? "large" : ""} density-${density}">
-        <div class="flow-grid">
-          ${this._showModule("pv") ? node("pv-node", "mdi:solar-power", "PV", "pv") : ""}
-          ${this._showModule("pv") ? `<div class="flow-link vertical pv-link forward" data-flow-link="pv"><i></i><span data-live="pv">--</span></div>` : ""}
-          ${this._showModule("grid") ? node("grid-node", "mdi:transmission-tower", "SIEĆ", "gridSigned") : ""}
-          ${this._showModule("grid") ? `<div class="flow-link horizontal grid-link bidirectional" data-flow-link="grid"><i></i><span data-live="gridFlow">--</span></div>` : ""}
+    const flow = {
+      title: "PRZEPŁYW ENERGII — NA ŻYWO", layout: "automatic", node_style: "rounded",
+      animation_speed: "normal", show_pv_strings: true, show_devices: true, show_labels: true,
+      show_values: true, show_status: true, show_connectors: true,
+      hide_inactive_devices: false, max_pv_strings: 6, max_devices: 6, branch_gap: 12,
+      ...(this._config.flow || {}),
+    };
+    const maxStrings = Math.max(0, Math.min(16, Number(flow.max_pv_strings) || 0));
+    const maxDevices = Math.max(0, Math.min(24, Number(flow.max_devices) || 0));
+    const branchGap = Math.max(4, Math.min(40, Number(flow.branch_gap) || 12));
+    const showPv = this._showModule("pv");
+    const showGrid = this._showModule("grid");
+    const showBattery = this._showModule("battery");
+    const showEv = this._showModule("ev");
+    const showDevices = flow.show_devices !== false && this._config.features?.appliances !== false;
+
+    const strings = showPv && flow.show_pv_strings !== false
+      ? (this._config.pv_strings || []).map((item, index) => ({ item, index }))
+        .filter(({ item }) => item.enabled !== false && item.show_in_flow !== false)
+        .sort((a, b) => Number(a.item.flow_order ?? a.index) - Number(b.item.flow_order ?? b.index))
+        .slice(0, maxStrings)
+      : [];
+    const devices = showDevices
+      ? (this._config.devices || []).map((item, index) => ({ item, index }))
+        .filter(({ item }) => item.enabled !== false && item.show_in_flow === true)
+        .sort((a, b) => Number(a.item.flow_order ?? a.item.priority ?? a.index) - Number(b.item.flow_order ?? b.item.priority ?? b.index))
+        .slice(0, maxDevices)
+      : [];
+    const sourceDevices = devices.filter(({ item }) => item.flow_direction === "source");
+    const loadDevices = devices.filter(({ item }) => item.flow_direction !== "source");
+    const hasSources = strings.length + sourceDevices.length > 0;
+    const hasLoads = showEv || loadDevices.length > 0;
+    const allowedAccents = new Set(["cyan", "green", "lime", "orange", "purple"]);
+
+    const node = (cls, icon, title, liveKey, extra = "") => `<div class="flow-node ${cls}"><ha-icon icon="${this._escAttr(icon)}"></ha-icon><b>${this._esc(title)}</b><strong data-live="${liveKey}">--</strong><small>${extra || "kW"}</small></div>`;
+    const stringBranch = ({ item, index }) => {
+      const runtime = this._pvStringRuntime(item, index);
+      const label = item.flow_label || item.name || `String ${index + 1}`;
+      const status = runtime.status || item.mppt || "PV";
+      const active = Math.abs(Number(runtime.power || 0)) > 1;
+      return `<div class="flow-branch source-branch accent-green ${active ? "is-active" : "is-idle"}" data-flow-string-branch="${index}">
+        <div class="flow-extra-node"><ha-icon icon="${this._escAttr(item.flow_icon || "mdi:solar-panel-large")}"></ha-icon><b>${this._esc(label)}</b><div class="flow-extra-value"><strong data-flow-string-power="${index}">${this._kw(runtime.power)}</strong><span>kW</span></div><small data-flow-string-status="${index}">${this._esc(status)}</small></div>
+        <span class="branch-wire" data-flow-extra-link="string-${index}"><i></i></span>
+      </div>`;
+    };
+    const deviceBranch = ({ item, index }, source = false) => {
+      const runtime = this._deviceRuntime(item, index);
+      const label = item.flow_label || item.name || `Urządzenie ${index + 1}`;
+      const status = runtime.cycle_state || runtime.status || item.area || runtime.description || "Urządzenie";
+      const accent = allowedAccents.has(item.accent) ? item.accent : "cyan";
+      const active = runtime.power != null && Math.abs(Number(runtime.power)) >= Number(item.active_threshold_w ?? 10);
+      const bidirectional = item.flow_direction === "bidirectional";
+      return `<div class="flow-branch ${source ? "source-branch" : "load-branch"} accent-${accent} ${active ? "is-active" : "is-idle"} ${flow.hide_inactive_devices ? "hidden-when-idle" : ""}" data-flow-device-branch="${index}" data-flow-direction="${this._escAttr(item.flow_direction || "consumer")}">
+        ${source ? "" : `<span class="branch-wire ${bidirectional ? "bidirectional" : ""}" data-flow-extra-link="device-${index}"><i></i></span>`}
+        <div class="flow-extra-node"><ha-icon icon="${this._escAttr(item.icon || "mdi:flash")}"></ha-icon><b>${this._esc(label)}</b><div class="flow-extra-value"><strong data-flow-device-flow-power="${index}">${this._kw(runtime.power == null ? null : Math.abs(Number(runtime.power)))}</strong><span>kW</span></div><small data-flow-device-status="${index}">${this._esc(status)}</small></div>
+        ${source ? `<span class="branch-wire" data-flow-extra-link="device-${index}"><i></i></span>` : ""}
+      </div>`;
+    };
+    const evBranch = showEv ? `<div class="flow-branch load-branch accent-cyan" data-flow-core-branch="ev">
+      <span class="branch-wire" data-flow-extra-link="ev"><i></i></span>
+      <div class="flow-extra-node"><ha-icon icon="mdi:car-electric"></ha-icon><b>EV</b><div class="flow-extra-value"><strong data-live="ev">--</strong><span>kW</span></div><small><span data-live="evSoc">--</span>% SOC</small></div>
+    </div>` : "";
+    const sourceBranches = `${strings.map(stringBranch).join("")}${sourceDevices.map(item => deviceBranch(item, true)).join("")}`;
+    const loadBranches = `${evBranch}${loadDevices.map(item => deviceBranch(item, false)).join("")}`;
+    const classes = [
+      large ? "large" : "", preview ? "preview" : "", `density-${density}`,
+      `layout-${flow.layout || "automatic"}`, `node-style-${flow.node_style || "rounded"}`,
+      `speed-${flow.animation_speed || "normal"}`, hasSources ? "with-sources" : "no-sources",
+      hasLoads ? "with-loads" : "no-loads", showPv ? "with-pv" : "no-pv",
+      flow.show_labels === false ? "hide-labels" : "",
+      flow.show_values === false ? "hide-values" : "", flow.show_status === false ? "hide-status" : "",
+      flow.show_connectors === false ? "hide-connectors" : "",
+    ].filter(Boolean).join(" ");
+
+    return `<div class="panel-title flow-title"><span>${this._esc(flow.title || "PRZEPŁYW ENERGII — NA ŻYWO")}</span><small>${preview ? "Podgląd konfiguracji" : "Wartości rzeczywiste"}</small></div>
+      <div class="flow-canvas flow-canvas-v4 ${classes}" style="--branch-gap:${branchGap}px">
+        <div class="flow-grid flow-grid-v4">
+          ${hasSources ? `<div class="flow-branch-bus source-bus">${sourceBranches}</div><div class="flow-link vertical source-link" data-flow-link="sources"><i></i><span>ŹRÓDŁA</span></div>` : ""}
+          ${showPv ? node("pv-node", "mdi:solar-power", "PV", "pv") : ""}
+          ${showPv ? `<div class="flow-link vertical pv-link forward" data-flow-link="pv"><i></i><span data-live="pv">--</span></div>` : ""}
+          ${showGrid ? node("grid-node", "mdi:transmission-tower", "SIEĆ", "gridSigned") : ""}
+          ${showGrid ? `<div class="flow-link horizontal grid-link bidirectional" data-flow-link="grid"><i></i><span data-live="gridFlow">--</span></div>` : ""}
           ${node("home-node", "mdi:home-lightning-bolt-outline", "DOM", "home")}
-          ${this._showModule("battery") ? `<div class="flow-link horizontal battery-link bidirectional" data-flow-link="battery"><i></i><span data-live="batteryFlow">--</span></div>` : ""}
-          ${this._showModule("battery") ? node("battery-node", "mdi:battery-charging-high", "MAGAZYN", "battery", `<span data-live="batterySoc">--</span>% · kW`) : ""}
-          ${this._showModule("ev") ? `<div class="flow-link vertical ev-link forward" data-flow-link="ev"><i></i><span data-live="ev">--</span></div>` : ""}
-          ${this._showModule("ev") ? node("ev-node", "mdi:car-electric", "EV", "ev", `<span data-live="evSoc">--</span>% · kW`) : ""}
+          ${showBattery ? `<div class="flow-link horizontal battery-link bidirectional" data-flow-link="battery"><i></i><span data-live="batteryFlow">--</span></div>` : ""}
+          ${showBattery ? node("battery-node", "mdi:battery-charging-high", "MAGAZYN", "battery", `<span data-live="batterySoc">--</span>% · kW`) : ""}
+          ${hasLoads ? `<div class="flow-link vertical loads-link" data-flow-link="loads"><i></i><span>ODBIORNIKI</span></div><div class="flow-branch-bus load-bus">${loadBranches}</div>` : ""}
         </div>
       </div>`;
   }
@@ -678,8 +788,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return `<label class="field full"><span>${label}</span><textarea data-path="${path}" placeholder="${this._escAttr(placeholder)}" ${disabled}>${this._esc(value ?? "")}</textarea></label>`;
   }
 
-  _numberField(path, label, value, min, max, step, disabled = "") {
-    return `<label class="field"><span>${label}</span><input type="number" data-path="${path}" value="${this._escAttr(value ?? 0)}" min="${min}" max="${max}" step="${step}" ${disabled}></label>`;
+  _numberField(path, label, value, min, max, step, disabled = "", liveRerender = false) {
+    return `<label class="field"><span>${label}</span><input type="number" data-path="${path}" value="${this._escAttr(value ?? 0)}" min="${min}" max="${max}" step="${step}" ${liveRerender ? 'data-live-rerender="1"' : ""} ${disabled}></label>`;
   }
 
   _selectField(path, label, value, options, disabled = "", liveRerender = false) {
@@ -839,10 +949,13 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     }));
     this.shadowRoot.querySelector("[data-action='toggle-nav']")?.addEventListener("click", () => this.shadowRoot.querySelector(".sidebar")?.classList.toggle("open"));
     this.shadowRoot.querySelectorAll("[data-path]").forEach(el => {
-      const event = el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input";
+      const event = el.type === "checkbox" || el.tagName === "SELECT" || (el.type === "number" && el.dataset.liveRerender === "1") ? "change" : "input";
       el.addEventListener(event, () => {
         const value = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
         this._setPath(this._config, el.dataset.path, value);
+        if (el.dataset.path === "flow.title") {
+          this.shadowRoot.querySelectorAll(".flow-title>span").forEach(title => { title.textContent = value || "PRZEPŁYW ENERGII — NA ŻYWO"; });
+        }
         if (el.dataset.liveRerender === "1") {
           const scroll = this.shadowRoot.querySelector(".content")?.scrollTop || 0;
           requestAnimationFrame(() => {
@@ -1001,7 +1114,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _addString() {
     if (!this._isAdmin()) return;
     const n = this._config.pv_strings.length + 1;
-    this._config.pv_strings.push({ id: this._id("string"), name: `String ${n}`, description: "", mppt: `MPPT ${n}`, power_entity: "", energy_entity: "", voltage_entity: "", current_entity: "", status_entity: "", capacity_kw: 0, enabled: true, show_on_overview: true, sections: [] });
+    this._config.pv_strings.push({ id: this._id("string"), name: `String ${n}`, description: "", mppt: `MPPT ${n}`, power_entity: "", energy_entity: "", voltage_entity: "", current_entity: "", status_entity: "", capacity_kw: 0, enabled: true, show_on_overview: true, show_in_flow: true, flow_order: n, flow_label: "", flow_icon: "mdi:solar-panel-large", sections: [] });
     this._render();
   }
 
@@ -1019,7 +1132,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _addDevice() {
     if (!this._isAdmin()) return;
     const n = this._config.devices.length + 1;
-    this._config.devices.push({ id: this._id("device"), name: `Urządzenie ${n}`, description: "", category: "other", area: "", icon: "mdi:flash", accent: "cyan", power_entity: "", energy_entity: "", status_entity: "", cycle_entity: "", control_entity: "", active_threshold_w: 10, standby_threshold_w: 2, priority: n, active_description: "Urządzenie pracuje", idle_description: "Urządzenie nie pracuje", enabled: true, show_on_overview: true, include_in_home_total: true });
+    this._config.devices.push({ id: this._id("device"), name: `Urządzenie ${n}`, description: "", category: "other", area: "", icon: "mdi:flash", accent: "cyan", power_entity: "", energy_entity: "", status_entity: "", cycle_entity: "", control_entity: "", active_threshold_w: 10, standby_threshold_w: 2, priority: n, active_description: "Urządzenie pracuje", idle_description: "Urządzenie nie pracuje", enabled: true, show_on_overview: true, include_in_home_total: true, show_in_flow: false, flow_direction: "consumer", flow_order: n, flow_label: "" });
     this._render();
   }
 
@@ -1189,10 +1302,10 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     };
     this.shadowRoot.querySelectorAll("[data-live]").forEach(el => { const key = el.dataset.live; if (key in live) el.textContent = live[key]; });
     const setFlowDirection = (name, reverse, active) => {
-      const link = this.shadowRoot.querySelector(`[data-flow-link="${name}"]`);
-      if (!link) return;
-      link.classList.toggle("reverse", Boolean(reverse));
-      link.classList.toggle("idle", !active);
+      this.shadowRoot.querySelectorAll(`[data-flow-link="${name}"]`).forEach(link => {
+        link.classList.toggle("reverse", Boolean(reverse));
+        link.classList.toggle("idle", !active);
+      });
     };
     setFlowDirection("grid", v.gridExport > v.gridImport, Math.max(v.gridImport || 0, v.gridExport || 0) > 1);
     setFlowDirection("battery", v.batteryDischarge > v.batteryCharge, Math.max(v.batteryCharge || 0, v.batteryDischarge || 0) > 1);
@@ -1201,12 +1314,29 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-gauge]").forEach(el => { const val = Number(v[el.dataset.gauge] ?? 0); el.style.setProperty("--value", Math.max(0, Math.min(100, val))); });
     this.shadowRoot.querySelectorAll("[data-gauge-status]").forEach(el => { const val = v[el.dataset.gaugeStatus]; el.textContent = val == null ? "Brak danych" : val < 20 ? "Niski poziom" : val < 80 ? "Poziom roboczy" : "Wysoki poziom"; });
     this._updateDevicePowers();
+    this._updateFlowExtras(v);
     this._updateConsumers();
     this._drawSparklines();
     const count = Object.keys(this._hass?.states || {}).length;
     const footerEntities = this.shadowRoot.querySelector("[data-footer-entities]"); if (footerEntities) footerEntities.textContent = `Encje HA: ${count}`;
     const footerDevices = this.shadowRoot.querySelector("[data-footer-devices]"); if (footerDevices) footerDevices.textContent = `Urządzenia: ${this._config.devices.length}`;
     const footerStrings = this.shadowRoot.querySelector("[data-footer-strings]"); if (footerStrings) footerStrings.textContent = `Stringi PV: ${this._config.pv_strings.length}`;
+  }
+
+  _pvStringRuntime(item, index) {
+    const backend = (this._runtime?.pv_strings || []).find(entry => entry.id === item.id) || (this._runtime?.pv_strings || [])[index] || {};
+    let power = backend.power ?? this._readPower(item.power_entity);
+    if (power == null) {
+      let total = 0, found = false;
+      for (const section of item.sections || []) {
+        if (section.enabled === false) continue;
+        const value = this._readPower(section.power_entity);
+        if (value != null) { total += value; found = true; }
+      }
+      power = found ? total : null;
+    }
+    const status = backend.status ?? (item.status_entity ? this._hass?.states?.[item.status_entity]?.state : null);
+    return { ...backend, power, status };
   }
 
   _deviceRuntime(device, index) {
@@ -1216,6 +1346,53 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const active = backend.is_active ?? (power != null && power >= threshold);
     const description = backend.display_description || (active ? device.active_description : device.idle_description) || device.description || (active ? "Urządzenie pracuje" : "Urządzenie nie pracuje");
     return { ...backend, power, active, description };
+  }
+
+  _updateFlowExtras(values = this._runtimeValues()) {
+    let anySource = false;
+    let anyLoad = Boolean(this.shadowRoot.querySelector('[data-flow-core-branch="ev"]')) && (values.ev || 0) > 1;
+    const updateText = (selector, value) => this.shadowRoot.querySelectorAll(selector).forEach(el => { el.textContent = value; });
+    const updateBranch = (selector, active) => this.shadowRoot.querySelectorAll(selector).forEach(el => {
+      el.classList.toggle("is-active", active);
+      el.classList.toggle("is-idle", !active);
+    });
+    const updateWire = (key, active, reverse = false) => this.shadowRoot.querySelectorAll(`[data-flow-extra-link="${key}"]`).forEach(el => {
+      el.classList.toggle("idle", !active);
+      el.classList.toggle("reverse", reverse);
+    });
+
+    (this._config.pv_strings || []).forEach((item, index) => {
+      const runtime = this._pvStringRuntime(item, index);
+      const active = Math.abs(Number(runtime.power || 0)) > 1;
+      const rendered = this.shadowRoot.querySelector(`[data-flow-string-branch="${index}"]`);
+      anySource ||= Boolean(rendered) && active;
+      updateText(`[data-flow-string-power="${index}"]`, this._kw(runtime.power));
+      updateText(`[data-flow-string-status="${index}"]`, runtime.status || item.mppt || "PV");
+      updateBranch(`[data-flow-string-branch="${index}"]`, active);
+      updateWire(`string-${index}`, active, false);
+    });
+
+    (this._config.devices || []).forEach((item, index) => {
+      const runtime = this._deviceRuntime(item, index);
+      const power = runtime.power == null ? null : Number(runtime.power);
+      const active = power != null && Math.abs(power) >= Number(item.active_threshold_w ?? 10);
+      const direction = item.flow_direction || "consumer";
+      const reverse = direction === "bidirectional" && power != null && power < 0;
+      const rendered = this.shadowRoot.querySelector(`[data-flow-device-branch="${index}"]`);
+      if (rendered && active) {
+        if (direction === "source") anySource = true;
+        else anyLoad = true;
+      }
+      updateText(`[data-flow-device-flow-power="${index}"]`, this._kw(power == null ? null : Math.abs(power)));
+      updateText(`[data-flow-device-status="${index}"]`, runtime.cycle_state || runtime.status || item.area || runtime.description || "Urządzenie");
+      updateBranch(`[data-flow-device-branch="${index}"]`, active);
+      updateWire(`device-${index}`, active, reverse);
+    });
+
+    updateBranch('[data-flow-core-branch="ev"]', (values.ev || 0) > 1);
+    updateWire("ev", (values.ev || 0) > 1, false);
+    this.shadowRoot.querySelectorAll('[data-flow-link="sources"]').forEach(el => el.classList.toggle("idle", !anySource));
+    this.shadowRoot.querySelectorAll('[data-flow-link="loads"]').forEach(el => el.classList.toggle("idle", !anyLoad));
   }
 
   _updateDevicePowers() {
@@ -1337,6 +1514,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     @media(max-width:560px){.metrics-grid,.bottom-grid,.flow-details,.pv-summary,.four-grid,.three-grid,.mapping-grid,.section-grid,.device-live-grid,.two-grid,.tariff-live-grid,.season-schedule-grid,.price-config-grid{grid-template-columns:1fr}.hero-row{flex-direction:column}.flow-node{width:90px;height:95px}.pv-node,.home-node,.ev-node{left:calc(50% - 45px)}.grid-node{left:1%}.battery-node{right:1%}.flow-label{display:none}.consumer{grid-template-columns:90px 1fr 55px}.status-message{max-width:70%}}
     @media(max-width:850px){.matrix-shell.no-statusbar{grid-template-rows:58px 1fr;grid-template-areas:"top" "main"}.matrix-shell.compact-header.no-statusbar{grid-template-rows:50px 1fr}.flow-canvas{min-height:390px!important;padding:10px}.flow-canvas.large{min-height:470px!important}.flow-grid{grid-template-columns:minmax(86px,1fr) minmax(24px,.42fr) minmax(112px,.9fr) minmax(24px,.42fr) minmax(86px,1fr);grid-template-rows:minmax(90px,1fr) minmax(30px,.4fr) minmax(112px,1.05fr) minmax(30px,.4fr) minmax(90px,1fr)}.flow-grid .flow-node{width:96px!important;height:96px!important}.flow-grid .home-node{width:116px!important;height:116px!important}.flow-link span{font-size:8px;min-width:45px;padding:3px 5px}.entity-modal{padding:10px}.entity-dialog{width:100%;height:94vh}.entity-result{grid-template-columns:30px minmax(0,1fr) auto}.compat-badge{display:none}}
     @media(max-width:560px){.flow-canvas{min-height:350px!important;padding:5px}.flow-grid{grid-template-columns:minmax(72px,1fr) 18px minmax(92px,.85fr) 18px minmax(72px,1fr);grid-template-rows:82px 24px 98px 24px 82px}.flow-grid .flow-node{width:78px!important;height:82px!important;border-radius:14px}.flow-grid .home-node{width:98px!important;height:98px!important}.flow-grid .flow-node ha-icon{width:25px;height:25px}.flow-grid .flow-node b{font-size:9px}.flow-grid .flow-node strong{font-size:16px}.flow-grid .flow-node small{font-size:7px}.flow-link span{display:none}.entity-dialog-head{padding:13px}.entity-search-row{margin:10px}.entity-filter-row{padding:0 10px 8px;flex-wrap:wrap}.entity-filter-row small{width:100%;margin-left:0}.entity-current{margin:0 10px 7px}.entity-results{padding:0 10px 10px}.entity-result{min-height:60px;padding:7px;grid-template-columns:26px minmax(0,1fr) auto}.entity-result-state{max-width:92px;font-size:8px}.entity-dialog-footer{padding:8px 10px}}
+
+    /* v0.4 — configurable flow window with PV strings and additional device branches. */
+    .flow-config-section{display:grid;grid-template-columns:minmax(520px,1.05fr) minmax(520px,.95fr);gap:10px;margin-bottom:10px}.flow-config-editor{padding:8px 14px 16px}.flow-config-preview{padding:4px 8px 8px;min-width:0}.preview-badge{position:absolute;right:14px;top:42px;z-index:5;border:1px solid rgba(82,255,98,.35);border-radius:999px;background:rgba(3,20,25,.92);color:var(--green);padding:5px 8px;display:flex;align-items:center;gap:5px;font-size:8px;font-weight:900}.preview-badge ha-icon{width:14px;height:14px}.flow-checks .check-row{border:1px solid rgba(32,234,255,.12);border-radius:10px;padding:10px;background:rgba(0,75,110,.05)}
+    .flow-canvas-v4{--source-row:108px;--source-link-row:34px;--pv-row:132px;--pv-link-row:42px;--core-row:158px;--load-link-row:38px;--load-row:112px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 28px)!important;height:auto!important;overflow:auto;padding:14px}.flow-canvas-v4.no-sources{--source-row:0px;--source-link-row:0px}.flow-canvas-v4.no-pv{--pv-row:0px;--pv-link-row:0px}.flow-canvas-v4.no-loads{--load-link-row:0px;--load-row:0px}.flow-canvas-v4.density-compact{--source-row:90px;--source-link-row:26px;--pv-row:108px;--pv-link-row:32px;--core-row:130px;--load-link-row:30px;--load-row:94px}.flow-canvas-v4.layout-wide .flow-grid-v4{width:min(100%,1280px)}.flow-canvas-v4.layout-compact .flow-grid-v4{width:min(100%,880px)}.flow-canvas-v4.density-spacious{--source-row:126px;--source-link-row:42px;--pv-row:150px;--pv-link-row:50px;--core-row:178px;--load-link-row:46px;--load-row:130px}.flow-canvas-v4.preview{--source-row:86px;--source-link-row:24px;--pv-row:102px;--pv-link-row:28px;--core-row:122px;--load-link-row:26px;--load-row:90px;padding:10px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 20px)!important}
+    .flow-grid-v4{position:relative;width:min(100%,1080px);min-width:520px;min-height:0!important;height:auto!important;display:grid;grid-template-columns:minmax(106px,1fr) minmax(38px,.52fr) minmax(136px,.85fr) minmax(38px,.52fr) minmax(106px,1fr);grid-template-rows:var(--source-row) var(--source-link-row) var(--pv-row) var(--pv-link-row) var(--core-row) var(--load-link-row) var(--load-row);align-items:center;justify-items:center;gap:0}.flow-grid-v4 .flow-node{width:clamp(106px,10vw,138px)!important;height:clamp(106px,10vw,138px)!important}.flow-grid-v4 .home-node{grid-column:3;grid-row:5;width:clamp(126px,11.5vw,158px)!important;height:clamp(126px,11.5vw,158px)!important}.flow-grid-v4 .pv-node{grid-column:3;grid-row:3}.flow-grid-v4 .grid-node{grid-column:1;grid-row:5}.flow-grid-v4 .battery-node{grid-column:5;grid-row:5}.flow-grid-v4 .pv-link{grid-column:3;grid-row:4}.flow-grid-v4 .grid-link{grid-column:2;grid-row:5}.flow-grid-v4 .battery-link{grid-column:4;grid-row:5}.flow-grid-v4 .source-link{--link:var(--green);grid-column:3;grid-row:2}.flow-grid-v4 .loads-link{--link:var(--cyan);grid-column:3;grid-row:6}.flow-canvas-v4.no-pv .source-link{grid-row:2/5}.flow-canvas-v4.no-pv.no-sources .home-node,.flow-canvas-v4.no-pv.no-sources .grid-node,.flow-canvas-v4.no-pv.no-sources .battery-node,.flow-canvas-v4.no-pv.no-sources .grid-link,.flow-canvas-v4.no-pv.no-sources .battery-link{grid-row:5}
+    .flow-branch-bus{position:relative;z-index:2;grid-column:1/-1;width:100%;height:100%;display:flex;align-items:stretch;justify-content:center;gap:var(--branch-gap);padding:0 max(8px,var(--branch-gap));overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(32,234,255,.35) transparent}.source-bus{grid-row:1}.load-bus{grid-row:7}.flow-branch-bus:after{content:"";position:absolute;left:8%;right:8%;height:2px;background:rgba(32,234,255,.32);box-shadow:0 0 8px rgba(32,234,255,.3);z-index:-1}.source-bus:after{bottom:0;background:rgba(82,255,98,.35);box-shadow:0 0 8px rgba(82,255,98,.32)}.load-bus:after{top:0}.flow-branch{--branch-color:var(--cyan);position:relative;flex:0 1 128px;min-width:92px;max-width:150px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;transition:opacity .2s,filter .2s}.flow-branch.accent-green{--branch-color:var(--green)}.flow-branch.accent-lime{--branch-color:var(--lime)}.flow-branch.accent-orange{--branch-color:var(--orange)}.flow-branch.accent-purple{--branch-color:var(--purple)}.flow-branch.is-idle{opacity:.58;filter:saturate(.55)}.flow-branch.hidden-when-idle.is-idle{display:none}.flow-extra-node{position:relative;width:100%;min-height:76px;border:1px solid color-mix(in srgb,var(--branch-color) 58%,transparent);border-radius:13px;background:radial-gradient(circle at 10% 10%,color-mix(in srgb,var(--branch-color) 12%,transparent),transparent 45%),rgba(2,12,24,.97);box-shadow:0 0 15px color-mix(in srgb,var(--branch-color) 12%,transparent),inset 0 0 18px rgba(0,120,180,.04);display:grid;grid-template-columns:29px minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;column-gap:6px;padding:8px 9px;color:white}.flow-extra-node>ha-icon{grid-column:1;grid-row:1/4;align-self:center;width:25px;height:25px;color:var(--branch-color);filter:drop-shadow(0 0 6px currentColor)}.flow-extra-node>b{grid-column:2;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.flow-extra-value{grid-column:2;display:flex;align-items:baseline;gap:3px}.flow-extra-value strong{font:16px monospace;color:var(--branch-color)}.flow-extra-value span{font-size:7px;color:#85a8b5}.flow-extra-node>small{grid-column:2;display:block;max-width:100%;font-size:7px;color:#658d9c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.branch-wire{position:relative;display:block;width:20px;flex:1;min-height:10px;overflow:hidden}.branch-wire:before{content:"";position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:color-mix(in srgb,var(--branch-color) 55%,transparent);box-shadow:0 0 6px color-mix(in srgb,var(--branch-color) 55%,transparent)}.branch-wire i{position:absolute;left:calc(50% - 2px);top:-35%;width:4px;height:35%;border-radius:999px;background:linear-gradient(180deg,transparent,var(--branch-color),#fff,var(--branch-color),transparent);box-shadow:0 0 10px var(--branch-color);animation:flow-y 1.3s linear infinite}.branch-wire.reverse i{animation-direction:reverse}.branch-wire.idle i{animation-play-state:paused;opacity:.15}.branch-wire.idle:before{opacity:.35}.source-branch .flow-extra-node{order:1}.source-branch .branch-wire{order:2}.load-branch .branch-wire{order:1}.load-branch .flow-extra-node{order:2}.flow-branch.is-active .flow-extra-node{box-shadow:0 0 22px color-mix(in srgb,var(--branch-color) 21%,transparent),inset 0 0 20px color-mix(in srgb,var(--branch-color) 7%,transparent)}
+    .flow-canvas-v4.node-style-technical .flow-node,.flow-canvas-v4.node-style-technical .flow-extra-node{border-radius:2px}.flow-canvas-v4.node-style-technical .home-node{border-radius:50%}.flow-canvas-v4.node-style-soft .flow-node,.flow-canvas-v4.node-style-soft .flow-extra-node{border-radius:26px;background:radial-gradient(circle at 30% 15%,rgba(32,234,255,.14),rgba(2,12,24,.96))}.flow-canvas-v4.hide-labels .flow-node>b,.flow-canvas-v4.hide-labels .flow-extra-node>b{display:none}.flow-canvas-v4.hide-values .flow-node strong,.flow-canvas-v4.hide-values .flow-extra-value,.flow-canvas-v4.hide-values .flow-link span[data-live]{display:none}.flow-canvas-v4.hide-status .flow-extra-node>small{display:none}.flow-canvas-v4.hide-connectors .flow-link,.flow-canvas-v4.hide-connectors .branch-wire,.flow-canvas-v4.hide-connectors .flow-branch-bus:after{opacity:0}.flow-canvas-v4.speed-slow .flow-link i,.flow-canvas-v4.speed-slow .branch-wire i{animation-duration:2.4s}.flow-canvas-v4.speed-fast .flow-link i,.flow-canvas-v4.speed-fast .branch-wire i{animation-duration:.7s}.flow-canvas-v4.preview .flow-node{width:100px!important;height:100px!important}.flow-canvas-v4.preview .home-node{width:116px!important;height:116px!important}.flow-canvas-v4.preview .flow-extra-node{min-height:66px}.flow-canvas-v4.preview .flow-extra-value strong{font-size:14px}
+    @media(max-width:1300px){.flow-config-section{grid-template-columns:1fr}.flow-config-preview{min-height:520px}}
+    @media(max-width:850px){.flow-canvas-v4{padding:8px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 16px)!important}.flow-grid-v4{min-width:460px;grid-template-columns:minmax(88px,1fr) 26px minmax(112px,.86fr) 26px minmax(88px,1fr)}.flow-grid-v4 .flow-node{width:94px!important;height:94px!important}.flow-grid-v4 .home-node{width:116px!important;height:116px!important}.flow-branch{min-width:86px;max-width:112px}.flow-extra-node{padding:6px;grid-template-columns:24px minmax(0,1fr)}.flow-extra-node>ha-icon{width:21px;height:21px}.flow-extra-value strong{font-size:14px}.flow-config-preview{min-height:470px}}
+    @media(max-width:560px){.flow-config-section{display:block}.flow-config-editor,.flow-config-preview{margin-bottom:10px}.flow-canvas-v4{overflow-x:auto!important;min-height:0!important}.flow-grid-v4{min-width:420px}.flow-canvas-v4 .flow-link span{display:none}.flow-branch{min-width:80px}.flow-extra-node>b{font-size:8px}.flow-extra-node>small{font-size:6px}.preview-badge{display:none}}
   `; }
 }
 

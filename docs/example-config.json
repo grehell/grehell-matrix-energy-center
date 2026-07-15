@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "revision": 1,
   "general": {
     "installation_name": "Example Home",
@@ -127,7 +127,30 @@
       "current_entity": "",
       "status_entity": "",
       "enabled": true,
-      "show_on_overview": true
+      "show_on_overview": true,
+      "show_in_flow": true,
+      "flow_order": 1,
+      "flow_label": "String PV 1",
+      "flow_icon": "mdi:solar-panel-large"
+    },
+    {
+      "id": "string_2",
+      "name": "MPPT 2",
+      "description": "Second independent PV string",
+      "power_entity": "sensor.example_string_2_power",
+      "energy_entity": "sensor.example_string_2_energy",
+      "capacity_kw": 4.2,
+      "sections": [],
+      "mppt": "MPPT 2",
+      "voltage_entity": "sensor.example_string_2_voltage",
+      "current_entity": "sensor.example_string_2_current",
+      "status_entity": "sensor.example_string_2_status",
+      "enabled": true,
+      "show_on_overview": true,
+      "show_in_flow": true,
+      "flow_order": 2,
+      "flow_label": "String PV 2",
+      "flow_icon": "mdi:solar-panel-large"
     }
   ],
   "devices": [
@@ -151,7 +174,11 @@
       "priority": 1,
       "active_description": "Urządzenie pracuje",
       "idle_description": "Urządzenie nie pracuje",
-      "show_on_overview": true
+      "show_on_overview": true,
+      "show_in_flow": true,
+      "flow_direction": "consumer",
+      "flow_order": 1,
+      "flow_label": "Zmywarka"
     }
   ],
   "tariffs": [],
@@ -257,5 +284,21 @@
     "show_status_bar": true,
     "show_unconfigured_cards": true,
     "flow_density": "comfortable"
+  },
+  "flow": {
+    "title": "PRZEPŁYW ENERGII — NA ŻYWO",
+    "layout": "automatic",
+    "node_style": "rounded",
+    "animation_speed": "normal",
+    "show_pv_strings": true,
+    "show_devices": true,
+    "show_labels": true,
+    "show_values": true,
+    "show_status": true,
+    "show_connectors": true,
+    "hide_inactive_devices": false,
+    "max_pv_strings": 6,
+    "max_devices": 6,
+    "branch_gap": 12
   }
 }

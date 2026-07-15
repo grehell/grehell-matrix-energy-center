@@ -29,7 +29,7 @@ from .tariff import (
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -59,6 +59,22 @@ def default_configuration() -> dict[str, Any]:
             "show_status_bar": True,
             "show_unconfigured_cards": True,
             "flow_density": "comfortable",
+        },
+        "flow": {
+            "title": "PRZEPŁYW ENERGII — NA ŻYWO",
+            "layout": "automatic",
+            "node_style": "rounded",
+            "animation_speed": "normal",
+            "show_pv_strings": True,
+            "show_devices": True,
+            "show_labels": True,
+            "show_values": True,
+            "show_status": True,
+            "show_connectors": True,
+            "hide_inactive_devices": False,
+            "max_pv_strings": 6,
+            "max_devices": 6,
+            "branch_gap": 12,
         },
         "mappings": {role: "" for role in MAPPING_ROLES},
         "pv_strings": [],
@@ -129,6 +145,7 @@ class MatrixEnergyStore:
             "automation",
             "permissions",
             "appearance",
+            "flow",
         ):
             value = loaded.get(section)
             if isinstance(value, dict):
@@ -146,7 +163,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 3
+        config["schema_version"] = 4
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -176,6 +193,34 @@ class MatrixEnergyStore:
                     )
                 else:
                     config[section][key] = bool(incoming[key])
+
+        flow = raw.get("flow", {})
+        if not isinstance(flow, dict):
+            raise ValueError("flow must be an object")
+        config["flow"].update(
+            {
+                "title": self._text(flow.get("title"), "PRZEPŁYW ENERGII — NA ŻYWO", 100),
+                "layout": self._choice(
+                    flow.get("layout"), "automatic", {"automatic", "compact", "wide"}
+                ),
+                "node_style": self._choice(
+                    flow.get("node_style"), "rounded", {"rounded", "technical", "soft"}
+                ),
+                "animation_speed": self._choice(
+                    flow.get("animation_speed"), "normal", {"slow", "normal", "fast"}
+                ),
+                "show_pv_strings": bool(flow.get("show_pv_strings", True)),
+                "show_devices": bool(flow.get("show_devices", True)),
+                "show_labels": bool(flow.get("show_labels", True)),
+                "show_values": bool(flow.get("show_values", True)),
+                "show_status": bool(flow.get("show_status", True)),
+                "show_connectors": bool(flow.get("show_connectors", True)),
+                "hide_inactive_devices": bool(flow.get("hide_inactive_devices", False)),
+                "max_pv_strings": int(self._number(flow.get("max_pv_strings"), 6, 0, 16)),
+                "max_devices": int(self._number(flow.get("max_devices"), 6, 0, 24)),
+                "branch_gap": int(self._number(flow.get("branch_gap"), 12, 4, 40)),
+            }
+        )
 
         mappings = raw.get("mappings", {})
         if not isinstance(mappings, dict):
@@ -330,6 +375,10 @@ class MatrixEnergyStore:
                     "capacity_kw": self._number(item.get("capacity_kw"), 0, 0, 100000),
                     "enabled": bool(item.get("enabled", True)),
                     "show_on_overview": bool(item.get("show_on_overview", True)),
+                    "show_in_flow": bool(item.get("show_in_flow", True)),
+                    "flow_order": int(self._number(item.get("flow_order"), index + 1, 0, 10000)),
+                    "flow_label": self._text(item.get("flow_label"), "", 80),
+                    "flow_icon": self._text(item.get("flow_icon"), "mdi:solar-panel-large", 80),
                     "sections": sections,
                 }
             )
@@ -369,6 +418,16 @@ class MatrixEnergyStore:
                     "enabled": bool(item.get("enabled", True)),
                     "show_on_overview": bool(item.get("show_on_overview", True)),
                     "include_in_home_total": bool(item.get("include_in_home_total", True)),
+                    "show_in_flow": bool(item.get("show_in_flow", False)),
+                    "flow_direction": self._choice(
+                        item.get("flow_direction"),
+                        "consumer",
+                        {"consumer", "source", "bidirectional"},
+                    ),
+                    "flow_order": int(
+                        self._number(item.get("flow_order"), item.get("priority", index + 1), 0, 10000)
+                    ),
+                    "flow_label": self._text(item.get("flow_label"), "", 80),
                 }
             )
         return result

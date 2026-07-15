@@ -4,12 +4,15 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.3.0 technical preview**. Monitoring, configuration, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.4.0 technical preview**. Monitoring, configuration, the configurable multi-branch flow window, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
 - Custom sidebar panel with Matrix Blue styling and responsive desktop/mobile layout.
-- Live flow diagram: grid ↔ home ↔ battery, PV → home and home → EV.
+- Configurable live flow diagram: PV strings and additional sources → PV/home, grid ↔ home ↔ battery, and home ↔ EV/additional devices.
+- Separate graphic nodes for multiple PV strings, including independent live power and status.
+- Optional flow nodes for arbitrary devices configured as a source, consumer or bidirectional device.
+- Flow-window editor with live preview, layout, node style, animation speed, visibility, item limits, order and spacing controls.
 - Generic source mapping; no user entity IDs are hardcoded.
 - Normalized Home Assistant sensors in W, kWh, %, currency/kWh and currency/hour.
 - Signed grid and battery power with configurable direction conventions.
@@ -25,7 +28,7 @@
 - Diagnostics view for entity availability, units, device classes, tariff state and runtime values.
 - English and Polish configuration-flow translations.
 - HACS-ready repository layout, HACS and Hassfest workflows.
-- Responsive CSS-grid flow canvas whose connectors remain aligned with their source and destination nodes.
+- Responsive CSS-grid flow canvas with source/load branch buses whose connectors remain aligned with their nodes.
 - Live module visibility: enabling or disabling a module immediately rebuilds navigation, overview metrics, flow nodes and configuration sections.
 - Home Assistant-style entity search over the live state registry, including friendly name, entity ID, current state, unit, device class, device, area and source integration.
 - Extended mappings for grid quality, inverter diagnostics, PV forecasts, BMS data, EV charging details and day/month costs.
@@ -75,7 +78,7 @@ The project never contains private entity IDs, IP addresses, usernames, tokens o
 
 ## TAURON G13
 
-Version 0.3 retains the complete editable G13 profile and adds a substantially expanded configuration and entity-selection layer. The default schedule follows TAURON's published rules:
+Version 0.4 retains the complete editable G13 profile and adds a configurable multi-branch energy-flow window. The default schedule follows TAURON's published rules:
 
 - summer period: 1 April–30 September,
 - winter period: 1 October–31 March,
@@ -137,7 +140,7 @@ A section may have its own sensor. When only a string-level sensor exists, the p
 
 ## Appliance controls
 
-Version 0.3 supports generic control buttons for:
+Version 0.4 supports generic control buttons for:
 
 - `switch.*`
 - `input_boolean.*`
@@ -159,7 +162,7 @@ Other domains will receive dedicated adapters in later versions.
 - Historical charts contain real samples collected while the panel is open; recorder-backed historical charts are planned.
 - The tariff engine calculates the active price and live cost rate, but persistent day/month invoice aggregation is not yet implemented.
 - Energy prices and fixed fees must be reviewed whenever the user's contract or official tariff changes.
-- Automatic inverter, battery and EV control is not executed in v0.3.
+- Automatic inverter, battery and EV control is not executed in v0.4.
 - Dynamic per-appliance entities are not created yet; additional appliances are displayed and managed in the panel.
 
 ## Documentation
@@ -168,7 +171,8 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v0.3 (PL)](docs/STATUS_PL.md)
+- [Status wersji v0.4 (PL)](docs/STATUS_PL.md)
+- [Informacje o wydaniu v0.4 (PL)](docs/RELEASE_0_4_PL.md)
 - [Example configuration](docs/example-config.json)
 
 ## License

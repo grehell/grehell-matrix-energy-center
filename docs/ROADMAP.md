@@ -35,7 +35,17 @@
 - appliance status, cycle, thresholds, priorities and contextual descriptions,
 - configuration schema migration to version 3.
 
-## v0.4 — recorder analytics and billing
+## v0.4 — configurable multi-branch flow window
+
+- independent nodes for multiple PV strings,
+- additional source, consumer and bidirectional device nodes,
+- source and load branch buses,
+- per-item visibility, order, label and icon,
+- flow editor with live preview,
+- layout, style, animation, spacing and visibility controls,
+- configuration schema migration to version 4.
+
+## v0.5 — recorder analytics and billing
 
 - recorder-backed day/week/month/year charts,
 - energy aggregation by G13 zone and season,
@@ -45,7 +55,7 @@
 - invoice estimate and actual invoice comparison,
 - configuration backup versioning.
 
-## v0.5 — vendor profiles
+## v0.6 — vendor profiles
 
 - Deye / Sunsynk,
 - Huawei,
@@ -57,7 +67,7 @@
 - generic Modbus mapping assistant,
 - Pstryk and other dynamic-price adapters.
 
-## v0.6 — EV and battery control
+## v0.7 — EV and battery control
 
 - EV charger profiles,
 - surplus-PV charging,
@@ -66,7 +76,7 @@
 - battery reserve and time-of-use policies,
 - simulation and dry-run decisions.
 
-## v0.7 — multi-site and permissions
+## v0.8 — multi-site and permissions
 
 - multiple sites or buildings,
 - configuration subentries,

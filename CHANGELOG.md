@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-07-15
+
+- Added independent PV-string nodes to the main live energy-flow diagram.
+- Added optional flow nodes for arbitrary configured devices.
+- Added source, consumer and bidirectional device roles with direction-aware animations.
+- Added per-string and per-device flow visibility, order, label and icon settings.
+- Added a dedicated flow-window editor with a live preview.
+- Added automatic, compact and wide layouts; rounded, technical and soft node styles.
+- Added configurable animation speed, branch spacing, PV-string/device limits, value/status visibility and inactive-device hiding.
+- Added responsive source and load branch buses while retaining the central grid, PV, home and battery topology.
+- Added configuration schema version 4 with automatic migration from v0.1–v0.3.
+- Updated the frontend cache key, package metadata, examples and release documentation to v0.4.0.
+
 ## 0.3.0 — 2026-07-15
 
 - Rebuilt the live flow diagram on a responsive CSS grid so nodes and connectors stay aligned on desktop, tablet and mobile.
