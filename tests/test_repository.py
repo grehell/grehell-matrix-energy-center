@@ -13,7 +13,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.2"
+    assert manifest["version"] == "0.6.3"
 
 
 def test_hacs_manifest() -> None:
@@ -64,6 +64,14 @@ def test_frontend_v06_features() -> None:
     assert "add-kiosk-profile" in frontend
     assert "rotation_seconds" in frontend
     assert "night_brightness" in frontend
+    assert "tablet_16_9" in frontend
+    assert "display-tablet_16_9" in frontend
+    assert "max_bubbles" in frontend
+    assert "chart_columns" in frontend
+    assert "border_radius" in frontend
+    assert "border_color" in frontend
+    assert "value_color" in frontend
+    assert "icon_color" in frontend
     assert "tap_action" in frontend
 
 
@@ -84,6 +92,13 @@ def test_configuration_schema_v6() -> None:
     assert '"series"' in storage
     assert '"history_range"' in storage
     assert '"kiosk_profiles"' in storage
+    assert '"display_preset": "tablet_16_9"' in storage
+    assert '"max_bubbles": 6' in storage
+    assert '"chart_columns": 2' in storage
+    assert '"border_radius"' in storage
+    assert '"border_width"' in storage
+    assert '"value_color"' in storage
+    assert '"description_color"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
@@ -104,4 +119,11 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["show_custom_bubbles"] is True
     assert example["kiosk"]["rotation_enabled"] is True
     assert example["kiosk"]["night_enabled"] is True
+    assert example["kiosk"]["display_preset"] == "tablet_16_9"
+    assert example["kiosk"]["max_bubbles"] == 6
+    assert example["kiosk"]["chart_columns"] == 2
+    assert example["overview_bubbles"][0]["border_radius"] == 16
+    assert example["overview_bubbles"][0]["border_width"] == 2
+    assert example["overview_bubbles"][0]["value_color"] == "#b8ff3d"
+    assert example["overview_bubbles"][0]["related_entities"][0]["value_size"] == 10
     assert example["kiosk_profiles"][0]["id"] == "salon"

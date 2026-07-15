@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.6.2 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.6.3 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
@@ -14,15 +14,15 @@
 - Optional flow nodes for arbitrary devices configured as a source, consumer or bidirectional device.
 - Flow-window editor with live preview, layout, node style, animation speed, visibility, item limits, order and spacing controls.
 - Configurable overview bubbles for any Home Assistant entity or entity attribute.
-- Per-bubble name, description, MDI icon, foreground/background colors, unit, precision, multiplier, order and session sparkline.
-- A secondary value and up to eight related entities inside one bubble, each with its own label, color, unit, precision and multiplier.
+- Per-bubble name, description, MDI icon, independent frame/background/icon/name/value/unit/description colors, frame width/radius, sizes, padding, alignment, unit, precision, multiplier, order and session sparkline.
+- A secondary value and up to eight related entities inside one bubble, each with its own label, value and unit colors, size, unit, precision and multiplier.
 - Fixed or threshold-driven bubble colors, unavailable/alarm colors and visual alerts.
 - Additional line, area and grouped bar charts with up to nine related series on one shared timeline.
 - Session, 24-hour, 7-day and 30-day history ranges backed by Home Assistant Recorder/Statistics when available.
 - Click actions for bubbles and charts: more-info dialog, local navigation or a Home Assistant service call.
 - Drag-and-drop bubble/chart ordering in the Widgets editor.
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
-- Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming and three flow-diagram heights.
+- Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
 - Native `custom:matrix-energy-flow-card` for Lovelace dashboards; no self-iframe or reserved-character URL workaround is required.
 - Generic source mapping; no user entity IDs are hardcoded.
 - Normalized Home Assistant sensors in W, kWh, %, currency/kWh and currency/hour.
@@ -73,7 +73,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 0.6.2 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 0.6.3 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -201,7 +201,7 @@ Other domains will receive dedicated adapters in later versions.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Status wersji v0.6 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v0.6.2 (PL)](docs/RELEASE_0_6_2_PL.md)
+- [Informacje o wydaniu v0.6.3 (PL)](docs/RELEASE_0_6_3_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.3 — 2026-07-16
+
+- Added a dedicated Samsung Galaxy Tab A9 landscape 16:9 kiosk display preset.
+- Added per-kiosk display preset, compact header, bubble limit and chart-column controls.
+- Reworked kiosk viewport sizing to use the dynamic viewport height without page scrolling.
+- Added compact 16:9 flow nodes, metrics, charts, summary panels, navigation and status bar.
+- Added rounded frames to all top metric bubbles.
+- Added per-bubble colors for frame, background, icon, name, value, unit and description.
+- Added configurable frame width/radius, icon/value size, padding, alignment and element visibility.
+- Added independent label, value and unit styling for secondary and related entities.
+
 ## 0.6.2 — 2026-07-16
 
 - Reissued the complete v0.6 frontend after the incorrect `v0.6.1` tag pointed to files whose manifest still declared v0.5.0.

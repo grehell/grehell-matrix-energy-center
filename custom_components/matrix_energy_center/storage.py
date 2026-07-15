@@ -85,6 +85,10 @@ def default_configuration() -> dict[str, Any]:
         },
         "kiosk": {
             "title": "PRZEPŁYW ENERGII",
+            "display_preset": "tablet_16_9",
+            "compact_header": True,
+            "max_bubbles": 6,
+            "chart_columns": 2,
             "show_clock": True,
             "show_builtin_bubbles": True,
             "show_custom_bubbles": True,
@@ -284,6 +288,14 @@ class MatrixEnergyStore:
         config["kiosk"].update(
             {
                 "title": self._text(kiosk.get("title"), "PRZEPŁYW ENERGII", 100),
+                "display_preset": self._choice(
+                    kiosk.get("display_preset"),
+                    "tablet_16_9",
+                    {"auto", "tablet_16_9", "desktop"},
+                ),
+                "compact_header": bool(kiosk.get("compact_header", True)),
+                "max_bubbles": int(self._number(kiosk.get("max_bubbles"), 6, 1, 16)),
+                "chart_columns": int(self._number(kiosk.get("chart_columns"), 2, 1, 4)),
                 "show_clock": bool(kiosk.get("show_clock", True)),
                 "show_builtin_bubbles": bool(kiosk.get("show_builtin_bubbles", True)),
                 "show_custom_bubbles": bool(kiosk.get("show_custom_bubbles", True)),
@@ -387,6 +399,15 @@ class MatrixEnergyStore:
                             related.get("multiplier"), 1, -1_000_000, 1_000_000
                         ),
                         "color": self._color(related.get("color"), "#8eb5c3"),
+                        "label_color": self._color(
+                            related.get("label_color"), "#7195a2"
+                        ),
+                        "unit_color": self._color(
+                            related.get("unit_color"), "#7898a4"
+                        ),
+                        "value_size": int(
+                            self._number(related.get("value_size"), 10, 7, 24)
+                        ),
                         "enabled": bool(related.get("enabled", True)),
                     }
                 )
@@ -408,10 +429,52 @@ class MatrixEnergyStore:
                     "secondary_multiplier": self._number(
                         item.get("secondary_multiplier"), 1, -1_000_000, 1_000_000
                     ),
+                    "secondary_color": self._color(
+                        item.get("secondary_color"), self._color(item.get("color"), "#20eaff")
+                    ),
+                    "secondary_label_color": self._color(
+                        item.get("secondary_label_color"), "#88afbd"
+                    ),
+                    "secondary_unit_color": self._color(
+                        item.get("secondary_unit_color"), "#7898a4"
+                    ),
+                    "secondary_value_size": int(
+                        self._number(item.get("secondary_value_size"), 11, 7, 28)
+                    ),
                     "related_entities": related_entities,
                     "icon": self._text(item.get("icon"), "mdi:information-outline", 80),
                     "color": self._color(item.get("color"), "#20eaff"),
                     "background_color": self._color(item.get("background_color"), "#031426"),
+                    "icon_color": self._color(
+                        item.get("icon_color"), self._color(item.get("color"), "#20eaff")
+                    ),
+                    "name_color": self._color(item.get("name_color"), "#8eb5c3"),
+                    "value_color": self._color(
+                        item.get("value_color"), self._color(item.get("color"), "#20eaff")
+                    ),
+                    "unit_color": self._color(item.get("unit_color"), "#8eb3c0"),
+                    "description_color": self._color(
+                        item.get("description_color"), "#6e96a5"
+                    ),
+                    "border_color": self._color(
+                        item.get("border_color"), self._color(item.get("color"), "#20eaff")
+                    ),
+                    "border_width": int(
+                        self._number(item.get("border_width"), 1, 1, 6)
+                    ),
+                    "border_radius": int(
+                        self._number(item.get("border_radius"), 14, 0, 40)
+                    ),
+                    "icon_size": int(self._number(item.get("icon_size"), 22, 12, 48)),
+                    "value_size": int(self._number(item.get("value_size"), 24, 12, 48)),
+                    "padding": int(self._number(item.get("padding"), 13, 4, 28)),
+                    "text_align": self._choice(
+                        item.get("text_align"), "left", {"left", "center", "right"}
+                    ),
+                    "show_icon": bool(item.get("show_icon", True)),
+                    "show_name": bool(item.get("show_name", True)),
+                    "show_unit": bool(item.get("show_unit", True)),
+                    "show_description": bool(item.get("show_description", True)),
                     "color_mode": self._choice(
                         item.get("color_mode"), "fixed", {"fixed", "threshold"}
                     ),
@@ -558,6 +621,18 @@ class MatrixEnergyStore:
                     "name": self._text(item.get("name"), f"Kiosk {index + 1}", 80),
                     "description": self._text(item.get("description"), "", 250),
                     "title": self._text(item.get("title"), "PRZEPŁYW ENERGII", 100),
+                    "display_preset": self._choice(
+                        item.get("display_preset"),
+                        "tablet_16_9",
+                        {"auto", "tablet_16_9", "desktop"},
+                    ),
+                    "compact_header": bool(item.get("compact_header", True)),
+                    "max_bubbles": int(
+                        self._number(item.get("max_bubbles"), 6, 1, 16)
+                    ),
+                    "chart_columns": int(
+                        self._number(item.get("chart_columns"), 2, 1, 4)
+                    ),
                     "show_clock": bool(item.get("show_clock", True)),
                     "show_builtin_bubbles": bool(item.get("show_builtin_bubbles", True)),
                     "show_custom_bubbles": bool(item.get("show_custom_bubbles", True)),
