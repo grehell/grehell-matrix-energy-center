@@ -1,0 +1,190 @@
+{
+  "schema_version": 2,
+  "revision": 1,
+  "general": {
+    "installation_name": "Example Home",
+    "panel_title": "Energy Center",
+    "currency": "PLN",
+    "language": "auto",
+    "theme": "matrix_blue",
+    "accent": "cyan"
+  },
+  "features": {
+    "grid": true,
+    "pv": true,
+    "battery": true,
+    "ev": true,
+    "prices": true,
+    "appliances": true,
+    "automation": false
+  },
+  "signs": {
+    "grid_positive_is_import": true,
+    "battery_positive_is_charge": true
+  },
+  "mappings": {
+    "home_power": "sensor.example_home_power",
+    "grid_power": "sensor.example_grid_power",
+    "grid_import_energy": "sensor.example_grid_import_energy",
+    "grid_export_energy": "sensor.example_grid_export_energy",
+    "pv_power": "",
+    "pv_energy_today": "sensor.example_pv_energy_today",
+    "battery_power": "sensor.example_battery_power",
+    "battery_soc": "sensor.example_battery_soc",
+    "battery_energy": "sensor.example_battery_available_energy",
+    "ev_power": "sensor.example_ev_power",
+    "ev_soc": "sensor.example_ev_soc",
+    "price_buy": "",
+    "price_sell": "sensor.example_energy_sell_price"
+  },
+  "pv_strings": [
+    {
+      "id": "string_1",
+      "name": "MPPT 1",
+      "description": "Example split string",
+      "power_entity": "sensor.example_string_1_power",
+      "energy_entity": "sensor.example_string_1_energy",
+      "capacity_kw": 6.5,
+      "sections": [
+        {
+          "id": "south_roof",
+          "name": "South roof",
+          "description": "Main roof face",
+          "area": "House roof",
+          "orientation": "S",
+          "tilt": 35,
+          "panel_count": 10,
+          "peak_power_kw": 4.5,
+          "share_percent": 70,
+          "power_entity": "",
+          "energy_entity": ""
+        },
+        {
+          "id": "garage",
+          "name": "Garage",
+          "description": "Lower roof",
+          "area": "Garage",
+          "orientation": "SW",
+          "tilt": 15,
+          "panel_count": 4,
+          "peak_power_kw": 2,
+          "share_percent": 30,
+          "power_entity": "",
+          "energy_entity": ""
+        }
+      ]
+    }
+  ],
+  "devices": [
+    {
+      "id": "dishwasher",
+      "name": "Dishwasher",
+      "description": "Kitchen dishwasher",
+      "category": "dishwasher",
+      "area": "Kitchen",
+      "icon": "mdi:dishwasher",
+      "accent": "cyan",
+      "power_entity": "sensor.example_dishwasher_power",
+      "energy_entity": "sensor.example_dishwasher_energy",
+      "control_entity": "switch.example_dishwasher",
+      "enabled": true,
+      "include_in_home_total": true
+    }
+  ],
+  "tariffs": [],
+  "tariff": {
+    "enabled": true,
+    "provider": "tauron",
+    "plan": "g13",
+    "profile_name": "TAURON G13",
+    "country": "PL",
+    "price_mode": "components",
+    "use_external_price_if_available": false,
+    "prices_include_vat": true,
+    "vat_percent": 23.0,
+    "effective_from": "2026-01-01",
+    "effective_to": "2026-12-31",
+    "distribution_preset": "tauron_g13_2026_gross",
+    "schedule": {
+      "summer_start": "04-01",
+      "winter_start": "10-01",
+      "morning_start": "07:00",
+      "morning_end": "13:00",
+      "summer_afternoon_start": "19:00",
+      "summer_afternoon_end": "22:00",
+      "winter_afternoon_start": "16:00",
+      "winter_afternoon_end": "21:00",
+      "day_off_all_day_offpeak": true,
+      "day_off_carry_until": "07:00"
+    },
+    "calendar": {
+      "include_weekends": true,
+      "include_polish_public_holidays": true,
+      "custom_holidays": ""
+    },
+    "energy_prices": {
+      "summer": {
+        "morning_peak": 0.0,
+        "afternoon_peak": 0.0,
+        "off_peak": 0.0
+      },
+      "winter": {
+        "morning_peak": 0.0,
+        "afternoon_peak": 0.0,
+        "off_peak": 0.0
+      }
+    },
+    "distribution_prices": {
+      "summer": {
+        "morning_peak": 0.271,
+        "afternoon_peak": 0.4795,
+        "off_peak": 0.0482
+      },
+      "winter": {
+        "morning_peak": 0.271,
+        "afternoon_peak": 0.4795,
+        "off_peak": 0.0482
+      }
+    },
+    "combined_prices": {
+      "summer": {
+        "morning_peak": 0.0,
+        "afternoon_peak": 0.0,
+        "off_peak": 0.0
+      },
+      "winter": {
+        "morning_peak": 0.0,
+        "afternoon_peak": 0.0,
+        "off_peak": 0.0
+      }
+    },
+    "variable_fees": {
+      "quality": 0.0408,
+      "renewable": 0.009,
+      "cogeneration": 0.0037,
+      "excise": 0.0,
+      "other": 0.0
+    },
+    "fixed_fees": {
+      "phase_count": 3,
+      "network_monthly_1_phase": 9.08,
+      "network_monthly_3_phase": 13.36,
+      "subscription_monthly": 5.61,
+      "capacity_fee_monthly": 21.13,
+      "commercial_monthly": 0.0,
+      "other_monthly": 0.0
+    }
+  },
+  "automation": {
+    "enabled": false,
+    "mode": "monitor_only",
+    "minimum_battery_soc": 20,
+    "ev_surplus_start_w": 1800,
+    "ev_surplus_stop_w": 500,
+    "decision_delay_seconds": 180
+  },
+  "permissions": {
+    "show_configuration_to_non_admin": false,
+    "allow_non_admin_control": false
+  }
+}

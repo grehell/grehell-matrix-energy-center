@@ -1,0 +1,7 @@
+reload_configuration:
+  name: Reload configuration
+  description: Reloads Matrix Energy Center after technical option changes.
+
+reset_configuration:
+  name: Reset configuration
+  description: Resets all Matrix Energy Center mappings, PV strings and additional devices.

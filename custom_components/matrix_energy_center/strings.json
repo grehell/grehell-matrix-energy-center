@@ -1,0 +1,51 @@
+{
+  "title": "Matrix Energy Center",
+  "config": {
+    "flow_title": "Matrix Energy Center",
+    "step": {
+      "user": {
+        "title": "Create an energy center",
+        "description": "Creates a local Matrix-style energy panel. Detailed entity mappings, PV strings and appliances are configured later inside the panel.",
+        "data": {
+          "installation_name": "Installation name",
+          "panel_title": "Sidebar title",
+          "currency": "Currency"
+        },
+        "data_description": {
+          "installation_name": "A friendly name for the monitored home or site.",
+          "panel_title": "Name shown in the Home Assistant sidebar.",
+          "currency": "Currency code used for energy prices, for example PLN or EUR."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Matrix Energy Center is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Technical options",
+        "description": "Changes reload the integration.",
+        "data": {
+          "refresh_interval": "Normalized sensor refresh interval",
+          "name": "Technical entry name"
+        },
+        "data_description": {
+          "refresh_interval": "How often normalized Matrix Energy Center sensors are refreshed, in seconds.",
+          "name": "Optional internal name of the config entry."
+        }
+      }
+    }
+  },
+  "services": {
+    "reload_configuration": {
+      "name": "Reload configuration",
+      "description": "Reloads Matrix Energy Center and its normalized sensors."
+    },
+    "reset_configuration": {
+      "name": "Reset configuration",
+      "description": "Removes all mappings, PV strings, appliances and local settings."
+    }
+  }
+}
