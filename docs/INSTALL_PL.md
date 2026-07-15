@@ -87,7 +87,7 @@ Soboty, niedziele i święta są domyślnie zaliczane do pozostałych godzin prz
 Szczegóły i opis wszystkich opłat: [TAURON_G13_PL.md](TAURON_G13_PL.md).
 
 
-## Wyszukiwanie encji w v0.4
+## Wyszukiwanie encji w v0.5
 
 Każde pole mapowania otwiera wyszukiwarkę korzystającą z aktualnych stanów Home Assistant. Lista pokazuje:
 
@@ -163,20 +163,56 @@ Dodatkowo każde urządzenie może być pokazane w głównym przepływie. Ustaw 
 - rolę: **odbiornik**, **źródło** albo **dwukierunkowe**,
 - kolejność oraz opcjonalną krótszą nazwę w diagramie.
 
-Przycisk sterowania w v0.4 obsługuje `switch`, `input_boolean`, `light` i `button`.
+Przycisk sterowania w v0.5 obsługuje `switch`, `input_boolean`, `light` i `button`.
 
 Bieżący koszt pracy urządzenia na godzinę jest obliczany na podstawie jego mocy oraz aktywnej ceny zakupu.
 
-## Aktualizacja do v0.4
+## Dymki i wykresy na przeglądzie
+
+1. Otwórz zakładkę **Widżety**.
+2. Zdecyduj, czy standardowe dymki domu, PV, sieci, magazynu, EV i ceny mają pozostać widoczne.
+3. Wybierz **Dodaj dymek** i przypisz dowolną encję Home Assistant.
+4. Jeżeli wartość znajduje się w atrybucie encji, wpisz jego nazwę, np. `current_temperature`.
+5. Ustaw nazwę, opis, ikonę MDI, kolor wartości i obramowania, kolor tła oraz opcjonalną własną jednostkę.
+6. W razie potrzeby ustaw mnożnik, liczbę miejsc dziesiętnych, kolejność i miniwykres.
+7. Wybierz **Dodaj wykres**, przypisz encję lub atrybut i wybierz typ: linia, obszar albo słupki.
+8. Ustaw kolor, wysokość, liczbę próbek, grubość linii oraz widoczność wartości bieżącej i minimum/maksimum.
+9. Sprawdź podgląd na żywo i zapisz zmiany.
+
+Wykresy i miniwykresy w v0.5 przechowują próbki z bieżącej sesji przeglądarki. Po przeładowaniu strony zaczynają zbierać dane od nowa. Integracja z historią Recorder jest zaplanowana na następną wersję analityczną.
+
+## Karta przepływów w trybie kiosk
+
+W zakładce **Widżety → Karta kiosk** można ustawić:
+
+- tytuł karty,
+- zegar z datą,
+- standardowe dymki,
+- własne dymki,
+- pasek stanu,
+- standardową, wysoką albo pełną wysokość diagramu.
+
+Przycisk **Otwórz kartę kiosk** przełącza panel na widok monitoringu bez górnego menu, bocznego paska i standardowej stopki. Przycisk **Pełny ekran** uruchamia przeglądarkowy tryb pełnoekranowy. **Wyjdź** wraca do podsumowania i opuszcza pełny ekran. Widok kiosk korzysta z tej samej konfiguracji stringów PV, urządzeń, kolorów i przepływów co główny panel.
+
+Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
+
+```text
+/matrix-energy-center?kiosk=1
+```
+
+Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
+
+## Aktualizacja do v0.5
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
 3. Uruchom ponownie Home Assistant.
-4. Otwórz **Konfiguracja → Konfiguracja okna przepływów**.
+4. Otwórz **Konfiguracja → Konfiguracja okna przepływów** i sprawdź dotychczasowy diagram.
 5. W zakładce **PV** wybierz stringi widoczne w przepływie.
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
+7. Otwórz **Widżety**, dodaj własne dymki i wykresy oraz skonfiguruj kartę kiosk.
 
-Dane z v0.1–v0.3 są automatycznie uzupełniane do schematu v4. Istniejące stringi PV są domyślnie dostępne w przepływie, natomiast istniejące urządzenia trzeba świadomie zaznaczyć, aby nie przeładować diagramu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.4 zawiera nowy plik frontendowy.
+Dane z v0.1–v0.4 są automatycznie uzupełniane do schematu v5. Nowe listy dymków i wykresów są początkowo puste, więc dotychczasowy przegląd nie zmienia wyglądu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.5 zawiera nowy plik frontendowy.
 
 ## Usuwanie
 
@@ -190,4 +226,4 @@ Reset konfiguracji jest dostępny jako akcja administratora:
 matrix_energy_center.reset_configuration
 ```
 
-Uwaga: reset usuwa mapowania, stringi, taryfę i dodatkowe urządzenia.
+Uwaga: reset usuwa mapowania, stringi, taryfę, dodatkowe urządzenia, własne dymki, wykresy i ustawienia karty kiosk.

@@ -134,7 +134,7 @@ async def _async_register_frontend(
         webcomponent_name=PANEL_COMPONENT,
         sidebar_title=config["general"].get("panel_title", PANEL_TITLE),
         sidebar_icon=PANEL_ICON,
-        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v=0.4.0",
+        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v=0.5.0",
         embed_iframe=False,
         require_admin=False,
         config={"domain": DOMAIN},

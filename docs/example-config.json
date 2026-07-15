@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "revision": 1,
   "general": {
     "installation_name": "Example Home",
@@ -300,5 +300,96 @@
     "max_pv_strings": 6,
     "max_devices": 6,
     "branch_gap": 12
-  }
+  },
+  "overview": {
+    "show_builtin_bubbles": true,
+    "show_custom_bubbles": true,
+    "show_custom_charts": true,
+    "bubble_size": "medium",
+    "chart_columns": 2
+  },
+  "kiosk": {
+    "title": "PRZEPŁYW ENERGII",
+    "show_clock": true,
+    "show_builtin_bubbles": true,
+    "show_custom_bubbles": true,
+    "show_status": true,
+    "flow_height": "tall"
+  },
+  "overview_bubbles": [
+    {
+      "id": "battery_voltage",
+      "name": "Napięcie magazynu",
+      "description": "Bieżące napięcie banku baterii",
+      "entity_id": "sensor.example_battery_voltage",
+      "attribute": "",
+      "icon": "mdi:sine-wave",
+      "color": "#b8ff3d",
+      "background_color": "#071a16",
+      "unit": "V",
+      "decimals": 1,
+      "multiplier": 1,
+      "order": 1,
+      "enabled": true,
+      "show_sparkline": true
+    },
+    {
+      "id": "inverter_temperature",
+      "name": "Temperatura falownika",
+      "description": "Temperatura elektroniki falownika",
+      "entity_id": "sensor.example_inverter_temperature",
+      "attribute": "",
+      "icon": "mdi:thermometer",
+      "color": "#ffb11b",
+      "background_color": "#1a1003",
+      "unit": "°C",
+      "decimals": 1,
+      "multiplier": 1,
+      "order": 2,
+      "enabled": true,
+      "show_sparkline": true
+    }
+  ],
+  "overview_charts": [
+    {
+      "id": "pv_string_1_power",
+      "name": "String PV 1",
+      "description": "Moc pierwszego stringu od otwarcia panelu",
+      "entity_id": "sensor.example_string_1_power",
+      "attribute": "",
+      "icon": "mdi:solar-panel-large",
+      "color": "#52ff62",
+      "unit": "W",
+      "decimals": 0,
+      "multiplier": 1,
+      "graph_type": "area",
+      "height": "medium",
+      "points": 120,
+      "line_width": 2,
+      "order": 1,
+      "enabled": true,
+      "show_current": true,
+      "show_min_max": true
+    },
+    {
+      "id": "grid_voltage",
+      "name": "Napięcie sieci",
+      "description": "Zmiany napięcia w bieżącej sesji",
+      "entity_id": "sensor.example_grid_voltage",
+      "attribute": "",
+      "icon": "mdi:transmission-tower",
+      "color": "#a66cff",
+      "unit": "V",
+      "decimals": 1,
+      "multiplier": 1,
+      "graph_type": "line",
+      "height": "medium",
+      "points": 120,
+      "line_width": 2,
+      "order": 2,
+      "enabled": true,
+      "show_current": true,
+      "show_min_max": true
+    }
+  ]
 }

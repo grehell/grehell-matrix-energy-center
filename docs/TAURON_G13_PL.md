@@ -64,7 +64,7 @@ Bieżąca cena pochodzi z encji `sensor.*`, np. z integracji cen dynamicznych. S
 
 ## Preset TAURON Dystrybucja G13 2026
 
-Wersja v0.4 zachowuje edytowalny preset brutto na okres 1 stycznia–31 grudnia 2026 roku.
+Wersja v0.5 zachowuje edytowalny preset brutto na okres 1 stycznia–31 grudnia 2026 roku.
 
 ### Zmienna stawka sieciowa brutto
 

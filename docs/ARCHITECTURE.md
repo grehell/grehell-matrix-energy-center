@@ -20,8 +20,10 @@ The standard Home Assistant config flow creates one installation entry. It conta
 - automation policy placeholders,
 - panel permissions,
 - flow-window layout, visibility and branch limits.
+- overview bubbles and additional session charts,
+- kiosk flow-card presentation settings.
 
-Configuration schema version 4 adds the flow-window object plus per-string and per-device flow metadata. Existing schema-v1/v2/v3 data is deep-merged with the new defaults during load. The backend validates entity IDs, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
+Configuration schema version 5 adds overview widgets, charts and kiosk settings on top of the v4 flow-window model. Existing schema-v1–v4 data is deep-merged with the new defaults during load. The backend validates entity IDs, hexadecimal colors, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
 
 ### 3. Tariff engine
 
@@ -73,7 +75,7 @@ Write, reset and entity-test commands require administrator access.
 
 The integration serves one dependency-free JavaScript Web Component. It uses the Home Assistant object supplied to custom panels, so states and service calls remain local and authenticated.
 
-The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. Entity fields use a self-contained Home Assistant-style picker built from the live state registry; it does not depend on private frontend component APIs. The main flow canvas builds source and load branch buses from validated PV-string and device metadata while reading live power/status values from the coordinator. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
+The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. Entity fields use a self-contained Home Assistant-style picker built from the live state registry; it does not depend on private frontend component APIs. The main flow canvas builds source and load branch buses from validated PV-string and device metadata while reading live power/status values from the coordinator. The Widgets view creates validated entity/attribute bubbles and line, area or bar session charts. The Kiosk view reuses the same flow canvas in a full-screen, monitoring-only layout. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
 
 ## Future adapter model
 

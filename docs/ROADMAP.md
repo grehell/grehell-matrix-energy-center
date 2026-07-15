@@ -45,7 +45,18 @@
 - layout, style, animation, spacing and visibility controls,
 - configuration schema migration to version 4.
 
-## v0.5 — recorder analytics and billing
+## v0.5 — configurable overview and kiosk
+
+- bubbles for any entity or entity attribute,
+- configurable names, descriptions, icons, colors, units and ordering,
+- optional session sparklines,
+- additional line, area and bar charts,
+- live widget editor and preview,
+- standard/custom overview visibility controls,
+- full-screen kiosk flow card,
+- configuration schema migration to version 5.
+
+## v0.6 — recorder analytics and billing
 
 - recorder-backed day/week/month/year charts,
 - energy aggregation by G13 zone and season,
@@ -55,7 +66,7 @@
 - invoice estimate and actual invoice comparison,
 - configuration backup versioning.
 
-## v0.6 — vendor profiles
+## v0.7 — vendor profiles
 
 - Deye / Sunsynk,
 - Huawei,
@@ -67,7 +78,7 @@
 - generic Modbus mapping assistant,
 - Pstryk and other dynamic-price adapters.
 
-## v0.7 — EV and battery control
+## v0.8 — EV and battery control
 
 - EV charger profiles,
 - surplus-PV charging,
@@ -76,7 +87,7 @@
 - battery reserve and time-of-use policies,
 - simulation and dry-run decisions.
 
-## v0.8 — multi-site and permissions
+## v0.9 — multi-site and permissions
 
 - multiple sites or buildings,
 - configuration subentries,

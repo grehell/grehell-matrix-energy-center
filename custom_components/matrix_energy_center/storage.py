@@ -29,7 +29,7 @@ from .tariff import (
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -76,9 +76,26 @@ def default_configuration() -> dict[str, Any]:
             "max_devices": 6,
             "branch_gap": 12,
         },
+        "overview": {
+            "show_builtin_bubbles": True,
+            "show_custom_bubbles": True,
+            "show_custom_charts": True,
+            "bubble_size": "medium",
+            "chart_columns": 2,
+        },
+        "kiosk": {
+            "title": "PRZEPŁYW ENERGII",
+            "show_clock": True,
+            "show_builtin_bubbles": True,
+            "show_custom_bubbles": True,
+            "show_status": True,
+            "flow_height": "tall",
+        },
         "mappings": {role: "" for role in MAPPING_ROLES},
         "pv_strings": [],
         "devices": [],
+        "overview_bubbles": [],
+        "overview_charts": [],
         "tariffs": [],  # legacy/free-form definitions retained for compatibility
         "tariff": default_tauron_g13_tariff(),
         "automation": {
@@ -146,11 +163,13 @@ class MatrixEnergyStore:
             "permissions",
             "appearance",
             "flow",
+            "overview",
+            "kiosk",
         ):
             value = loaded.get(section)
             if isinstance(value, dict):
                 base[section].update(value)
-        for section in ("pv_strings", "devices", "tariffs"):
+        for section in ("pv_strings", "devices", "overview_bubbles", "overview_charts", "tariffs"):
             value = loaded.get(section)
             if isinstance(value, list):
                 base[section] = value
@@ -163,7 +182,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 4
+        config["schema_version"] = 5
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -222,6 +241,37 @@ class MatrixEnergyStore:
             }
         )
 
+        overview = raw.get("overview", {})
+        if not isinstance(overview, dict):
+            raise ValueError("overview must be an object")
+        config["overview"].update(
+            {
+                "show_builtin_bubbles": bool(overview.get("show_builtin_bubbles", True)),
+                "show_custom_bubbles": bool(overview.get("show_custom_bubbles", True)),
+                "show_custom_charts": bool(overview.get("show_custom_charts", True)),
+                "bubble_size": self._choice(
+                    overview.get("bubble_size"), "medium", {"compact", "medium", "large"}
+                ),
+                "chart_columns": int(self._number(overview.get("chart_columns"), 2, 1, 4)),
+            }
+        )
+
+        kiosk = raw.get("kiosk", {})
+        if not isinstance(kiosk, dict):
+            raise ValueError("kiosk must be an object")
+        config["kiosk"].update(
+            {
+                "title": self._text(kiosk.get("title"), "PRZEPŁYW ENERGII", 100),
+                "show_clock": bool(kiosk.get("show_clock", True)),
+                "show_builtin_bubbles": bool(kiosk.get("show_builtin_bubbles", True)),
+                "show_custom_bubbles": bool(kiosk.get("show_custom_bubbles", True)),
+                "show_status": bool(kiosk.get("show_status", True)),
+                "flow_height": self._choice(
+                    kiosk.get("flow_height"), "tall", {"standard", "tall", "full"}
+                ),
+            }
+        )
+
         mappings = raw.get("mappings", {})
         if not isinstance(mappings, dict):
             raise ValueError("mappings must be an object")
@@ -244,9 +294,83 @@ class MatrixEnergyStore:
 
         config["pv_strings"] = self._validate_pv_strings(raw.get("pv_strings", []))
         config["devices"] = self._validate_devices(raw.get("devices", []))
+        config["overview_bubbles"] = self._validate_overview_bubbles(raw.get("overview_bubbles", []))
+        config["overview_charts"] = self._validate_overview_charts(raw.get("overview_charts", []))
         config["tariffs"] = self._validate_tariffs(raw.get("tariffs", []))
         config["tariff"] = self._validate_tariff(raw.get("tariff", {}))
         return config
+
+    def _validate_overview_bubbles(self, raw: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw, list):
+            raise ValueError("overview_bubbles must be a list")
+        result: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, item in enumerate(raw[:64]):
+            if not isinstance(item, dict):
+                continue
+            item_id = self._identifier(item.get("id"), f"bubble_{index + 1}")
+            if item_id in seen:
+                item_id = f"{item_id}_{index + 1}"
+            seen.add(item_id)
+            result.append(
+                {
+                    "id": item_id,
+                    "name": self._text(item.get("name"), f"Dymek {index + 1}", 80),
+                    "description": self._text(item.get("description"), "", 250),
+                    "entity_id": self._entity_id(item.get("entity_id", "")),
+                    "attribute": self._text(item.get("attribute"), "", 80),
+                    "icon": self._text(item.get("icon"), "mdi:information-outline", 80),
+                    "color": self._color(item.get("color"), "#20eaff"),
+                    "background_color": self._color(item.get("background_color"), "#031426"),
+                    "unit": self._text(item.get("unit"), "", 30),
+                    "decimals": int(self._number(item.get("decimals"), 1, 0, 6)),
+                    "multiplier": self._number(item.get("multiplier"), 1, -1_000_000, 1_000_000),
+                    "order": int(self._number(item.get("order"), index + 1, 0, 10000)),
+                    "enabled": bool(item.get("enabled", True)),
+                    "show_sparkline": bool(item.get("show_sparkline", True)),
+                }
+            )
+        return result
+
+    def _validate_overview_charts(self, raw: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw, list):
+            raise ValueError("overview_charts must be a list")
+        result: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, item in enumerate(raw[:32]):
+            if not isinstance(item, dict):
+                continue
+            item_id = self._identifier(item.get("id"), f"chart_{index + 1}")
+            if item_id in seen:
+                item_id = f"{item_id}_{index + 1}"
+            seen.add(item_id)
+            result.append(
+                {
+                    "id": item_id,
+                    "name": self._text(item.get("name"), f"Wykres {index + 1}", 80),
+                    "description": self._text(item.get("description"), "", 250),
+                    "entity_id": self._entity_id(item.get("entity_id", "")),
+                    "attribute": self._text(item.get("attribute"), "", 80),
+                    "icon": self._text(item.get("icon"), "mdi:chart-line", 80),
+                    "color": self._color(item.get("color"), "#20eaff"),
+                    "unit": self._text(item.get("unit"), "", 30),
+                    "decimals": int(self._number(item.get("decimals"), 1, 0, 6)),
+                    "multiplier": self._number(item.get("multiplier"), 1, -1_000_000, 1_000_000),
+                    "graph_type": self._choice(
+                        item.get("graph_type"), "line", {"line", "area", "bar"}
+                    ),
+                    "height": self._choice(
+                        item.get("height"), "medium", {"small", "medium", "large"}
+                    ),
+                    "points": int(self._number(item.get("points"), 90, 12, 720)),
+                    "line_width": self._number(item.get("line_width"), 2, 1, 8),
+                    "order": int(self._number(item.get("order"), index + 1, 0, 10000)),
+                    "enabled": bool(item.get("enabled", True)),
+                    "show_current": bool(item.get("show_current", True)),
+                    "show_min_max": bool(item.get("show_min_max", True)),
+                }
+            )
+        return result
 
     def _validate_tariff(self, raw: Any) -> dict[str, Any]:
         defaults = default_tauron_g13_tariff()
@@ -494,6 +618,18 @@ class MatrixEnergyStore:
     def _choice(value: Any, default: str, allowed: set[str]) -> str:
         candidate = str(value or default)
         return candidate if candidate in allowed else default
+
+    @staticmethod
+    def _color(value: Any, default: str) -> str:
+        """Return a normalized hexadecimal CSS color."""
+        candidate = str(value or default).strip()
+        if not candidate.startswith("#") or len(candidate) not in (4, 7, 9):
+            return default
+        if any(char not in "0123456789abcdefABCDEF" for char in candidate[1:]):
+            return default
+        if len(candidate) == 4:
+            candidate = "#" + "".join(char * 2 for char in candidate[1:])
+        return candidate.lower()
 
     @staticmethod
     def _time_text(value: Any, default: str) -> str:

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 — 2026-07-15
+
+- Added configurable overview bubbles for any Home Assistant entity or entity attribute.
+- Added editable bubble names, descriptions, MDI icons, foreground/background colors, units, precision, multipliers, order and session sparklines.
+- Added configurable line, area and bar charts with session sampling, current value and min/max labels.
+- Added global overview controls for standard/custom bubbles, custom charts, bubble size and chart column count.
+- Added a dedicated Widgets editor with entity picker and live preview.
+- Added a full-screen kiosk flow card with configurable bubbles, clock, status strip and diagram height.
+- Added configuration schema version 5 with automatic migration from v0.1–v0.4.
+- Updated the frontend cache key, package metadata, example configuration and release documentation to v0.5.0.
+
 ## 0.4.0 — 2026-07-15
 
 - Added independent PV-string nodes to the main live energy-flow diagram.
