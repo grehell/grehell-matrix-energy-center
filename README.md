@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.5.0 technical preview**. Monitoring, configuration, the configurable multi-branch flow window, configurable overview widgets, kiosk flow card, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.6.1 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
@@ -15,9 +15,15 @@
 - Flow-window editor with live preview, layout, node style, animation speed, visibility, item limits, order and spacing controls.
 - Configurable overview bubbles for any Home Assistant entity or entity attribute.
 - Per-bubble name, description, MDI icon, foreground/background colors, unit, precision, multiplier, order and session sparkline.
-- Additional line, area and bar charts for selected entities, with configurable color, height, sample count and min/max display.
+- A secondary value and up to eight related entities inside one bubble, each with its own label, color, unit, precision and multiplier.
+- Fixed or threshold-driven bubble colors, unavailable/alarm colors and visual alerts.
+- Additional line, area and grouped bar charts with up to nine related series on one shared timeline.
+- Session, 24-hour, 7-day and 30-day history ranges backed by Home Assistant Recorder/Statistics when available.
+- Click actions for bubbles and charts: more-info dialog, local navigation or a Home Assistant service call.
+- Drag-and-drop bubble/chart ordering in the Widgets editor.
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
-- Full-screen **Kiosk** flow card with optional clock, status strip, standard/custom bubbles and three diagram heights.
+- Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming and three flow-diagram heights.
+- Native `custom:matrix-energy-flow-card` for Lovelace dashboards; no self-iframe or reserved-character URL workaround is required.
 - Generic source mapping; no user entity IDs are hardcoded.
 - Normalized Home Assistant sensors in W, kWh, %, currency/kWh and currency/hour.
 - Signed grid and battery power with configurable direction conventions.
@@ -65,6 +71,24 @@ to:
 
 Restart Home Assistant and add the integration from the UI.
 
+## Native Lovelace card
+
+Version 0.6.1 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+
+```yaml
+type: custom:matrix-energy-flow-card
+profile: default
+title: PRZEPŁYW ENERGII
+height: 720
+show_header: true
+show_bubbles: true
+show_custom_bubbles: true
+show_pv_strings: true
+show_devices: true
+```
+
+Set `profile` to a configured kiosk profile ID such as `salon` to reuse its bubble selection and title. This YAML belongs to a card, not to the Lovelace view configuration.
+
 ## Configuration model
 
 The setup flow creates only the installation entry. Detailed configuration is managed inside the custom panel and stored locally in Home Assistant `.storage`.
@@ -83,7 +107,7 @@ The project never contains private entity IDs, IP addresses, usernames, tokens o
 
 ## TAURON G13
 
-Version 0.5 retains the complete editable G13 profile and the configurable multi-branch energy-flow window, and adds configurable overview/kiosk presentation. The default schedule follows TAURON's published rules:
+Version 0.6 retains the complete editable G13 profile and configurable multi-branch energy-flow window, and extends the overview and kiosk presentation. The default schedule follows TAURON's published rules:
 
 - summer period: 1 April–30 September,
 - winter period: 1 October–31 March,
@@ -145,7 +169,7 @@ A section may have its own sensor. When only a string-level sensor exists, the p
 
 ## Appliance controls
 
-Version 0.5 supports generic control buttons for:
+Version 0.6 supports generic control buttons for:
 
 - `switch.*`
 - `input_boolean.*`
@@ -164,10 +188,10 @@ Other domains will receive dedicated adapters in later versions.
 
 ## Known technical-preview limitations
 
-- Historical charts contain real samples collected while the panel is open; recorder-backed historical charts are planned.
+- Recorder history depends on the selected entities being retained by Home Assistant; efficient long-term 7/30-day series require compatible Statistics metadata and otherwise fall back to ordinary history.
 - The tariff engine calculates the active price and live cost rate, but persistent day/month invoice aggregation is not yet implemented.
 - Energy prices and fixed fees must be reviewed whenever the user's contract or official tariff changes.
-- Automatic inverter, battery and EV control is not executed in v0.5.
+- Automatic inverter, battery and EV control is not executed in v0.6.
 - Dynamic per-appliance entities are not created yet; additional appliances are displayed and managed in the panel.
 
 ## Documentation
@@ -176,8 +200,8 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v0.5 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v0.5 (PL)](docs/RELEASE_0_5_PL.md)
+- [Status wersji v0.6 (PL)](docs/STATUS_PL.md)
+- [Informacje o wydaniu v0.6.1 (PL)](docs/RELEASE_0_6_1_PL.md)
 - [Example configuration](docs/example-config.json)
 
 ## License

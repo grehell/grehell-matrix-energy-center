@@ -9,6 +9,8 @@
 
 Projekt nie wymaga Mushroom, card-mod, layout-card ani innych kart Lovelace. Panel jest dostarczany razem z integracją.
 
+Od v0.6.1 integracja dostarcza również natywną kartę Lovelace. Nie należy osadzać panelu Matrix Energy Center przez `iframe`.
+
 ## Instalacja ręczna
 
 1. Rozpakuj paczkę.
@@ -87,7 +89,7 @@ Soboty, niedziele i święta są domyślnie zaliczane do pozostałych godzin prz
 Szczegóły i opis wszystkich opłat: [TAURON_G13_PL.md](TAURON_G13_PL.md).
 
 
-## Wyszukiwanie encji w v0.5
+## Wyszukiwanie encji w v0.6
 
 Każde pole mapowania otwiera wyszukiwarkę korzystającą z aktualnych stanów Home Assistant. Lista pokazuje:
 
@@ -163,7 +165,7 @@ Dodatkowo każde urządzenie może być pokazane w głównym przepływie. Ustaw 
 - rolę: **odbiornik**, **źródło** albo **dwukierunkowe**,
 - kolejność oraz opcjonalną krótszą nazwę w diagramie.
 
-Przycisk sterowania w v0.5 obsługuje `switch`, `input_boolean`, `light` i `button`.
+Przycisk sterowania w v0.6 obsługuje `switch`, `input_boolean`, `light` i `button`.
 
 Bieżący koszt pracy urządzenia na godzinę jest obliczany na podstawie jego mocy oraz aktywnej ceny zakupu.
 
@@ -174,35 +176,68 @@ Bieżący koszt pracy urządzenia na godzinę jest obliczany na podstawie jego m
 3. Wybierz **Dodaj dymek** i przypisz dowolną encję Home Assistant.
 4. Jeżeli wartość znajduje się w atrybucie encji, wpisz jego nazwę, np. `current_temperature`.
 5. Ustaw nazwę, opis, ikonę MDI, kolor wartości i obramowania, kolor tła oraz opcjonalną własną jednostkę.
-6. W razie potrzeby ustaw mnożnik, liczbę miejsc dziesiętnych, kolejność i miniwykres.
-7. Wybierz **Dodaj wykres**, przypisz encję lub atrybut i wybierz typ: linia, obszar albo słupki.
-8. Ustaw kolor, wysokość, liczbę próbek, grubość linii oraz widoczność wartości bieżącej i minimum/maksimum.
-9. Sprawdź podgląd na żywo i zapisz zmiany.
+6. Opcjonalnie włącz drugą wartość, np. moc + energia dzisiaj.
+7. W sekcji **Encje powiązane w dymku** dodaj do 8 kolejnych stanów. Każdy ma własną nazwę, encję/atrybut, jednostkę, precyzję, mnożnik i kolor.
+8. Wybierz kolor stały albo progi niski/normalny/wysoki. Alarm może reagować na wartość poniżej, powyżej lub poza zakresem.
+9. Wybierz akcję kliknięcia: szczegóły encji, nawigacja, usługa Home Assistant albo brak akcji.
+10. Wybierz **Dodaj wykres**, przypisz serię główną i dodaj do 8 powiązanych serii na tej samej osi czasu.
+11. Dla każdej serii ustaw nazwę, kolor, encję/atrybut, jednostkę, precyzję i mnożnik.
+12. Wybierz typ: linia, obszar albo grupowane słupki, a następnie historię: sesja, 24 h, 7 dni lub 30 dni.
+13. Przeciągnij całe karty dymków i wykresów, aby zmienić kolejność.
+14. Sprawdź podgląd na żywo i zapisz zmiany.
 
-Wykresy i miniwykresy w v0.5 przechowują próbki z bieżącej sesji przeglądarki. Po przeładowaniu strony zaczynają zbierać dane od nowa. Integracja z historią Recorder jest zaplanowana na następną wersję analityczną.
+Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Zakresy 24 h, 7 dni i 30 dni pobierają dane z Home Assistant Recorder. Dłuższe zakresy próbują najpierw statystyk długoterminowych, dlatego encje z prawidłowym `state_class` działają najwydajniej. Jeżeli statystyki nie są dostępne, panel korzysta ze zwykłej historii Recorder.
 
 ## Karta przepływów w trybie kiosk
 
-W zakładce **Widżety → Karta kiosk** można ustawić:
+### Natywna karta Lovelace v0.6.1
+
+Po instalacji lub aktualizacji uruchom ponownie Home Assistant i wykonaj `Ctrl+F5`. Następnie:
+
+1. Otwórz docelowy pulpit i wybierz **Edytuj pulpit**.
+2. Dodaj kartę **Ręcznie**.
+3. Wklej konfigurację:
+
+   ```yaml
+   type: custom:matrix-energy-flow-card
+   profile: default
+   title: PRZEPŁYW ENERGII
+   height: 720
+   show_header: true
+   show_bubbles: true
+   show_custom_bubbles: true
+   show_pv_strings: true
+   show_devices: true
+   ```
+
+4. Aby wykorzystać profil skonfigurowany w panelu, zmień `profile: default` na przykład na `profile: salon`.
+5. Dla pełnego ekranu ustaw układ widoku Lovelace na **Panel (jedna karta)**.
+
+Konfigurację `type: custom:matrix-energy-flow-card` wkleja się w edytorze **karty**, nie w oknie **Konfiguracja widoku**. Karta korzysta bezpośrednio z zalogowanej sesji Home Assistant oraz poleceń WebSocket integracji; nie wymaga adresu URL.
+
+W zakładce **Widżety → Karta kiosk** można ustawić konfigurację domyślną oraz osobne profile ekranów. Każdy profil obsługuje:
 
 - tytuł karty,
 - zegar z datą,
 - standardowe dymki,
-- własne dymki,
+- własne dymki i wykresy albo tylko wskazane elementy,
 - pasek stanu,
-- standardową, wysoką albo pełną wysokość diagramu.
+- standardową, wysoką albo pełną wysokość diagramu,
+- automatyczną rotację widoku przepływów, wykresów i podsumowania,
+- czas rotacji oraz ręczne przełączanie slajdów,
+- harmonogram nocny i jasność nocną.
 
 Przycisk **Otwórz kartę kiosk** przełącza panel na widok monitoringu bez górnego menu, bocznego paska i standardowej stopki. Przycisk **Pełny ekran** uruchamia przeglądarkowy tryb pełnoekranowy. **Wyjdź** wraca do podsumowania i opuszcza pełny ekran. Widok kiosk korzysta z tej samej konfiguracji stringów PV, urządzeń, kolorów i przepływów co główny panel.
 
 Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
 
 ```text
-/matrix-energy-center?kiosk=1
+/matrix-energy-center?kiosk=salon
 ```
 
 Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
 
-## Aktualizacja do v0.5
+## Aktualizacja do v0.6
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -210,9 +245,9 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 4. Otwórz **Konfiguracja → Konfiguracja okna przepływów** i sprawdź dotychczasowy diagram.
 5. W zakładce **PV** wybierz stringi widoczne w przepływie.
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
-7. Otwórz **Widżety**, dodaj własne dymki i wykresy oraz skonfiguruj kartę kiosk.
+7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie skonfiguruj profile kiosk.
 
-Dane z v0.1–v0.4 są automatycznie uzupełniane do schematu v5. Nowe listy dymków i wykresów są początkowo puste, więc dotychczasowy przegląd nie zmienia wyglądu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.5 zawiera nowy plik frontendowy.
+Dane z v0.1–v0.5 są automatycznie uzupełniane do schematu v6. Dotychczasowe dymki i wykresy zachowują konfigurację, a nowe listy encji/serii i profile kiosk są początkowo puste. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.6 zawiera nowy plik frontendowy.
 
 ## Usuwanie
 

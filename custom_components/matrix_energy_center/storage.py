@@ -29,7 +29,7 @@ from .tariff import (
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -90,12 +90,27 @@ def default_configuration() -> dict[str, Any]:
             "show_custom_bubbles": True,
             "show_status": True,
             "flow_height": "tall",
+            "show_charts": True,
+            "bubble_selection": "all",
+            "bubble_ids": [],
+            "chart_selection": "all",
+            "chart_ids": [],
+            "rotation_enabled": False,
+            "rotation_seconds": 20,
+            "rotate_flow": True,
+            "rotate_charts": True,
+            "rotate_overview": True,
+            "night_enabled": False,
+            "night_start": "22:00",
+            "night_end": "06:00",
+            "night_brightness": 30,
         },
         "mappings": {role: "" for role in MAPPING_ROLES},
         "pv_strings": [],
         "devices": [],
         "overview_bubbles": [],
         "overview_charts": [],
+        "kiosk_profiles": [],
         "tariffs": [],  # legacy/free-form definitions retained for compatibility
         "tariff": default_tauron_g13_tariff(),
         "automation": {
@@ -169,7 +184,14 @@ class MatrixEnergyStore:
             value = loaded.get(section)
             if isinstance(value, dict):
                 base[section].update(value)
-        for section in ("pv_strings", "devices", "overview_bubbles", "overview_charts", "tariffs"):
+        for section in (
+            "pv_strings",
+            "devices",
+            "overview_bubbles",
+            "overview_charts",
+            "kiosk_profiles",
+            "tariffs",
+        ):
             value = loaded.get(section)
             if isinstance(value, list):
                 base[section] = value
@@ -182,7 +204,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 5
+        config["schema_version"] = 6
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -269,6 +291,28 @@ class MatrixEnergyStore:
                 "flow_height": self._choice(
                     kiosk.get("flow_height"), "tall", {"standard", "tall", "full"}
                 ),
+                "show_charts": bool(kiosk.get("show_charts", True)),
+                "bubble_selection": self._choice(
+                    kiosk.get("bubble_selection"), "all", {"all", "selected"}
+                ),
+                "bubble_ids": self._identifier_list(kiosk.get("bubble_ids"), 64),
+                "chart_selection": self._choice(
+                    kiosk.get("chart_selection"), "all", {"all", "selected"}
+                ),
+                "chart_ids": self._identifier_list(kiosk.get("chart_ids"), 32),
+                "rotation_enabled": bool(kiosk.get("rotation_enabled", False)),
+                "rotation_seconds": int(
+                    self._number(kiosk.get("rotation_seconds"), 20, 5, 3600)
+                ),
+                "rotate_flow": bool(kiosk.get("rotate_flow", True)),
+                "rotate_charts": bool(kiosk.get("rotate_charts", True)),
+                "rotate_overview": bool(kiosk.get("rotate_overview", True)),
+                "night_enabled": bool(kiosk.get("night_enabled", False)),
+                "night_start": self._time_text(kiosk.get("night_start"), "22:00"),
+                "night_end": self._time_text(kiosk.get("night_end"), "06:00"),
+                "night_brightness": int(
+                    self._number(kiosk.get("night_brightness"), 30, 5, 100)
+                ),
             }
         )
 
@@ -296,6 +340,7 @@ class MatrixEnergyStore:
         config["devices"] = self._validate_devices(raw.get("devices", []))
         config["overview_bubbles"] = self._validate_overview_bubbles(raw.get("overview_bubbles", []))
         config["overview_charts"] = self._validate_overview_charts(raw.get("overview_charts", []))
+        config["kiosk_profiles"] = self._validate_kiosk_profiles(raw.get("kiosk_profiles", []))
         config["tariffs"] = self._validate_tariffs(raw.get("tariffs", []))
         config["tariff"] = self._validate_tariff(raw.get("tariff", {}))
         return config
@@ -312,6 +357,39 @@ class MatrixEnergyStore:
             if item_id in seen:
                 item_id = f"{item_id}_{index + 1}"
             seen.add(item_id)
+            related_raw = item.get("related_entities", [])
+            if not isinstance(related_raw, list):
+                related_raw = []
+            related_entities: list[dict[str, Any]] = []
+            related_seen: set[str] = set()
+            for related_index, related in enumerate(related_raw[:8]):
+                if not isinstance(related, dict):
+                    continue
+                related_id = self._identifier(
+                    related.get("id"), f"related_{related_index + 1}"
+                )
+                if related_id in related_seen:
+                    related_id = f"{related_id}_{related_index + 1}"
+                related_seen.add(related_id)
+                related_entities.append(
+                    {
+                        "id": related_id,
+                        "name": self._text(
+                            related.get("name"), f"Wartość {related_index + 1}", 80
+                        ),
+                        "entity_id": self._entity_id(related.get("entity_id", "")),
+                        "attribute": self._text(related.get("attribute"), "", 80),
+                        "unit": self._text(related.get("unit"), "", 30),
+                        "decimals": int(
+                            self._number(related.get("decimals"), 1, 0, 6)
+                        ),
+                        "multiplier": self._number(
+                            related.get("multiplier"), 1, -1_000_000, 1_000_000
+                        ),
+                        "color": self._color(related.get("color"), "#8eb5c3"),
+                        "enabled": bool(related.get("enabled", True)),
+                    }
+                )
             result.append(
                 {
                     "id": item_id,
@@ -319,15 +397,62 @@ class MatrixEnergyStore:
                     "description": self._text(item.get("description"), "", 250),
                     "entity_id": self._entity_id(item.get("entity_id", "")),
                     "attribute": self._text(item.get("attribute"), "", 80),
+                    "show_secondary": bool(item.get("show_secondary", False)),
+                    "secondary_name": self._text(item.get("secondary_name"), "", 80),
+                    "secondary_entity_id": self._entity_id(item.get("secondary_entity_id", "")),
+                    "secondary_attribute": self._text(item.get("secondary_attribute"), "", 80),
+                    "secondary_unit": self._text(item.get("secondary_unit"), "", 30),
+                    "secondary_decimals": int(
+                        self._number(item.get("secondary_decimals"), 1, 0, 6)
+                    ),
+                    "secondary_multiplier": self._number(
+                        item.get("secondary_multiplier"), 1, -1_000_000, 1_000_000
+                    ),
+                    "related_entities": related_entities,
                     "icon": self._text(item.get("icon"), "mdi:information-outline", 80),
                     "color": self._color(item.get("color"), "#20eaff"),
                     "background_color": self._color(item.get("background_color"), "#031426"),
+                    "color_mode": self._choice(
+                        item.get("color_mode"), "fixed", {"fixed", "threshold"}
+                    ),
+                    "low_threshold": self._number(
+                        item.get("low_threshold"), 0, -1_000_000_000, 1_000_000_000
+                    ),
+                    "high_threshold": self._number(
+                        item.get("high_threshold"), 100, -1_000_000_000, 1_000_000_000
+                    ),
+                    "low_color": self._color(item.get("low_color"), "#008cff"),
+                    "normal_color": self._color(
+                        item.get("normal_color"), self._color(item.get("color"), "#20eaff")
+                    ),
+                    "high_color": self._color(item.get("high_color"), "#ff4d6d"),
+                    "unavailable_color": self._color(
+                        item.get("unavailable_color"), "#6d7d86"
+                    ),
+                    "alert_enabled": bool(item.get("alert_enabled", False)),
+                    "alert_condition": self._choice(
+                        item.get("alert_condition"), "above", {"above", "below", "outside"}
+                    ),
+                    "alert_low": self._number(
+                        item.get("alert_low"), 0, -1_000_000_000, 1_000_000_000
+                    ),
+                    "alert_high": self._number(
+                        item.get("alert_high"), 100, -1_000_000_000, 1_000_000_000
+                    ),
+                    "alert_color": self._color(item.get("alert_color"), "#ff335f"),
+                    "alert_text": self._text(item.get("alert_text"), "ALARM", 80),
                     "unit": self._text(item.get("unit"), "", 30),
                     "decimals": int(self._number(item.get("decimals"), 1, 0, 6)),
                     "multiplier": self._number(item.get("multiplier"), 1, -1_000_000, 1_000_000),
                     "order": int(self._number(item.get("order"), index + 1, 0, 10000)),
                     "enabled": bool(item.get("enabled", True)),
                     "show_sparkline": bool(item.get("show_sparkline", True)),
+                    "tap_action": self._choice(
+                        item.get("tap_action"), "more_info", {"none", "more_info", "navigate", "service"}
+                    ),
+                    "navigation_path": self._text(item.get("navigation_path"), "", 500),
+                    "service": self._text(item.get("service"), "", 120),
+                    "service_data": self._text(item.get("service_data"), "{}", 4000),
                 }
             )
         return result
@@ -344,6 +469,39 @@ class MatrixEnergyStore:
             if item_id in seen:
                 item_id = f"{item_id}_{index + 1}"
             seen.add(item_id)
+            series_raw = item.get("series", [])
+            if not isinstance(series_raw, list):
+                series_raw = []
+            series: list[dict[str, Any]] = []
+            series_seen: set[str] = set()
+            for series_index, series_item in enumerate(series_raw[:8]):
+                if not isinstance(series_item, dict):
+                    continue
+                series_id = self._identifier(
+                    series_item.get("id"), f"series_{series_index + 1}"
+                )
+                if series_id in series_seen:
+                    series_id = f"{series_id}_{series_index + 1}"
+                series_seen.add(series_id)
+                series.append(
+                    {
+                        "id": series_id,
+                        "name": self._text(
+                            series_item.get("name"), f"Seria {series_index + 2}", 80
+                        ),
+                        "entity_id": self._entity_id(series_item.get("entity_id", "")),
+                        "attribute": self._text(series_item.get("attribute"), "", 80),
+                        "color": self._color(series_item.get("color"), "#52ff62"),
+                        "unit": self._text(series_item.get("unit"), "", 30),
+                        "decimals": int(
+                            self._number(series_item.get("decimals"), 1, 0, 6)
+                        ),
+                        "multiplier": self._number(
+                            series_item.get("multiplier"), 1, -1_000_000, 1_000_000
+                        ),
+                        "enabled": bool(series_item.get("enabled", True)),
+                    }
+                )
             result.append(
                 {
                     "id": item_id,
@@ -363,11 +521,73 @@ class MatrixEnergyStore:
                         item.get("height"), "medium", {"small", "medium", "large"}
                     ),
                     "points": int(self._number(item.get("points"), 90, 12, 720)),
+                    "history_range": self._choice(
+                        item.get("history_range"), "session", {"session", "24h", "7d", "30d"}
+                    ),
                     "line_width": self._number(item.get("line_width"), 2, 1, 8),
+                    "series": series,
                     "order": int(self._number(item.get("order"), index + 1, 0, 10000)),
                     "enabled": bool(item.get("enabled", True)),
                     "show_current": bool(item.get("show_current", True)),
                     "show_min_max": bool(item.get("show_min_max", True)),
+                    "tap_action": self._choice(
+                        item.get("tap_action"), "more_info", {"none", "more_info", "navigate", "service"}
+                    ),
+                    "navigation_path": self._text(item.get("navigation_path"), "", 500),
+                    "service": self._text(item.get("service"), "", 120),
+                    "service_data": self._text(item.get("service_data"), "{}", 4000),
+                }
+            )
+        return result
+
+    def _validate_kiosk_profiles(self, raw: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw, list):
+            raise ValueError("kiosk_profiles must be a list")
+        result: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, item in enumerate(raw[:24]):
+            if not isinstance(item, dict):
+                continue
+            item_id = self._identifier(item.get("id"), f"kiosk_{index + 1}")
+            if item_id in seen:
+                item_id = f"{item_id}_{index + 1}"
+            seen.add(item_id)
+            result.append(
+                {
+                    "id": item_id,
+                    "name": self._text(item.get("name"), f"Kiosk {index + 1}", 80),
+                    "description": self._text(item.get("description"), "", 250),
+                    "title": self._text(item.get("title"), "PRZEPŁYW ENERGII", 100),
+                    "show_clock": bool(item.get("show_clock", True)),
+                    "show_builtin_bubbles": bool(item.get("show_builtin_bubbles", True)),
+                    "show_custom_bubbles": bool(item.get("show_custom_bubbles", True)),
+                    "show_status": bool(item.get("show_status", True)),
+                    "flow_height": self._choice(
+                        item.get("flow_height"), "tall", {"standard", "tall", "full"}
+                    ),
+                    "show_charts": bool(item.get("show_charts", True)),
+                    "bubble_selection": self._choice(
+                        item.get("bubble_selection"), "all", {"all", "selected"}
+                    ),
+                    "bubble_ids": self._identifier_list(item.get("bubble_ids"), 64),
+                    "chart_selection": self._choice(
+                        item.get("chart_selection"), "all", {"all", "selected"}
+                    ),
+                    "chart_ids": self._identifier_list(item.get("chart_ids"), 32),
+                    "rotation_enabled": bool(item.get("rotation_enabled", False)),
+                    "rotation_seconds": int(
+                        self._number(item.get("rotation_seconds"), 20, 5, 3600)
+                    ),
+                    "rotate_flow": bool(item.get("rotate_flow", True)),
+                    "rotate_charts": bool(item.get("rotate_charts", True)),
+                    "rotate_overview": bool(item.get("rotate_overview", True)),
+                    "night_enabled": bool(item.get("night_enabled", False)),
+                    "night_start": self._time_text(item.get("night_start"), "22:00"),
+                    "night_end": self._time_text(item.get("night_end"), "06:00"),
+                    "night_brightness": int(
+                        self._number(item.get("night_brightness"), 30, 5, 100)
+                    ),
+                    "enabled": bool(item.get("enabled", True)),
                 }
             )
         return result
@@ -596,6 +816,19 @@ class MatrixEnergyStore:
         safe = "".join(char if char.isalnum() or char == "_" else "_" for char in candidate)
         safe = safe.strip("_")
         return safe or default
+
+    @staticmethod
+    def _identifier_list(value: Any, maximum: int) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        result: list[str] = []
+        for raw in value[:maximum]:
+            candidate = str(raw or "").strip().lower()
+            safe = "".join(char if char.isalnum() or char == "_" else "_" for char in candidate)
+            safe = safe.strip("_")
+            if safe and safe not in result:
+                result.append(safe)
+        return result
 
     @staticmethod
     def _entity_id(value: Any) -> str:

@@ -56,9 +56,21 @@
 - full-screen kiosk flow card,
 - configuration schema migration to version 5.
 
-## v0.6 — recorder analytics and billing
+## v0.6 — advanced widgets and multi-profile kiosk
 
-- recorder-backed day/week/month/year charts,
+- Recorder-backed 24-hour, 7-day and 30-day charts,
+- multiple related entities in one bubble,
+- multiple colored series on one chart,
+- secondary values, threshold colors and visual alarms,
+- widget click actions and drag-and-drop ordering,
+- named kiosk profiles with selected bubbles/charts,
+- automatic flow/chart/summary rotation,
+- configurable night dimming,
+- configuration schema migration to version 6.
+
+## v0.7 — billing and deeper analytics
+
+- recorder-backed yearly charts,
 - energy aggregation by G13 zone and season,
 - daily and monthly cost ledgers,
 - fixed-fee allocation,
@@ -66,7 +78,7 @@
 - invoice estimate and actual invoice comparison,
 - configuration backup versioning.
 
-## v0.7 — vendor profiles
+## v0.8 — vendor profiles
 
 - Deye / Sunsynk,
 - Huawei,
@@ -78,7 +90,7 @@
 - generic Modbus mapping assistant,
 - Pstryk and other dynamic-price adapters.
 
-## v0.8 — EV and battery control
+## v0.9 — EV and battery control
 
 - EV charger profiles,
 - surplus-PV charging,
@@ -87,7 +99,7 @@
 - battery reserve and time-of-use policies,
 - simulation and dry-run decisions.
 
-## v0.9 — multi-site and permissions
+## v1.0 — multi-site and permissions
 
 - multiple sites or buildings,
 - configuration subentries,
@@ -95,7 +107,7 @@
 - kiosk view,
 - separate operator and administrator modes.
 
-## v1.0
+## Later stable release
 
 - migration tests,
 - full documentation,

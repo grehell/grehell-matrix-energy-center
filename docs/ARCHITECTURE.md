@@ -19,11 +19,12 @@ The standard Home Assistant config flow creates one installation entry. It conta
 - the structured tariff profile,
 - automation policy placeholders,
 - panel permissions,
-- flow-window layout, visibility and branch limits.
-- overview bubbles and additional session charts,
-- kiosk flow-card presentation settings.
+- flow-window layout, visibility and branch limits,
+- overview bubbles with secondary/related values and conditional presentation,
+- multi-series charts, history ranges and click actions,
+- default kiosk settings and named kiosk profiles.
 
-Configuration schema version 5 adds overview widgets, charts and kiosk settings on top of the v4 flow-window model. Existing schema-v1–v4 data is deep-merged with the new defaults during load. The backend validates entity IDs, hexadecimal colors, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
+Configuration schema version 6 adds advanced widgets, Recorder ranges and multi-profile kiosk settings on top of the v5 overview model. Existing schema-v1–v5 data is deep-merged with the new defaults during load. The backend validates entity IDs, hexadecimal colors, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
 
 ### 3. Tariff engine
 
@@ -75,7 +76,7 @@ Write, reset and entity-test commands require administrator access.
 
 The integration serves one dependency-free JavaScript Web Component. It uses the Home Assistant object supplied to custom panels, so states and service calls remain local and authenticated.
 
-The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. Entity fields use a self-contained Home Assistant-style picker built from the live state registry; it does not depend on private frontend component APIs. The main flow canvas builds source and load branch buses from validated PV-string and device metadata while reading live power/status values from the coordinator. The Widgets view creates validated entity/attribute bubbles and line, area or bar session charts. The Kiosk view reuses the same flow canvas in a full-screen, monitoring-only layout. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
+The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. Entity fields use a self-contained Home Assistant-style picker built from the live state registry; it does not depend on private frontend component APIs. The main flow canvas builds source and load branch buses from validated PV-string and device metadata while reading live power/status values from the coordinator. The Widgets view creates validated entity/attribute bubbles, related values and multi-series line, area or grouped-bar charts. Session data remains in the browser; 24-hour history uses the authenticated REST history endpoint, while 7/30-day ranges try Recorder Statistics first and fall back to ordinary history. The Kiosk view reuses the same widgets and flow canvas in named, monitoring-only profiles with optional slide rotation and night dimming. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
 
 ## Future adapter model
 

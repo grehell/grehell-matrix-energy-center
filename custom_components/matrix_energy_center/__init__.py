@@ -7,6 +7,7 @@ from pathlib import Path
 import voluptuous as vol
 
 from homeassistant.components import frontend, panel_custom
+from homeassistant.components.frontend import add_extra_js_url, remove_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -17,6 +18,7 @@ from .const import (
     CONF_CURRENCY,
     CONF_INSTALLATION_NAME,
     CONF_PANEL_TITLE,
+    CARD_MODULE_URL,
     DATA_COORDINATOR,
     DATA_ENTRY_ID,
     DATA_PANEL_REGISTERED,
@@ -102,6 +104,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         domain_data = hass.data.get(DOMAIN, {})
         domain_data.pop(entry.entry_id, None)
         frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)
+        card_url = domain_data.pop("card_module_url", None)
+        if card_url:
+            remove_extra_js_url(hass, card_url)
         domain_data[DATA_PANEL_REGISTERED] = False
     return unloaded
 
@@ -127,6 +132,10 @@ async def _async_register_frontend(
         )
         domain_data["static_registered"] = True
 
+    if not domain_data.get("card_module_url"):
+        add_extra_js_url(hass, CARD_MODULE_URL)
+        domain_data["card_module_url"] = CARD_MODULE_URL
+
     config = store.config
     await panel_custom.async_register_panel(
         hass,
@@ -134,7 +143,7 @@ async def _async_register_frontend(
         webcomponent_name=PANEL_COMPONENT,
         sidebar_title=config["general"].get("panel_title", PANEL_TITLE),
         sidebar_icon=PANEL_ICON,
-        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v=0.5.0",
+        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v=0.6.1",
         embed_iframe=False,
         require_admin=False,
         config={"domain": DOMAIN},

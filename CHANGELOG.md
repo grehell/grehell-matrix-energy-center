@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.1 — 2026-07-15
+
+- Added the native `custom:matrix-energy-flow-card` Lovelace card.
+- Added automatic frontend module registration when the integration starts.
+- Added card options for kiosk profile, height, header, bubbles, custom bubbles, PV strings and additional devices.
+- Removed the need to embed the Home Assistant panel inside an iframe.
+- Added Lovelace card smoke tests and installation documentation.
+
+## 0.6.0 — 2026-07-15
+
+- Added a secondary value and up to eight independently styled related entities inside each custom overview bubble.
+- Added up to eight additional colored series to each chart, including a live legend and grouped bars.
+- Added Recorder-backed 24-hour, 7-day and 30-day history ranges with Statistics-first loading for longer ranges and ordinary-history fallback.
+- Added threshold-driven bubble colors, unavailable colors and configurable visual alarm conditions.
+- Added more-info, navigation and Home Assistant service actions for bubbles and charts.
+- Added drag-and-drop ordering for overview bubbles and charts.
+- Added named kiosk profiles with per-screen bubble/chart selection and direct `?kiosk=<profile>` URLs.
+- Added automatic kiosk slide rotation, manual slide controls and scheduled night dimming.
+- Added configuration schema version 6 with automatic migration from v0.1–v0.5.
+- Updated the frontend cache key, package metadata, examples, tests and release documentation to v0.6.0.
+
 ## 0.5.0 — 2026-07-15
 
 - Added configurable overview bubbles for any Home Assistant entity or entity attribute.

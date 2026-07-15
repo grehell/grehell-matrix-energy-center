@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "matrix_energy_center"
 NAME = "Matrix Energy Center"
-VERSION = "0.5.0"
+VERSION = "0.6.1"
 
 PLATFORMS = ["sensor"]
 
@@ -19,6 +19,7 @@ STORAGE_VERSION = 1
 PANEL_URL_PATH = "matrix-energy-center"
 PANEL_COMPONENT = "matrix-energy-center-panel"
 PANEL_STATIC_URL = "/matrix_energy_center_static"
+CARD_MODULE_URL = f"{PANEL_STATIC_URL}/matrix-energy-flow-card.js?v={VERSION}"
 PANEL_TITLE = "Energy Center"
 PANEL_ICON = "mdi:transmission-tower"
 

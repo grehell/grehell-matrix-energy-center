@@ -94,12 +94,18 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._panel = null;
     this._config = null;
     this._runtime = null;
-    this._view = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("kiosk") === "1" ? "kiosk" : "overview";
+    this._kioskProfileId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("kiosk") : null;
+    this._view = this._kioskProfileId ? "kiosk" : "overview";
     this._loading = false;
     this._message = "";
     this._lastSample = 0;
     this._history = { home: [], pv: [], grid: [], price: [] };
     this._customHistory = {};
+    this._recorderHistory = {};
+    this._historyLoadedAt = {};
+    this._historyLoading = new Set();
+    this._kioskSlide = 0;
+    this._dragState = null;
     this._rendered = false;
     this._picker = null;
     this._pickerQuery = "";
@@ -117,6 +123,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     }
     this._sampleHistory();
     this._updateLive();
+    this._loadRecorderHistories();
   }
 
   get hass() { return this._hass; }
@@ -210,6 +217,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._bindViewEvents();
     this._updateClock();
     this._updateLive();
+    this._loadRecorderHistories();
+    this._startKioskRotation();
     clearInterval(this._clockTimer);
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
   }
@@ -338,6 +347,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const overview = this._config.overview || {};
     const bubbles = this._config.overview_bubbles || [];
     const charts = this._config.overview_charts || [];
+    const kioskProfiles = this._config.kiosk_profiles || [];
     const bubblePreview = bubbles
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => item.enabled !== false)
@@ -351,13 +361,41 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       .map(({ item, index }) => this._overviewChart(item, index))
       .join("");
 
-    const bubbleCards = bubbles.map((item, index) => `<article class="panel widget-editor-card ${item.enabled === false ? "disabled-card" : ""}">
-      <div class="panel-title"><span>DYMEK ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><button class="danger-link" data-action="remove-overview-bubble" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+    const bubbleCards = bubbles.map((item, index) => `<article class="panel widget-editor-card draggable-widget ${item.enabled === false ? "disabled-card" : ""}" draggable="${this._isAdmin()}" data-drag-type="bubble" data-drag-index="${index}">
+      <div class="panel-title"><span><ha-icon class="drag-handle" icon="mdi:drag-vertical"></ha-icon> DYMEK ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><button class="danger-link" data-action="remove-overview-bubble" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
       <div class="widget-editor-grid">
         ${this._field(`overview_bubbles.${index}.name`, "Nazwa", item.name, "Np. Temperatura falownika", disabled)}
         ${this._field(`overview_bubbles.${index}.description`, "Opis", item.description, "Krótki opis pod wartością", disabled)}
         <div class="full">${this._entityField(`overview_bubbles.${index}.entity_id`, "Encja", item.entity_id, "Dowolna encja widoczna w Home Assistant.", disabled, "any")}</div>
         ${this._field(`overview_bubbles.${index}.attribute`, "Atrybut encji (opcjonalnie)", item.attribute, "Np. current_temperature", disabled)}
+        <div class="widget-subsection full"><b>WARTOŚĆ POMOCNICZA</b><small>Drugi stan w tym samym dymku, np. moc + energia dzisiaj.</small></div>
+        <label class="check-row full"><input type="checkbox" data-path="overview_bubbles.${index}.show_secondary" data-live-rerender="1" ${item.show_secondary ? "checked" : ""} ${disabled}><span><b>Pokaż wartość pomocniczą</b><small>Wyświetlana pod główną wartością.</small></span></label>
+        ${this._field(`overview_bubbles.${index}.secondary_name`, "Etykieta pomocnicza", item.secondary_name, "Np. Dzisiaj", disabled)}
+        <div class="full">${this._entityField(`overview_bubbles.${index}.secondary_entity_id`, "Druga encja", item.secondary_entity_id, "Może być taka sama jak encja główna.", disabled, "any")}</div>
+        ${this._field(`overview_bubbles.${index}.secondary_attribute`, "Drugi atrybut", item.secondary_attribute, "Opcjonalnie", disabled)}
+        ${this._field(`overview_bubbles.${index}.secondary_unit`, "Druga jednostka", item.secondary_unit, "Puste = jednostka encji", disabled)}
+        ${this._numberField(`overview_bubbles.${index}.secondary_decimals`, "Druga precyzja", item.secondary_decimals, 0, 6, 1, disabled)}
+        ${this._numberField(`overview_bubbles.${index}.secondary_multiplier`, "Drugi mnożnik", item.secondary_multiplier, -1000000, 1000000, 0.001, disabled)}
+        ${this._renderBubbleRelatedEditor(item, index, disabled)}
+        <div class="widget-subsection full"><b>KOLORY WARUNKOWE I ALARM</b><small>Kolor może zmieniać się automatycznie wraz z wartością.</small></div>
+        ${this._selectField(`overview_bubbles.${index}.color_mode`, "Tryb koloru", item.color_mode || "fixed", [["fixed","Stały"],["threshold","Według progów"]], disabled, true)}
+        ${this._numberField(`overview_bubbles.${index}.low_threshold`, "Próg niski", item.low_threshold, -1000000000, 1000000000, 0.01, disabled)}
+        ${this._numberField(`overview_bubbles.${index}.high_threshold`, "Próg wysoki", item.high_threshold, -1000000000, 1000000000, 0.01, disabled)}
+        ${this._colorField(`overview_bubbles.${index}.low_color`, "Kolor niski", item.low_color || "#008cff", disabled)}
+        ${this._colorField(`overview_bubbles.${index}.normal_color`, "Kolor normalny", item.normal_color || item.color, disabled)}
+        ${this._colorField(`overview_bubbles.${index}.high_color`, "Kolor wysoki", item.high_color || "#ff4d6d", disabled)}
+        ${this._colorField(`overview_bubbles.${index}.unavailable_color`, "Kolor braku danych", item.unavailable_color || "#6d7d86", disabled)}
+        <label class="check-row full"><input type="checkbox" data-path="overview_bubbles.${index}.alert_enabled" data-live-rerender="1" ${item.alert_enabled ? "checked" : ""} ${disabled}><span><b>Alarm wizualny</b><small>Pulsowanie dymku i etykieta po przekroczeniu warunku.</small></span></label>
+        ${this._selectField(`overview_bubbles.${index}.alert_condition`, "Warunek alarmu", item.alert_condition || "above", [["above","Powyżej"],["below","Poniżej"],["outside","Poza zakresem"]], disabled, true)}
+        ${this._numberField(`overview_bubbles.${index}.alert_low`, "Dolny próg alarmu", item.alert_low, -1000000000, 1000000000, 0.01, disabled)}
+        ${this._numberField(`overview_bubbles.${index}.alert_high`, "Górny próg alarmu", item.alert_high, -1000000000, 1000000000, 0.01, disabled)}
+        ${this._colorField(`overview_bubbles.${index}.alert_color`, "Kolor alarmu", item.alert_color || "#ff335f", disabled)}
+        ${this._field(`overview_bubbles.${index}.alert_text`, "Tekst alarmu", item.alert_text, "ALARM", disabled)}
+        <div class="widget-subsection full"><b>AKCJA PO KLIKNIĘCIU</b><small>Więcej informacji, nawigacja albo wywołanie usługi.</small></div>
+        ${this._selectField(`overview_bubbles.${index}.tap_action`, "Akcja", item.tap_action || "more_info", [["none","Brak"],["more_info","Więcej informacji"],["navigate","Nawigacja"],["service","Usługa HA"]], disabled, true)}
+        ${this._field(`overview_bubbles.${index}.navigation_path`, "Ścieżka nawigacji", item.navigation_path, "/lovelace/energia", disabled)}
+        ${this._field(`overview_bubbles.${index}.service`, "Usługa", item.service, "light.toggle", disabled)}
+        ${this._textarea(`overview_bubbles.${index}.service_data`, "Dane usługi JSON", item.service_data || "{}", "{\"entity_id\":\"light.salon\"}", disabled)}
         ${this._field(`overview_bubbles.${index}.icon`, "Ikona MDI", item.icon, "mdi:thermometer", disabled)}
         ${this._colorField(`overview_bubbles.${index}.color`, "Kolor wartości i obramowania", item.color, disabled)}
         ${this._colorField(`overview_bubbles.${index}.background_color`, "Kolor tła", item.background_color, disabled)}
@@ -372,8 +410,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       </div>
     </article>`).join("");
 
-    const chartCards = charts.map((item, index) => `<article class="panel widget-editor-card chart-editor-card ${item.enabled === false ? "disabled-card" : ""}">
-      <div class="panel-title"><span>WYKRES ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><button class="danger-link" data-action="remove-overview-chart" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+    const chartCards = charts.map((item, index) => `<article class="panel widget-editor-card chart-editor-card draggable-widget ${item.enabled === false ? "disabled-card" : ""}" draggable="${this._isAdmin()}" data-drag-type="chart" data-drag-index="${index}">
+      <div class="panel-title"><span><ha-icon class="drag-handle" icon="mdi:drag-vertical"></ha-icon> WYKRES ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><button class="danger-link" data-action="remove-overview-chart" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
       <div class="widget-editor-grid">
         ${this._field(`overview_charts.${index}.name`, "Nazwa", item.name, "Np. Temperatura magazynu", disabled)}
         ${this._field(`overview_charts.${index}.description`, "Opis", item.description, "Opis danych i jednostki", disabled)}
@@ -384,20 +422,28 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         ${this._field(`overview_charts.${index}.unit`, "Własna jednostka", item.unit, "Puste = jednostka encji", disabled)}
         ${this._numberField(`overview_charts.${index}.decimals`, "Miejsca dziesiętne", item.decimals, 0, 6, 1, disabled)}
         ${this._numberField(`overview_charts.${index}.multiplier`, "Mnożnik wartości", item.multiplier, -1000000, 1000000, 0.001, disabled)}
+        ${this._renderChartSeriesEditor(item, index, disabled)}
         ${this._selectField(`overview_charts.${index}.graph_type`, "Typ wykresu", item.graph_type || "line", [["line","Linia"],["area","Obszar"],["bar","Słupki"]], disabled, true)}
         ${this._selectField(`overview_charts.${index}.height`, "Wysokość", item.height || "medium", [["small","Mały"],["medium","Średni"],["large","Duży"]], disabled, true)}
+        ${this._selectField(`overview_charts.${index}.history_range`, "Zakres historii", item.history_range || "session", [["session","Bieżąca sesja"],["24h","Ostatnie 24 godziny"],["7d","Ostatnie 7 dni"],["30d","Ostatnie 30 dni"]], disabled, true)}
         ${this._numberField(`overview_charts.${index}.points`, "Liczba próbek", item.points, 12, 720, 1, disabled)}
         ${this._numberField(`overview_charts.${index}.line_width`, "Grubość linii", item.line_width, 1, 8, 0.5, disabled)}
         ${this._numberField(`overview_charts.${index}.order`, "Kolejność", item.order, 0, 10000, 1, disabled, true)}
+        <div class="widget-subsection full"><b>AKCJA PO KLIKNIĘCIU</b><small>Dotyczy całej karty wykresu.</small></div>
+        ${this._selectField(`overview_charts.${index}.tap_action`, "Akcja", item.tap_action || "more_info", [["none","Brak"],["more_info","Więcej informacji"],["navigate","Nawigacja"],["service","Usługa HA"]], disabled, true)}
+        ${this._field(`overview_charts.${index}.navigation_path`, "Ścieżka nawigacji", item.navigation_path, "/history", disabled)}
+        ${this._field(`overview_charts.${index}.service`, "Usługa", item.service, "switch.toggle", disabled)}
+        ${this._textarea(`overview_charts.${index}.service_data`, "Dane usługi JSON", item.service_data || "{}", "{\"entity_id\":\"switch.pompa\"}", disabled)}
       </div>
       <div class="widget-checks three-checks">
         <label class="check-row"><input type="checkbox" data-path="overview_charts.${index}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""} ${disabled}><span><b>Widoczny</b><small>Pokaż na przeglądzie.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="overview_charts.${index}.show_current" data-live-rerender="1" ${item.show_current !== false ? "checked" : ""} ${disabled}><span><b>Aktualna wartość</b><small>W nagłówku wykresu.</small></span></label>
-        <label class="check-row"><input type="checkbox" data-path="overview_charts.${index}.show_min_max" data-live-rerender="1" ${item.show_min_max !== false ? "checked" : ""} ${disabled}><span><b>Minimum i maksimum</b><small>Dla bieżącej sesji.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="overview_charts.${index}.show_min_max" data-live-rerender="1" ${item.show_min_max !== false ? "checked" : ""} ${disabled}><span><b>Minimum i maksimum</b><small>Dla wybranego zakresu.</small></span></label>
       </div>
     </article>`).join("");
+    const kioskProfileCards = kioskProfiles.map((profile, index) => this._renderKioskSettings(profile, `kiosk_profiles.${index}`, profile.name || `Kiosk ${index + 1}`, index, disabled)).join("");
 
-    return `<section class="hero-row"><div><span class="eyebrow">KONFIGURATOR PRZEGLĄDU</span><h1>Dymki i dodatkowe wykresy</h1><p>Wybierz encję lub jej atrybut, ustaw opis, jednostkę, kolory i kolejność. Wykresy zbierają próbki od chwili otwarcia panelu.</p></div>${this._saveBar(disabled)}</section>
+    return `<section class="hero-row"><div><span class="eyebrow">KONFIGURATOR PRZEGLĄDU</span><h1>Dymki i dodatkowe wykresy</h1><p>Połącz wiele encji w jednym dymku lub wykresie, ustaw kolory, alarmy, akcje i historię Recorder.</p></div>${this._saveBar(disabled)}</section>
       <section class="overview-widget-layout">
         <article class="panel overview-widget-settings">
           <div class="panel-title"><span>USTAWIENIA PRZEGLĄDU</span><ha-icon icon="mdi:tune-variant"></ha-icon></div>
@@ -413,19 +459,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           <div class="widget-add-actions">
             <button class="primary-btn" data-action="add-overview-bubble" ${disabled}><ha-icon icon="mdi:plus-circle-outline"></ha-icon>DODAJ DYMEK</button>
             <button class="secondary-btn" data-action="add-overview-chart" ${disabled}><ha-icon icon="mdi:chart-line-variant"></ha-icon>DODAJ WYKRES</button>
+            <button class="secondary-btn" data-action="refresh-recorder"><ha-icon icon="mdi:history"></ha-icon>ODŚWIEŻ HISTORIĘ</button>
           </div>
-          <div class="kiosk-settings">
-            <div class="panel-title"><span>KARTA KIOSK</span><ha-icon icon="mdi:monitor-dashboard"></ha-icon></div>
-            ${this._field("kiosk.title", "Tytuł karty", this._config.kiosk?.title || "PRZEPŁYW ENERGII", "PRZEPŁYW ENERGII", disabled)}
-            ${this._selectField("kiosk.flow_height", "Wysokość diagramu", this._config.kiosk?.flow_height || "tall", [["standard","Standardowa"],["tall","Wysoka"],["full","Pełna wysokość"]], disabled, true)}
-            <div class="widget-checks">
-              <label class="check-row"><input type="checkbox" data-path="kiosk.show_clock" data-live-rerender="1" ${this._config.kiosk?.show_clock !== false ? "checked" : ""} ${disabled}><span><b>Zegar</b><small>Data i czas w nagłówku.</small></span></label>
-              <label class="check-row"><input type="checkbox" data-path="kiosk.show_builtin_bubbles" data-live-rerender="1" ${this._config.kiosk?.show_builtin_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Standardowe dymki</b><small>Dom, PV, sieć, magazyn i EV.</small></span></label>
-              <label class="check-row"><input type="checkbox" data-path="kiosk.show_custom_bubbles" data-live-rerender="1" ${this._config.kiosk?.show_custom_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Własne dymki</b><small>Elementy ustawione w tym widoku.</small></span></label>
-              <label class="check-row"><input type="checkbox" data-path="kiosk.show_status" data-live-rerender="1" ${this._config.kiosk?.show_status !== false ? "checked" : ""} ${disabled}><span><b>Pasek statusu</b><small>Stan integracji i liczba gałęzi.</small></span></label>
-            </div>
-            <button class="secondary-btn kiosk-preview-button" data-view="kiosk"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ KARTĘ KIOSK</button>
-          </div>
+          ${this._renderKioskSettings(this._config.kiosk || {}, "kiosk", "DOMYŚLNA KARTA KIOSK", -1, disabled)}
         </article>
         <article class="panel overview-widget-preview">
           <div class="panel-title"><span>PODGLĄD WŁASNYCH ELEMENTÓW</span><small>WARTOŚCI NA ŻYWO</small></div>
@@ -433,12 +469,54 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           ${chartPreview ? `<div class="custom-chart-grid preview-grid" style="--chart-columns:${Math.max(1, Math.min(4, Number(overview.chart_columns || 2)))}">${chartPreview}</div>` : ""}
         </article>
       </section>
-      <section class="widget-editor-list"><div class="section-heading"><div><span class="eyebrow">DYMKI</span><h2>Encje widoczne nad diagramem</h2></div><button class="secondary-btn" data-action="add-overview-bubble" ${disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ</button></div>${bubbleCards || this._emptyState("mdi:message-text-fast-outline", "Nie skonfigurowano dymków", "Dodaj encję, którą chcesz widzieć na przeglądzie.")}</section>
-      <section class="widget-editor-list"><div class="section-heading"><div><span class="eyebrow">WYKRESY DODATKOWE</span><h2>Historia wybranych encji</h2></div><button class="secondary-btn" data-action="add-overview-chart" ${disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ</button></div>${chartCards || this._emptyState("mdi:chart-box-plus-outline", "Nie skonfigurowano wykresów", "Dodaj wykres liniowy, obszarowy lub słupkowy.")}</section>`;
+      <section class="widget-editor-list"><div class="section-heading"><div><span class="eyebrow">DYMKI · PRZECIĄGNIJ, ABY ZMIENIĆ KOLEJNOŚĆ</span><h2>Encje widoczne nad diagramem</h2></div><button class="secondary-btn" data-action="add-overview-bubble" ${disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ</button></div>${bubbleCards || this._emptyState("mdi:message-text-fast-outline", "Nie skonfigurowano dymków", "Dodaj encję, którą chcesz widzieć na przeglądzie.")}</section>
+      <section class="widget-editor-list"><div class="section-heading"><div><span class="eyebrow">WYKRESY · PRZECIĄGNIJ, ABY ZMIENIĆ KOLEJNOŚĆ</span><h2>Historia wybranych encji</h2></div><button class="secondary-btn" data-action="add-overview-chart" ${disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ</button></div>${chartCards || this._emptyState("mdi:chart-box-plus-outline", "Nie skonfigurowano wykresów", "Dodaj wykres liniowy, obszarowy lub słupkowy.")}</section>
+      <section class="widget-editor-list"><div class="section-heading"><div><span class="eyebrow">PROFILE EKRANÓW</span><h2>Kioski dla pomieszczeń i urządzeń</h2></div><button class="secondary-btn" data-action="add-kiosk-profile" ${disabled}><ha-icon icon="mdi:monitor-multiple"></ha-icon>DODAJ PROFIL</button></div>${kioskProfileCards || this._emptyState("mdi:monitor-dashboard", "Brak dodatkowych profili", "Domyślna karta działa pod ?kiosk=1. Dodaj profil np. dla salonu albo kotłowni.")}</section>`;
+  }
+
+  _renderKioskSettings(profile, path, heading, profileIndex, disabled = "") {
+    const isDefault = profileIndex < 0;
+    const profileId = isDefault ? "1" : profile.id || `kiosk_${profileIndex + 1}`;
+    const bubbleIds = new Set(profile.bubble_ids || []);
+    const chartIds = new Set(profile.chart_ids || []);
+    const bubbleChoices = (this._config.overview_bubbles || []).map(item => `<label class="selection-chip"><input type="checkbox" data-action="toggle-kiosk-selection" data-profile-index="${profileIndex}" data-kind="bubble" data-item-id="${this._escAttr(item.id)}" ${bubbleIds.has(item.id) ? "checked" : ""} ${disabled}><ha-icon icon="${this._escAttr(item.icon || "mdi:information-outline")}"></ha-icon><span>${this._esc(item.name)}</span></label>`).join("");
+    const chartChoices = (this._config.overview_charts || []).map(item => `<label class="selection-chip"><input type="checkbox" data-action="toggle-kiosk-selection" data-profile-index="${profileIndex}" data-kind="chart" data-item-id="${this._escAttr(item.id)}" ${chartIds.has(item.id) ? "checked" : ""} ${disabled}><ha-icon icon="${this._escAttr(item.icon || "mdi:chart-line")}"></ha-icon><span>${this._esc(item.name)}</span></label>`).join("");
+    return `<div class="kiosk-settings ${isDefault ? "default-kiosk-settings" : "panel kiosk-profile-card"}">
+      <div class="panel-title"><span>${this._esc(heading)}</span><div class="kiosk-profile-head-actions">${isDefault ? `<ha-icon icon="mdi:monitor-dashboard"></ha-icon>` : `<button class="danger-link" data-action="remove-kiosk-profile" data-index="${profileIndex}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button>`}</div></div>
+      ${isDefault ? "" : `<div class="three-grid">${this._field(`${path}.id`, "Identyfikator URL", profile.id, "salon", disabled)}${this._field(`${path}.name`, "Nazwa profilu", profile.name, "Ekran w salonie", disabled)}${this._field(`${path}.description`, "Opis", profile.description, "Tablet 10 cali", disabled)}</div>`}
+      <div class="three-grid">${this._field(`${path}.title`, "Tytuł karty", profile.title || "PRZEPŁYW ENERGII", "PRZEPŁYW ENERGII", disabled)}${this._selectField(`${path}.flow_height`, "Wysokość diagramu", profile.flow_height || "tall", [["standard","Standardowa"],["tall","Wysoka"],["full","Pełna wysokość"]], disabled, true)}${this._numberField(`${path}.rotation_seconds`, "Zmiana slajdu co (s)", profile.rotation_seconds || 20, 5, 3600, 1, disabled)}</div>
+      <div class="widget-checks three-checks">
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_clock" data-live-rerender="1" ${profile.show_clock !== false ? "checked" : ""} ${disabled}><span><b>Zegar</b><small>Data i czas.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_builtin_bubbles" data-live-rerender="1" ${profile.show_builtin_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Standardowe dymki</b><small>Dom, PV, sieć, magazyn i EV.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_custom_bubbles" data-live-rerender="1" ${profile.show_custom_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Własne dymki</b><small>Wybrane poniżej.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_charts" data-live-rerender="1" ${profile.show_charts !== false ? "checked" : ""} ${disabled}><span><b>Wykresy</b><small>Osobny slajd wykresów.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_status" data-live-rerender="1" ${profile.show_status !== false ? "checked" : ""} ${disabled}><span><b>Pasek statusu</b><small>Stan integracji i gałęzi.</small></span></label>
+        ${isDefault ? "" : `<label class="check-row"><input type="checkbox" data-path="${path}.enabled" data-live-rerender="1" ${profile.enabled !== false ? "checked" : ""} ${disabled}><span><b>Profil aktywny</b><small>Dostępny pod własnym URL.</small></span></label>`}
+      </div>
+      <div class="kiosk-selection-grid">
+        <div><div class="widget-subsection"><b>WYBÓR DYMKÓW</b><small>Puste zaznaczenie w trybie „wybrane” ukrywa wszystkie własne dymki.</small></div>${this._selectField(`${path}.bubble_selection`, "Zakres dymków", profile.bubble_selection || "all", [["all","Wszystkie"],["selected","Tylko zaznaczone"]], disabled, true)}<div class="selection-chips">${bubbleChoices || `<small>Najpierw dodaj własne dymki.</small>`}</div></div>
+        <div><div class="widget-subsection"><b>WYBÓR WYKRESÓW</b><small>Każdy profil może pokazywać inny zestaw danych.</small></div>${this._selectField(`${path}.chart_selection`, "Zakres wykresów", profile.chart_selection || "all", [["all","Wszystkie"],["selected","Tylko zaznaczone"]], disabled, true)}<div class="selection-chips">${chartChoices || `<small>Najpierw dodaj wykresy.</small>`}</div></div>
+      </div>
+      <div class="widget-subsection"><b>AUTOMATYCZNA ROTACJA</b><small>Przełączanie między przepływem, wykresami i podsumowaniem.</small></div>
+      <div class="widget-checks three-checks">
+        <label class="check-row"><input type="checkbox" data-path="${path}.rotation_enabled" data-live-rerender="1" ${profile.rotation_enabled ? "checked" : ""} ${disabled}><span><b>Automatyczna rotacja</b><small>Interwał ustawiony powyżej.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.rotate_flow" data-live-rerender="1" ${profile.rotate_flow !== false ? "checked" : ""} ${disabled}><span><b>Slajd przepływu</b><small>Duży diagram.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.rotate_charts" data-live-rerender="1" ${profile.rotate_charts !== false ? "checked" : ""} ${disabled}><span><b>Slajd wykresów</b><small>Wybrane wykresy.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.rotate_overview" data-live-rerender="1" ${profile.rotate_overview !== false ? "checked" : ""} ${disabled}><span><b>Slajd podsumowania</b><small>Dymki, ceny i odbiorniki.</small></span></label>
+      </div>
+      <div class="widget-subsection"><b>TRYB NOCNY</b><small>Automatyczne przyciemnienie ekranu w zadanych godzinach.</small></div>
+      <div class="four-grid">
+        <label class="check-row"><input type="checkbox" data-path="${path}.night_enabled" data-live-rerender="1" ${profile.night_enabled ? "checked" : ""} ${disabled}><span><b>Wygaszanie nocne</b><small>Aktywuj harmonogram.</small></span></label>
+        ${this._field(`${path}.night_start`, "Początek", profile.night_start || "22:00", "22:00", disabled)}
+        ${this._field(`${path}.night_end`, "Koniec", profile.night_end || "06:00", "06:00", disabled)}
+        ${this._numberField(`${path}.night_brightness`, "Jasność nocna (%)", profile.night_brightness || 30, 5, 100, 1, disabled)}
+      </div>
+      <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div>
+    </div>`;
   }
 
   _renderKiosk() {
-    const kiosk = this._config.kiosk || {};
+    const kiosk = this._activeKioskProfile();
     const overview = this._config.overview || {};
     const builtin = kiosk.show_builtin_bubbles === false ? "" : [
       this._metric("home", "mdi:home-lightning-bolt", "DOM", "cyan"),
@@ -448,24 +526,54 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._showModule("ev") ? this._metric("ev", "mdi:car-electric", "ŁADOWANIE EV", "cyan") : "",
       this._showModule("prices") ? this._metric("price", "mdi:tag-outline", "CENA ZAKUPU", "orange", this._config.general.currency + "/kWh") : "",
     ].filter(Boolean).join("");
-    const custom = kiosk.show_custom_bubbles === false ? "" : (this._config.overview_bubbles || [])
+    const customItems = this._selectedKioskItems("bubble", kiosk);
+    const chartItems = this._selectedKioskItems("chart", kiosk);
+    const custom = kiosk.show_custom_bubbles === false ? "" : customItems
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => item.enabled !== false)
       .sort((a, b) => Number(a.item.order || 0) - Number(b.item.order || 0))
-      .map(({ item, index }) => this._overviewBubble(item, index))
+      .map(({ item }) => this._overviewBubble(item, (this._config.overview_bubbles || []).indexOf(item)))
+      .join("");
+    const charts = kiosk.show_charts === false ? "" : chartItems
+      .filter(item => item.enabled !== false)
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map(item => this._overviewChart(item, (this._config.overview_charts || []).indexOf(item)))
       .join("");
     const metrics = `${builtin}${custom}`;
     const strings = (this._config.pv_strings || []).filter(item => item.enabled !== false && item.show_in_flow !== false).length;
     const devices = (this._config.devices || []).filter(item => item.enabled !== false && item.show_in_flow === true).length;
+    const slides = [];
+    if (kiosk.rotate_flow !== false) slides.push({ id: "flow", label: "PRZEPŁYW", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics bubble-size-${this._escAttr(overview.bubble_size || "medium")}">${metrics}</div>` : ""}<article class="panel kiosk-flow-card">${this._flowDiagram(true)}</article>` });
+    if (kiosk.rotate_charts !== false && charts) slides.push({ id: "charts", label: "WYKRESY", html: `<div class="custom-chart-grid kiosk-chart-grid" style="--chart-columns:${Math.max(1, Math.min(4, Number(overview.chart_columns || 2)))}">${charts}</div>` });
+    if (kiosk.rotate_overview !== false) slides.push({ id: "overview", label: "PODSUMOWANIE", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics bubble-size-${this._escAttr(overview.bubble_size || "medium")}">${metrics}</div>` : ""}<div class="kiosk-summary-grid"><article class="panel price-panel"><div class="panel-title"><span>CENY ENERGII</span><ha-icon icon="mdi:cash-clock"></ha-icon></div><div class="price-values"><div><small>ZAKUP</small><strong data-live="price">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div><div><small>SPRZEDAŻ</small><strong data-live="priceSell">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div></div><div class="spark-wrap"><svg viewBox="0 0 400 130" preserveAspectRatio="none"><path class="gridline" d="M0 25H400 M0 65H400 M0 105H400"></path><path data-spark="price" class="spark purple" d=""></path></svg></div></article><article class="panel consumers-panel"><div class="panel-title"><span>NAJWIĘKSZE ODBIORNIKI</span><ha-icon icon="mdi:chart-bar"></ha-icon></div><div class="consumer-list" data-consumer-list></div></article>${this._gaugePanel("batterySoc", "MAGAZYN ENERGII", "mdi:battery-charging-high")}${this._gaugePanel("selfSufficiency", "SAMOWYSTARCZALNOŚĆ", "mdi:home-percent")}</div>` });
+    if (!slides.length) slides.push({ id: "flow", label: "PRZEPŁYW", html: `<article class="panel kiosk-flow-card">${this._flowDiagram(true)}</article>` });
+    this._kioskSlide = Math.min(this._kioskSlide, slides.length - 1);
+    const slideHtml = slides.map((slide, index) => `<section class="kiosk-slide ${index === this._kioskSlide ? "active" : ""}" data-kiosk-slide="${index}" data-slide-id="${slide.id}">${slide.html}</section>`).join("");
+    const navigation = slides.length > 1 ? `<div class="kiosk-slide-nav"><button data-action="kiosk-prev"><ha-icon icon="mdi:chevron-left"></ha-icon></button><div>${slides.map((slide, index) => `<button class="kiosk-dot ${index === this._kioskSlide ? "active" : ""}" data-action="kiosk-slide" data-slide-index="${index}" title="${slide.label}"></button>`).join("")}</div><button data-action="kiosk-next"><ha-icon icon="mdi:chevron-right"></ha-icon></button></div>` : "";
     return `<section class="kiosk-view flow-height-${this._escAttr(kiosk.flow_height || "tall")}">
       <header class="kiosk-header">
-        <div><span class="eyebrow">MATRIX ENERGY CENTER</span><h1>${this._esc(kiosk.title || "PRZEPŁYW ENERGII")}</h1><small>${this._esc(this._config.general.installation_name || "Energy Center")}</small></div>
+        <div><span class="eyebrow">MATRIX ENERGY CENTER${kiosk.name ? ` · ${this._esc(kiosk.name)}` : ""}</span><h1>${this._esc(kiosk.title || "PRZEPŁYW ENERGII")}</h1><small>${this._esc(this._config.general.installation_name || "Energy Center")}</small></div>
         <div class="kiosk-header-tools">${kiosk.show_clock === false ? "" : `<div class="kiosk-clock"><b data-kiosk-clock>--:--:--</b><span data-kiosk-date>--</span></div>`}<button class="secondary-btn" data-action="toggle-fullscreen"><ha-icon icon="mdi:fullscreen"></ha-icon>PEŁNY EKRAN</button><button class="secondary-btn" data-view="overview"><ha-icon icon="mdi:close"></ha-icon>WYJDŹ</button></div>
       </header>
-      ${metrics ? `<div class="metrics-grid dynamic kiosk-metrics bubble-size-${this._escAttr(overview.bubble_size || "medium")}">${metrics}</div>` : ""}
-      <article class="panel kiosk-flow-card">${this._flowDiagram(true)}</article>
+      <div class="kiosk-slides">${slideHtml}</div>
+      ${navigation}
       ${kiosk.show_status === false ? "" : `<footer class="kiosk-status"><span><i class="dot ok"></i> SYSTEM ONLINE</span><span>STRINGI PV <b>${strings}</b></span><span>DODATKOWE GAŁĘZIE <b>${devices}</b></span><span>STREFA <b data-live="tariffZone">--</b></span><span>REWIZJA <b>${this._esc(this._config.revision ?? 0)}</b></span></footer>`}
     </section>`;
+  }
+
+  _activeKioskProfile() {
+    if (this._kioskProfileId && this._kioskProfileId !== "1") {
+      const profile = (this._config.kiosk_profiles || []).find(item => item.id === this._kioskProfileId && item.enabled !== false);
+      if (profile) return profile;
+    }
+    return this._config.kiosk || {};
+  }
+
+  _selectedKioskItems(kind, profile) {
+    const items = kind === "bubble" ? this._config.overview_bubbles || [] : this._config.overview_charts || [];
+    const selection = profile[`${kind}_selection`] || "all";
+    const ids = new Set(profile[`${kind}_ids`] || []);
+    return selection === "selected" ? items.filter(item => ids.has(item.id)) : items;
   }
 
   _renderFlows() {
@@ -924,48 +1032,86 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _overviewBubble(item, index) {
     const value = this._widgetValue(item);
-    const color = this._safeColor(item.color, "#20eaff");
+    const secondary = item.show_secondary ? this._widgetValue(item, "secondary") : null;
+    const related = (Array.isArray(item.related_entities) ? item.related_entities : [])
+      .map((relatedItem, relatedIndex) => ({ item: relatedItem, relatedIndex }))
+      .filter(({ item: relatedItem }) => relatedItem.enabled !== false && relatedItem.entity_id);
+    const presentation = this._bubblePresentation(item, value.numeric);
+    const color = presentation.color;
     const background = this._safeColor(item.background_color, "#031426");
     const key = `bubble:${item.id || index}`;
-    return `<article class="metric-card custom-bubble" style="--bubble-color:${color};--bubble-bg:${background}" data-overview-bubble="${index}">
+    return `<article class="metric-card custom-bubble ${presentation.alert ? "bubble-alert" : ""} ${item.tap_action && item.tap_action !== "none" ? "actionable" : ""}" style="--bubble-color:${color};--bubble-bg:${background};--alert-color:${this._safeColor(item.alert_color, "#ff335f")}" data-overview-bubble="${index}" data-widget-action="bubble" data-widget-index="${index}" tabindex="${item.tap_action && item.tap_action !== "none" ? "0" : "-1"}">
       <ha-icon icon="${this._escAttr(item.icon || "mdi:information-outline")}"></ha-icon>
-      <div class="custom-bubble-copy"><small>${this._esc(item.name || `Dymek ${index + 1}`)}</small><div><strong data-overview-bubble-value="${index}">${this._esc(value.formatted)}</strong><span data-overview-bubble-unit="${index}">${this._esc(value.unit)}</span></div>${item.description ? `<p>${this._esc(item.description)}</p>` : ""}</div>
+      <div class="custom-bubble-copy"><small>${this._esc(item.name || `Dymek ${index + 1}`)}</small><div><strong data-overview-bubble-value="${index}">${this._esc(value.formatted)}</strong><span data-overview-bubble-unit="${index}">${this._esc(value.unit)}</span></div>${secondary ? `<div class="bubble-secondary"><small>${this._esc(item.secondary_name || "Dodatkowo")}</small><b data-overview-bubble-secondary="${index}">${this._esc(secondary.formatted)}</b><span data-overview-bubble-secondary-unit="${index}">${this._esc(secondary.unit)}</span></div>` : ""}${related.length ? `<div class="bubble-related-list">${related.map(({ item: relatedItem, relatedIndex }) => { const relatedValue = this._widgetValue(relatedItem); const relatedColor = this._safeColor(relatedItem.color, color); return `<div class="bubble-related-value" style="--related-color:${relatedColor}"><small>${this._esc(relatedItem.name || `Encja ${relatedIndex + 1}`)}</small><b data-overview-bubble-related="${index}:${relatedIndex}">${this._esc(relatedValue.formatted)}</b><span data-overview-bubble-related-unit="${index}:${relatedIndex}">${this._esc(relatedValue.unit)}</span></div>`; }).join("")}</div>` : ""}${item.description ? `<p>${this._esc(item.description)}</p>` : ""}</div>
+      ${presentation.alert ? `<span class="bubble-alert-label" data-overview-bubble-alert="${index}">${this._esc(item.alert_text || "ALARM")}</span>` : ""}
       ${item.show_sparkline === false ? "" : `<svg viewBox="0 0 100 30" preserveAspectRatio="none"><path data-custom-spark="${this._escAttr(key)}" class="spark" d=""></path></svg>`}
     </article>`;
   }
 
   _overviewChart(item, index) {
-    const value = this._widgetValue(item);
+    const series = this._chartSeries(item);
+    const value = this._widgetValue(series[0]);
     const color = this._safeColor(item.color, "#20eaff");
     const graphType = ["line", "area", "bar"].includes(item.graph_type) ? item.graph_type : "line";
     const height = ["small", "medium", "large"].includes(item.height) ? item.height : "medium";
     const lineWidth = Math.max(1, Math.min(8, Number(item.line_width || 2)));
-    const key = `chart:${item.id || index}`;
-    return `<article class="panel custom-overview-chart chart-${height} graph-${graphType}" style="--chart-color:${color};--chart-line-width:${lineWidth}" data-overview-chart="${index}">
+    const rangeLabel = ({ session:"Bieżąca sesja", "24h":"Ostatnie 24 godziny", "7d":"Ostatnie 7 dni", "30d":"Ostatnie 30 dni" })[item.history_range || "session"];
+    return `<article class="panel custom-overview-chart chart-${height} graph-${graphType} ${item.tap_action && item.tap_action !== "none" ? "actionable" : ""}" style="--chart-color:${color};--chart-line-width:${lineWidth}" data-overview-chart="${index}" data-widget-action="chart" data-widget-index="${index}" tabindex="${item.tap_action && item.tap_action !== "none" ? "0" : "-1"}">
       <div class="custom-chart-head"><div><ha-icon icon="${this._escAttr(item.icon || "mdi:chart-line")}"></ha-icon><span><b>${this._esc(item.name || `Wykres ${index + 1}`)}</b>${item.description ? `<small>${this._esc(item.description)}</small>` : ""}</span></div>${item.show_current === false ? "" : `<strong><span data-overview-chart-value="${index}">${this._esc(value.formatted)}</span><small data-overview-chart-unit="${index}">${this._esc(value.unit)}</small></strong>`}</div>
-      <svg viewBox="0 0 400 160" preserveAspectRatio="none"><path class="gridline" d="M0 25H400 M0 65H400 M0 105H400 M0 145H400"></path><path data-custom-chart="${this._escAttr(key)}" data-graph-type="${graphType}" class="custom-chart-path" d=""></path></svg>
-      <div class="custom-chart-foot"><small>Próbki z bieżącej sesji</small>${item.show_min_max === false ? "" : `<span>MIN <b data-overview-chart-min="${index}">--</b> · MAX <b data-overview-chart-max="${index}">--</b> <i data-overview-chart-minmax-unit="${index}">${this._esc(value.unit)}</i></span>`}</div>
+      ${series.length > 1 ? `<div class="chart-series-legend">${series.map((seriesItem, seriesIndex) => { const seriesValue = this._widgetValue(seriesItem); const seriesColor = this._safeColor(seriesItem.color, color); return `<div style="--series-color:${seriesColor}"><i></i><span>${this._esc(seriesItem.name || `Seria ${seriesIndex + 1}`)}</span><b data-overview-chart-series-value="${index}:${seriesIndex}">${this._esc(seriesValue.formatted)}</b><small data-overview-chart-series-unit="${index}:${seriesIndex}">${this._esc(seriesValue.unit)}</small></div>`; }).join("")}</div>` : ""}
+      <svg viewBox="0 0 400 160" preserveAspectRatio="none"><path class="gridline" d="M0 25H400 M0 65H400 M0 105H400 M0 145H400"></path>${series.map((seriesItem, seriesIndex) => `<path data-custom-chart="${this._escAttr(this._chartSessionKey(item, index, seriesIndex))}" data-chart-index="${index}" data-series-index="${seriesIndex}" data-graph-type="${graphType}" style="--series-color:${this._safeColor(seriesItem.color, color)}" class="custom-chart-path" d=""></path>`).join("")}</svg>
+      <div class="custom-chart-foot"><small>${this._esc(rangeLabel)}</small>${item.show_min_max === false ? "" : `<span>MIN <b data-overview-chart-min="${index}">--</b> · MAX <b data-overview-chart-max="${index}">--</b> <i data-overview-chart-minmax-unit="${index}">${this._esc(value.unit)}</i></span>`}</div>
     </article>`;
   }
 
-  _widgetValue(item) {
-    const state = item?.entity_id ? this._hass?.states?.[item.entity_id] : null;
+  _chartSeries(item) {
+    const primary = { ...item, _seriesId: "primary" };
+    const additional = (Array.isArray(item?.series) ? item.series : [])
+      .map((seriesItem, sourceIndex) => ({ ...item, ...seriesItem, history_range: item.history_range, points: item.points, _seriesId: seriesItem.id || `series_${sourceIndex + 1}`, _sourceIndex: sourceIndex }))
+      .filter(seriesItem => seriesItem.enabled !== false && seriesItem.entity_id);
+    return [primary, ...additional];
+  }
+
+  _chartSeriesItem(item, seriesIndex = 0) {
+    return this._chartSeries(item)[seriesIndex] || this._chartSeries(item)[0];
+  }
+
+  _widgetValue(item, prefix = "") {
+    const key = name => prefix ? `${prefix}_${name}` : name;
+    const entityId = item?.[key("entity_id")];
+    const attribute = item?.[key("attribute")];
+    const state = entityId ? this._hass?.states?.[entityId] : null;
     let raw = state?.state;
-    if (item?.attribute) raw = String(item.attribute).split(".").reduce((value, part) => value == null ? undefined : value[part], state?.attributes);
+    if (attribute) raw = String(attribute).split(".").reduce((value, part) => value == null ? undefined : value[part], state?.attributes);
     if (raw == null || ["unknown", "unavailable", "none", ""].includes(String(raw).toLowerCase())) {
-      return { numeric: null, formatted: "--", unit: item?.unit || (item?.attribute ? "" : state?.attributes?.unit_of_measurement || "") };
+      return { numeric: null, formatted: "--", unit: item?.[key("unit")] || (attribute ? "" : state?.attributes?.unit_of_measurement || "") };
     }
     const sourceNumber = Number(raw);
-    const multiplier = Number(item?.multiplier ?? 1);
+    const multiplier = Number(item?.[key("multiplier")] ?? 1);
     const numeric = Number.isFinite(sourceNumber) ? sourceNumber * (Number.isFinite(multiplier) ? multiplier : 1) : null;
-    const decimals = Math.max(0, Math.min(6, Number(item?.decimals ?? 1)));
+    const decimals = Math.max(0, Math.min(6, Number(item?.[key("decimals")] ?? 1)));
     let formatted;
     if (numeric != null) formatted = numeric.toFixed(decimals);
     else if (typeof raw === "object") {
       try { formatted = JSON.stringify(raw); } catch (_) { formatted = String(raw); }
     } else formatted = String(raw);
-    const unit = item?.unit || (item?.attribute ? "" : state?.attributes?.unit_of_measurement || "");
+    const unit = item?.[key("unit")] || (attribute ? "" : state?.attributes?.unit_of_measurement || "");
     return { numeric, formatted, unit };
+  }
+
+  _bubblePresentation(item, numeric) {
+    let color = this._safeColor(item.color, "#20eaff");
+    if (numeric == null) color = this._safeColor(item.unavailable_color, "#6d7d86");
+    else if (item.color_mode === "threshold") {
+      const low = Number(item.low_threshold ?? 0), high = Number(item.high_threshold ?? 100);
+      color = numeric < low ? this._safeColor(item.low_color, "#008cff") : numeric > high ? this._safeColor(item.high_color, "#ff4d6d") : this._safeColor(item.normal_color, color);
+    }
+    let alert = false;
+    if (item.alert_enabled && numeric != null) {
+      const low = Number(item.alert_low ?? 0), high = Number(item.alert_high ?? 100);
+      alert = item.alert_condition === "below" ? numeric < low : item.alert_condition === "outside" ? numeric < low || numeric > high : numeric > high;
+    }
+    return { color, alert };
   }
 
   _safeColor(value, fallback) {
@@ -1026,6 +1172,50 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       </button>
       <small>${description}</small>
     </div>`;
+  }
+
+  _renderBubbleRelatedEditor(item, bubbleIndex, disabled = "") {
+    const related = Array.isArray(item.related_entities) ? item.related_entities : [];
+    const cards = related.map((relatedItem, relatedIndex) => {
+      const base = `overview_bubbles.${bubbleIndex}.related_entities.${relatedIndex}`;
+      return `<article class="widget-related-card">
+        <div class="widget-related-head"><b>ENCJA POWIĄZANA ${relatedIndex + 1}</b><button class="danger-link" data-action="remove-bubble-related" data-index="${bubbleIndex}" data-related-index="${relatedIndex}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+        <div class="widget-related-grid">
+          ${this._field(`${base}.name`, "Nazwa", relatedItem.name, "Np. Prąd", disabled)}
+          ${this._field(`${base}.attribute`, "Atrybut", relatedItem.attribute, "Opcjonalnie", disabled)}
+          <div class="full">${this._entityField(`${base}.entity_id`, "Encja", relatedItem.entity_id, "Dodatkowa wartość wyświetlana w tym samym dymku.", disabled, "any")}</div>
+          ${this._field(`${base}.unit`, "Jednostka", relatedItem.unit, "Puste = z encji", disabled)}
+          ${this._numberField(`${base}.decimals`, "Precyzja", relatedItem.decimals, 0, 6, 1, disabled)}
+          ${this._numberField(`${base}.multiplier`, "Mnożnik", relatedItem.multiplier, -1000000, 1000000, 0.001, disabled)}
+          ${this._colorField(`${base}.color`, "Kolor", relatedItem.color || item.color, disabled)}
+          <label class="check-row"><input type="checkbox" data-path="${base}.enabled" data-live-rerender="1" ${relatedItem.enabled !== false ? "checked" : ""} ${disabled}><span><b>Widoczna</b><small>Pokaż w dymku.</small></span></label>
+        </div>
+      </article>`;
+    }).join("");
+    return `<div class="widget-subsection full"><b>ENCJE POWIĄZANE W DYMKU</b><small>Do 8 dodatkowych stanów w jednym dymku, każdy z własną nazwą, jednostką, kolorem i mnożnikiem.</small></div>
+      <div class="widget-related-list full">${cards || `<div class="mini-empty">Brak dodatkowych encji w tym dymku.</div>`}<button class="secondary-btn add-related-btn" data-action="add-bubble-related" data-index="${bubbleIndex}" ${related.length >= 8 ? "disabled" : disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ ENCJĘ DO DYMKU (${related.length}/8)</button></div>`;
+  }
+
+  _renderChartSeriesEditor(item, chartIndex, disabled = "") {
+    const series = Array.isArray(item.series) ? item.series : [];
+    const cards = series.map((seriesItem, seriesIndex) => {
+      const base = `overview_charts.${chartIndex}.series.${seriesIndex}`;
+      return `<article class="widget-related-card chart-series-editor">
+        <div class="widget-related-head"><b>SERIA ${seriesIndex + 2}</b><button class="danger-link" data-action="remove-chart-series" data-index="${chartIndex}" data-series-index="${seriesIndex}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+        <div class="widget-related-grid">
+          ${this._field(`${base}.name`, "Nazwa serii", seriesItem.name, `Seria ${seriesIndex + 2}`, disabled)}
+          ${this._field(`${base}.attribute`, "Atrybut", seriesItem.attribute, "Opcjonalnie", disabled)}
+          <div class="full">${this._entityField(`${base}.entity_id`, "Encja", seriesItem.entity_id, "Seria zostanie narysowana na wspólnej osi czasu.", disabled, "any")}</div>
+          ${this._field(`${base}.unit`, "Jednostka", seriesItem.unit, "Puste = z encji", disabled)}
+          ${this._numberField(`${base}.decimals`, "Precyzja", seriesItem.decimals, 0, 6, 1, disabled)}
+          ${this._numberField(`${base}.multiplier`, "Mnożnik", seriesItem.multiplier, -1000000, 1000000, 0.001, disabled)}
+          ${this._colorField(`${base}.color`, "Kolor serii", seriesItem.color || "#52ff62", disabled)}
+          <label class="check-row"><input type="checkbox" data-path="${base}.enabled" data-live-rerender="1" ${seriesItem.enabled !== false ? "checked" : ""} ${disabled}><span><b>Widoczna</b><small>Pokaż na wykresie.</small></span></label>
+        </div>
+      </article>`;
+    }).join("");
+    return `<div class="widget-subsection full"><b>POWIĄZANE SERIE NA JEDNYM WYKRESIE</b><small>Do 8 dodatkowych encji z osobnymi kolorami. Wszystkie korzystają z tego samego zakresu historii.</small></div>
+      <div class="widget-related-list full">${cards || `<div class="mini-empty">Wykres zawiera tylko serię główną.</div>`}<button class="secondary-btn add-related-btn" data-action="add-chart-series" data-index="${chartIndex}" ${series.length >= 8 ? "disabled" : disabled}><ha-icon icon="mdi:chart-multiple"></ha-icon>DODAJ SERIĘ (${series.length}/8)</button></div>`;
   }
 
   _renderEntityPicker() {
@@ -1202,12 +1392,24 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "remove-device") this._removeDevice(Number(el.dataset.index));
         if (action === "add-overview-bubble") this._addOverviewBubble();
         if (action === "remove-overview-bubble") this._removeOverviewBubble(Number(el.dataset.index));
+        if (action === "add-bubble-related") this._addBubbleRelated(Number(el.dataset.index));
+        if (action === "remove-bubble-related") this._removeBubbleRelated(Number(el.dataset.index), Number(el.dataset.relatedIndex));
         if (action === "add-overview-chart") this._addOverviewChart();
         if (action === "remove-overview-chart") this._removeOverviewChart(Number(el.dataset.index));
+        if (action === "add-chart-series") this._addChartSeries(Number(el.dataset.index));
+        if (action === "remove-chart-series") this._removeChartSeries(Number(el.dataset.index), Number(el.dataset.seriesIndex));
+        if (action === "add-kiosk-profile") this._addKioskProfile();
+        if (action === "remove-kiosk-profile") this._removeKioskProfile(Number(el.dataset.index));
+        if (action === "toggle-kiosk-selection") this._toggleKioskSelection(Number(el.dataset.profileIndex), el.dataset.kind, el.dataset.itemId, el.checked);
+        if (action === "open-kiosk-profile") this._openKioskProfile(el.dataset.profileId);
+        if (action === "kiosk-prev") this._advanceKiosk(-1);
+        if (action === "kiosk-next") this._advanceKiosk(1);
+        if (action === "kiosk-slide") this._setKioskSlide(Number(el.dataset.slideIndex));
         if (action === "export-config") this._exportConfig();
         if (action === "control-device") await this._controlDevice(Number(el.dataset.index));
         if (action === "test-entity") await this._testEntity(el.dataset.entity);
         if (action === "refresh-runtime") await this._refreshRuntime();
+        if (action === "refresh-recorder") await this._loadRecorderHistories(true);
         if (action === "toggle-fullscreen") await this._toggleFullscreen();
         if (action === "open-entity-picker") {
           event.preventDefault();
@@ -1266,6 +1468,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const count = this.shadowRoot.querySelector(".entity-search-row > span");
       if (count) count.textContent = String(candidates.length);
     });
+    this.shadowRoot.querySelectorAll("[data-widget-action]").forEach(el => {
+      const execute = event => {
+        if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        this._executeWidgetAction(el.dataset.widgetAction, Number(el.dataset.widgetIndex));
+      };
+      el.addEventListener("click", execute);
+      el.addEventListener("keydown", execute);
+    });
+    this._bindWidgetDragDrop();
   }
 
 
@@ -1366,14 +1578,34 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const n = items.length + 1;
     items.push({
       id: this._id("bubble"), name: `Dymek ${n}`, description: "", entity_id: "", attribute: "",
+      show_secondary: false, secondary_name: "", secondary_entity_id: "", secondary_attribute: "", secondary_unit: "", secondary_decimals: 1, secondary_multiplier: 1,
       icon: "mdi:information-outline", color: "#20eaff", background_color: "#031426", unit: "",
-      decimals: 1, multiplier: 1, order: n, enabled: true, show_sparkline: true,
+      color_mode: "fixed", low_threshold: 0, high_threshold: 100, low_color: "#008cff", normal_color: "#20eaff", high_color: "#ff4d6d", unavailable_color: "#6d7d86",
+      alert_enabled: false, alert_condition: "above", alert_low: 0, alert_high: 100, alert_color: "#ff335f", alert_text: "ALARM",
+      decimals: 1, multiplier: 1, related_entities: [], order: n, enabled: true, show_sparkline: true, tap_action: "more_info", navigation_path: "", service: "", service_data: "{}",
     });
     this._render();
   }
 
   _removeOverviewBubble(index) {
     if (this._isAdmin()) { (this._config.overview_bubbles || []).splice(index, 1); this._render(); }
+  }
+
+  _addBubbleRelated(index) {
+    if (!this._isAdmin()) return;
+    const bubble = this._config.overview_bubbles?.[index];
+    if (!bubble) return;
+    const items = bubble.related_entities ||= [];
+    if (items.length >= 8) return;
+    const n = items.length + 1;
+    items.push({ id: this._id("related"), name: `Encja ${n}`, entity_id: "", attribute: "", unit: "", decimals: 1, multiplier: 1, color: bubble.color || "#20eaff", enabled: true });
+    this._render();
+  }
+
+  _removeBubbleRelated(index, relatedIndex) {
+    if (!this._isAdmin()) return;
+    (this._config.overview_bubbles?.[index]?.related_entities || []).splice(relatedIndex, 1);
+    this._render();
   }
 
   _addOverviewChart() {
@@ -1383,14 +1615,126 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     items.push({
       id: this._id("chart"), name: `Wykres ${n}`, description: "", entity_id: "", attribute: "",
       icon: "mdi:chart-line", color: "#20eaff", unit: "", decimals: 1, multiplier: 1,
-      graph_type: "line", height: "medium", points: 90, line_width: 2, order: n,
-      enabled: true, show_current: true, show_min_max: true,
+      graph_type: "line", height: "medium", history_range: "session", points: 90, line_width: 2, order: n,
+      series: [], enabled: true, show_current: true, show_min_max: true, tap_action: "more_info", navigation_path: "", service: "", service_data: "{}",
     });
     this._render();
   }
 
   _removeOverviewChart(index) {
     if (this._isAdmin()) { (this._config.overview_charts || []).splice(index, 1); this._render(); }
+  }
+
+  _addChartSeries(index) {
+    if (!this._isAdmin()) return;
+    const chart = this._config.overview_charts?.[index];
+    if (!chart) return;
+    const items = chart.series ||= [];
+    if (items.length >= 8) return;
+    const n = items.length + 2;
+    const colors = ["#52ff62", "#b95cff", "#ffb11b", "#ff4d6d", "#00aaff", "#b8ff3d", "#ff7ee2", "#76ffe2"];
+    items.push({ id: this._id("series"), name: `Seria ${n}`, entity_id: "", attribute: "", color: colors[(n - 2) % colors.length], unit: "", decimals: 1, multiplier: 1, enabled: true });
+    this._render();
+  }
+
+  _removeChartSeries(index, seriesIndex) {
+    if (!this._isAdmin()) return;
+    (this._config.overview_charts?.[index]?.series || []).splice(seriesIndex, 1);
+    this._render();
+  }
+
+  _addKioskProfile() {
+    if (!this._isAdmin()) return;
+    const items = this._config.kiosk_profiles ||= [];
+    const n = items.length + 1;
+    items.push({
+      id: `ekran_${n}`, name: `Ekran ${n}`, description: "", title: "PRZEPŁYW ENERGII",
+      show_clock: true, show_builtin_bubbles: true, show_custom_bubbles: true, show_charts: true,
+      show_status: true, flow_height: "tall", bubble_selection: "all", bubble_ids: [],
+      chart_selection: "all", chart_ids: [], rotation_enabled: false, rotation_seconds: 20,
+      rotate_flow: true, rotate_charts: true, rotate_overview: true, night_enabled: false,
+      night_start: "22:00", night_end: "06:00", night_brightness: 30, enabled: true,
+    });
+    this._render();
+  }
+
+  _removeKioskProfile(index) {
+    if (this._isAdmin()) { (this._config.kiosk_profiles || []).splice(index, 1); this._render(); }
+  }
+
+  _toggleKioskSelection(profileIndex, kind, itemId, checked) {
+    if (!this._isAdmin() || !["bubble", "chart"].includes(kind)) return;
+    const profile = profileIndex < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[profileIndex];
+    if (!profile) return;
+    const key = `${kind}_ids`;
+    const ids = new Set(profile[key] || []);
+    if (checked) ids.add(itemId); else ids.delete(itemId);
+    profile[key] = [...ids];
+  }
+
+  _openKioskProfile(profileId) {
+    this._kioskProfileId = profileId || "1";
+    this._kioskSlide = 0;
+    this._view = "kiosk";
+    this._render();
+  }
+
+  _bindWidgetDragDrop() {
+    if (!this._isAdmin()) return;
+    this.shadowRoot.querySelectorAll("[data-drag-type]").forEach(card => {
+      card.addEventListener("dragstart", event => {
+        this._dragState = { type: card.dataset.dragType, index: Number(card.dataset.dragIndex) };
+        card.classList.add("dragging");
+        event.dataTransfer?.setData("text/plain", `${card.dataset.dragType}:${card.dataset.dragIndex}`);
+      });
+      card.addEventListener("dragend", () => { card.classList.remove("dragging"); this._dragState = null; });
+      card.addEventListener("dragover", event => {
+        if (this._dragState?.type !== card.dataset.dragType) return;
+        event.preventDefault();
+        card.classList.add("drag-target");
+      });
+      card.addEventListener("dragleave", () => card.classList.remove("drag-target"));
+      card.addEventListener("drop", event => {
+        event.preventDefault();
+        card.classList.remove("drag-target");
+        const from = this._dragState?.index, to = Number(card.dataset.dragIndex);
+        const list = card.dataset.dragType === "bubble" ? this._config.overview_bubbles : this._config.overview_charts;
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from === to || !list?.[from]) return;
+        const [moved] = list.splice(from, 1);
+        list.splice(to, 0, moved);
+        list.forEach((item, index) => { item.order = index + 1; });
+        this._dragState = null;
+        this._render();
+      });
+    });
+  }
+
+  async _executeWidgetAction(kind, index) {
+    const item = kind === "bubble" ? this._config.overview_bubbles?.[index] : this._config.overview_charts?.[index];
+    if (!item || !item.tap_action || item.tap_action === "none") return;
+    if (item.tap_action === "more_info") {
+      if (!item.entity_id) return;
+      this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: item.entity_id }, bubbles: true, composed: true }));
+      return;
+    }
+    if (item.tap_action === "navigate") {
+      const path = String(item.navigation_path || "").trim();
+      if (!path.startsWith("/")) return;
+      window.history.pushState(null, "", path);
+      window.dispatchEvent(new Event("location-changed"));
+      return;
+    }
+    if (item.tap_action === "service") {
+      const [domain, service] = String(item.service || "").split(".", 2);
+      if (!domain || !service) return;
+      try {
+        const data = JSON.parse(item.service_data || "{}");
+        if (!data.entity_id && item.entity_id) data.entity_id = item.entity_id;
+        await this._hass.callService(domain, service, data);
+        this._message = `Wysłano ${domain}.${service}`;
+      } catch (err) { this._message = `Błąd akcji: ${err?.message || err}`; }
+      this._updateMessage();
+    }
   }
 
   _exportConfig() {
@@ -1482,6 +1826,45 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._message = `Tryb pełnoekranowy jest niedostępny: ${err?.message || err}`;
       this._updateMessage();
     }
+  }
+
+  _startKioskRotation() {
+    clearInterval(this._kioskRotationTimer);
+    if (this._view !== "kiosk") return;
+    const profile = this._activeKioskProfile();
+    this._applyKioskNightMode(profile);
+    const count = this.shadowRoot.querySelectorAll("[data-kiosk-slide]").length;
+    if (profile.rotation_enabled && count > 1) {
+      this._kioskRotationTimer = setInterval(() => this._advanceKiosk(1), Math.max(5, Number(profile.rotation_seconds || 20)) * 1000);
+    }
+  }
+
+  _setKioskSlide(index) {
+    const slides = [...this.shadowRoot.querySelectorAll("[data-kiosk-slide]")];
+    if (!slides.length) return;
+    this._kioskSlide = (index + slides.length) % slides.length;
+    slides.forEach((slide, slideIndex) => slide.classList.toggle("active", slideIndex === this._kioskSlide));
+    this.shadowRoot.querySelectorAll(".kiosk-dot").forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === this._kioskSlide));
+    this._updateLive();
+  }
+
+  _advanceKiosk(direction) { this._setKioskSlide(this._kioskSlide + direction); }
+
+  _applyKioskNightMode(profile = this._activeKioskProfile()) {
+    const shell = this.shadowRoot.querySelector(".matrix-shell");
+    if (!shell) return;
+    let active = false;
+    if (profile?.night_enabled) {
+      const toMinutes = value => {
+        const [hour, minute] = String(value || "00:00").split(":").map(Number);
+        return Math.max(0, Math.min(1439, hour * 60 + minute));
+      };
+      const now = new Date(), current = now.getHours() * 60 + now.getMinutes();
+      const start = toMinutes(profile.night_start || "22:00"), end = toMinutes(profile.night_end || "06:00");
+      active = start === end ? true : start < end ? current >= start && current < end : current >= start || current < end;
+    }
+    shell.classList.toggle("kiosk-night", active);
+    shell.style.setProperty("--night-brightness", String(Math.max(5, Math.min(100, Number(profile?.night_brightness || 30))) / 100));
   }
 
   _updateMessage() { const el = this.shadowRoot.querySelector(".status-message"); if (el) el.textContent = this._message; }
@@ -1705,19 +2088,43 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       if (item.enabled !== false && item.show_sparkline !== false) add(`bubble:${item.id || index}`, item, 90);
     });
     (this._config?.overview_charts || []).forEach((item, index) => {
-      if (item.enabled !== false) add(`chart:${item.id || index}`, item, Math.max(12, Math.min(720, Number(item.points || 90))));
+      if (item.enabled !== false && (item.history_range || "session") === "session") {
+        this._chartSeries(item).forEach((seriesItem, seriesIndex) => add(this._chartSessionKey(item, index, seriesIndex), seriesItem, Math.max(12, Math.min(720, Number(item.points || 90)))));
+      }
     });
   }
 
   _updateOverviewWidgets() {
     (this._config?.overview_bubbles || []).forEach((item, index) => {
       const value = this._widgetValue(item);
+      const secondary = item.show_secondary ? this._widgetValue(item, "secondary") : null;
+      const presentation = this._bubblePresentation(item, value.numeric);
       this.shadowRoot.querySelectorAll(`[data-overview-bubble-value="${index}"]`).forEach(el => { el.textContent = value.formatted; });
       this.shadowRoot.querySelectorAll(`[data-overview-bubble-unit="${index}"]`).forEach(el => { el.textContent = value.unit; });
+      this.shadowRoot.querySelectorAll(`[data-overview-bubble-secondary="${index}"]`).forEach(el => { el.textContent = secondary?.formatted || "--"; });
+      this.shadowRoot.querySelectorAll(`[data-overview-bubble-secondary-unit="${index}"]`).forEach(el => { el.textContent = secondary?.unit || ""; });
+      (Array.isArray(item.related_entities) ? item.related_entities : []).forEach((relatedItem, relatedIndex) => {
+        const relatedValue = this._widgetValue(relatedItem);
+        this.shadowRoot.querySelectorAll(`[data-overview-bubble-related="${index}:${relatedIndex}"]`).forEach(el => { el.textContent = relatedValue.formatted; });
+        this.shadowRoot.querySelectorAll(`[data-overview-bubble-related-unit="${index}:${relatedIndex}"]`).forEach(el => { el.textContent = relatedValue.unit; });
+      });
+      this.shadowRoot.querySelectorAll(`[data-overview-bubble="${index}"]`).forEach(el => {
+        el.style.setProperty("--bubble-color", presentation.color);
+        el.classList.toggle("bubble-alert", presentation.alert);
+        let label = el.querySelector?.(`[data-overview-bubble-alert="${index}"]`);
+        if (presentation.alert && !label) {
+          label = document.createElement("span");
+          label.className = "bubble-alert-label";
+          label.dataset.overviewBubbleAlert = String(index);
+          label.textContent = item.alert_text || "ALARM";
+          el.appendChild(label);
+        } else if (!presentation.alert && label) label.remove();
+      });
     });
     (this._config?.overview_charts || []).forEach((item, index) => {
-      const value = this._widgetValue(item);
-      const data = this._customHistory[`chart:${item.id || index}`] || [];
+      const series = this._chartSeries(item);
+      const value = this._widgetValue(series[0]);
+      const data = this._chartData(item, index, 0);
       const digits = Math.max(0, Math.min(6, Number(item.decimals ?? 1)));
       const min = data.length ? Math.min(...data).toFixed(digits) : "--";
       const max = data.length ? Math.max(...data).toFixed(digits) : "--";
@@ -1725,6 +2132,11 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this.shadowRoot.querySelectorAll(`[data-overview-chart-unit="${index}"], [data-overview-chart-minmax-unit="${index}"]`).forEach(el => { el.textContent = value.unit; });
       this.shadowRoot.querySelectorAll(`[data-overview-chart-min="${index}"]`).forEach(el => { el.textContent = min; });
       this.shadowRoot.querySelectorAll(`[data-overview-chart-max="${index}"]`).forEach(el => { el.textContent = max; });
+      series.forEach((seriesItem, seriesIndex) => {
+        const seriesValue = this._widgetValue(seriesItem);
+        this.shadowRoot.querySelectorAll(`[data-overview-chart-series-value="${index}:${seriesIndex}"]`).forEach(el => { el.textContent = seriesValue.formatted; });
+        this.shadowRoot.querySelectorAll(`[data-overview-chart-series-unit="${index}:${seriesIndex}"]`).forEach(el => { el.textContent = seriesValue.unit; });
+      });
     });
   }
 
@@ -1738,8 +2150,107 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll("[data-custom-chart]").forEach(path => {
       const type = path.dataset.graphType || "line";
-      path.setAttribute("d", this._customChartPath(this._customHistory[path.dataset.customChart] || [], 400, 150, type));
+      const index = Number(path.dataset.chartIndex);
+      const seriesIndex = Number(path.dataset.seriesIndex || 0);
+      const item = this._config?.overview_charts?.[index];
+      if (!item) return;
+      const series = this._chartSeries(item);
+      const allData = series.map((_, itemSeriesIndex) => this._chartData(item, index, itemSeriesIndex));
+      const units = new Set(series.map(seriesItem => this._widgetValue(seriesItem).unit).filter(Boolean));
+      const values = units.size <= 1 ? allData.flat().filter(Number.isFinite) : [];
+      const bounds = values.length ? { min: Math.min(...values), max: Math.max(...values) } : null;
+      path.setAttribute("d", this._customChartPath(allData[seriesIndex] || [], 400, 150, type, bounds, seriesIndex, series.length));
     });
+  }
+
+  _chartSessionKey(item, index, seriesIndex = 0) {
+    const seriesItem = this._chartSeriesItem(item, seriesIndex);
+    return `chart:${item.id || index}:${seriesItem._seriesId || seriesIndex}`;
+  }
+
+  _chartData(item, index, seriesIndex = 0) {
+    if ((item.history_range || "session") === "session") return this._customHistory[this._chartSessionKey(item, index, seriesIndex)] || [];
+    return this._recorderHistory[this._historyKey(item, index, seriesIndex)] || [];
+  }
+
+  _historyKey(item, index, seriesIndex = 0) {
+    const seriesItem = this._chartSeriesItem(item, seriesIndex);
+    return `${item.id || index}:${seriesItem._seriesId || seriesIndex}:${item.history_range || "session"}:${seriesItem.entity_id || ""}:${seriesItem.attribute || ""}`;
+  }
+
+  async _loadRecorderHistories(force = false) {
+    if (!this._config || this._recorderLoadRunning) return;
+    const pending = (this._config.overview_charts || []).flatMap((item, index) => this._chartSeries(item).map((seriesItem, seriesIndex) => ({ item, index, seriesItem, seriesIndex }))).filter(({ item, index, seriesItem, seriesIndex }) => {
+      if (item.enabled === false || !seriesItem.entity_id || (item.history_range || "session") === "session") return false;
+      const key = this._historyKey(item, index, seriesIndex);
+      return force || !this._historyLoadedAt[key] || Date.now() - this._historyLoadedAt[key] > 300000;
+    });
+    if (!pending.length) return;
+    this._recorderLoadRunning = true;
+    try {
+      for (const { item, index, seriesIndex } of pending) await this._loadRecorderHistory(item, index, seriesIndex);
+    } finally {
+      this._recorderLoadRunning = false;
+      this._updateOverviewWidgets();
+      this._drawSparklines();
+      setTimeout(() => this._loadRecorderHistories(), 0);
+    }
+  }
+
+  async _loadRecorderHistory(item, index, seriesIndex = 0) {
+    const seriesItem = this._chartSeriesItem(item, seriesIndex);
+    const key = this._historyKey(item, index, seriesIndex);
+    if (this._historyLoading.has(key)) return;
+    this._historyLoading.add(key);
+    const range = item.history_range || "24h";
+    const days = range === "30d" ? 30 : range === "7d" ? 7 : 1;
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 86400000);
+    let values = [];
+    try {
+      if (!seriesItem.attribute && ["7d", "30d"].includes(range) && typeof this._hass?.callWS === "function") {
+        try {
+          const result = await this._hass.callWS({
+            type: "recorder/statistics_during_period", start_time: start.toISOString(), end_time: end.toISOString(),
+            statistic_ids: [seriesItem.entity_id], period: range === "30d" ? "day" : "hour", types: ["mean", "state", "sum"],
+          });
+          values = (result?.[seriesItem.entity_id] || []).map(row => Number(row.mean ?? row.state ?? row.sum)).filter(Number.isFinite);
+        } catch (_) { values = []; }
+      }
+      if (!values.length && typeof this._hass?.callApi === "function") {
+        const flags = seriesItem.attribute ? "" : "&minimal_response&no_attributes&significant_changes_only";
+        const path = `history/period/${encodeURIComponent(start.toISOString())}?filter_entity_id=${encodeURIComponent(seriesItem.entity_id)}&end_time=${encodeURIComponent(end.toISOString())}${flags}`;
+        const response = await this._hass.callApi("GET", path);
+        values = (Array.isArray(response?.[0]) ? response[0] : []).map(row => {
+          const raw = seriesItem.attribute ? String(seriesItem.attribute).split(".").reduce((value, part) => value == null ? undefined : value[part], row.attributes) : row.state;
+          const numeric = Number(raw);
+          const multiplier = Number(seriesItem.multiplier ?? 1);
+          return Number.isFinite(numeric) ? numeric * (Number.isFinite(multiplier) ? multiplier : 1) : null;
+        }).filter(value => value != null && Number.isFinite(value));
+      } else if (values.length) {
+        const multiplier = Number(seriesItem.multiplier ?? 1);
+        values = values.map(value => value * (Number.isFinite(multiplier) ? multiplier : 1));
+      }
+      this._recorderHistory[key] = this._downsample(values, Math.max(12, Math.min(720, Number(item.points || 90))));
+      this._historyLoadedAt[key] = Date.now();
+    } catch (err) {
+      this._recorderHistory[key] ||= [];
+      this._historyLoadedAt[key] = Date.now();
+    } finally {
+      this._historyLoading.delete(key);
+    }
+  }
+
+  _downsample(values, maximum) {
+    if (values.length <= maximum) return values;
+    const result = [];
+    const bucket = values.length / maximum;
+    for (let index = 0; index < maximum; index++) {
+      const start = Math.floor(index * bucket), end = Math.max(start + 1, Math.floor((index + 1) * bucket));
+      const slice = values.slice(start, end);
+      result.push(slice.reduce((sum, value) => sum + value, 0) / slice.length);
+    }
+    return result;
   }
 
   _sparkPath(data, width, height) {
@@ -1748,15 +2259,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return data.map((value, index) => `${index ? "L" : "M"}${(index / Math.max(1, data.length - 1) * width).toFixed(1)} ${(height - 5 - ((value - min) / range) * (height - 10)).toFixed(1)}`).join(" ");
   }
 
-  _customChartPath(data, width, height, type = "line") {
+  _customChartPath(data, width, height, type = "line", bounds = null, seriesIndex = 0, seriesCount = 1) {
     if (!data.length) return "";
-    const min = Math.min(...data), max = Math.max(...data), range = max - min || 1;
+    const min = bounds?.min ?? Math.min(...data), max = bounds?.max ?? Math.max(...data), range = max - min || 1;
     const y = value => height - 5 - ((value - min) / range) * (height - 10);
     if (type === "bar") {
       const slot = width / Math.max(1, data.length);
-      const barWidth = Math.max(1, slot * 0.72);
+      const groupWidth = slot * 0.78;
+      const barWidth = Math.max(1, groupWidth / Math.max(1, seriesCount));
       return data.map((value, index) => {
-        const x = index * slot + (slot - barWidth) / 2;
+        const x = index * slot + (slot - groupWidth) / 2 + seriesIndex * barWidth;
         const top = y(value);
         return `M${x.toFixed(1)} ${top.toFixed(1)}V${height}H${(x + barWidth).toFixed(1)}V${top.toFixed(1)}Z`;
       }).join(" ");
@@ -1786,6 +2298,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const now = new Date();
     this.shadowRoot.querySelectorAll("[data-clock], [data-kiosk-clock]").forEach(clock => { clock.textContent = now.toLocaleTimeString(); });
     this.shadowRoot.querySelectorAll("[data-date], [data-kiosk-date]").forEach(date => { date.textContent = now.toLocaleDateString(undefined, { day:"2-digit", month:"short", year:"numeric" }).toUpperCase(); });
+    if (this._view === "kiosk") this._applyKioskNightMode();
   }
 
   _setPath(obj, path, value) {
@@ -1856,9 +2369,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .custom-chart-grid{display:grid;grid-template-columns:repeat(var(--chart-columns,2),minmax(0,1fr));gap:10px;margin-top:10px}.custom-overview-chart{--chart-color:var(--cyan);padding:11px 14px 10px;min-width:0;overflow:hidden;border-color:color-mix(in srgb,var(--chart-color) 38%,rgba(32,234,255,.18));background:radial-gradient(circle at 7% 5%,color-mix(in srgb,var(--chart-color) 10%,transparent),transparent 42%),var(--panel)}.custom-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}.custom-chart-head>div{display:flex;align-items:center;gap:9px;min-width:0}.custom-chart-head ha-icon{color:var(--chart-color);filter:drop-shadow(0 0 6px currentColor)}.custom-chart-head span{display:flex;flex-direction:column;min-width:0}.custom-chart-head b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-chart-head small{color:#638998;font-size:8px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-chart-head>strong{display:flex;align-items:baseline;gap:4px;color:var(--chart-color);font:22px monospace;white-space:nowrap}.custom-chart-head>strong small{font:8px sans-serif;color:#83acba}.custom-overview-chart svg{width:100%;height:150px;margin-top:5px;overflow:visible}.custom-overview-chart.chart-small svg{height:95px}.custom-overview-chart.chart-large svg{height:230px}.custom-chart-path{fill:none;stroke:var(--chart-color);stroke-width:var(--chart-line-width,2);vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--chart-color) 65%,transparent))}.graph-area .custom-chart-path{fill:color-mix(in srgb,var(--chart-color) 17%,transparent);stroke:var(--chart-color)}.graph-bar .custom-chart-path{fill:color-mix(in srgb,var(--chart-color) 62%,transparent);stroke:var(--chart-color);stroke-width:.5}.custom-chart-foot{display:flex;justify-content:space-between;gap:10px;color:#567b8b;font-size:8px}.custom-chart-foot span{color:#739baa}.custom-chart-foot b{color:var(--chart-color);font-family:monospace}.custom-chart-foot i{font-style:normal}
     .overview-widget-layout{display:grid;grid-template-columns:minmax(360px,.6fr) minmax(560px,1.4fr);gap:10px;margin-bottom:18px}.overview-widget-settings,.overview-widget-preview{padding:8px 14px 16px;min-width:0}.overview-widget-preview>.metrics-grid{margin:0}.overview-widget-preview>.empty{padding:35px}.custom-chart-grid.preview-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}.widget-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}.overview-widget-settings>.widget-checks{grid-template-columns:1fr}.widget-checks .check-row{border:1px solid rgba(32,234,255,.13);border-radius:10px;background:rgba(0,75,110,.05);padding:9px}.widget-checks.three-checks{grid-template-columns:repeat(3,minmax(0,1fr))}.widget-add-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.widget-editor-list{display:grid;gap:10px;margin-bottom:18px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:4px 2px}.section-heading h2{margin:3px 0 0;font-size:17px}.widget-editor-card{padding:8px 14px 16px}.widget-editor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}.widget-editor-grid>.full{grid-column:1/-1}.danger-link{border:1px solid rgba(255,85,115,.35);background:rgba(255,40,75,.08);color:#ff718b;padding:5px 8px;display:flex;align-items:center;gap:5px;font-size:8px;font-weight:900}.danger-link ha-icon{width:15px;height:15px}.color-input-wrap{height:39px;border:1px solid rgba(32,234,255,.28);background:#03101e;display:grid!important;grid-template-columns:54px 1fr;align-items:center}.field .color-input-wrap input[type=color]{width:54px;height:37px;border:0;padding:4px;background:transparent}.color-input-wrap code{padding:0 10px;color:#a8d3df;font-size:10px}
     .kiosk-settings{margin-top:18px;padding-top:6px;border-top:1px solid rgba(32,234,255,.16)}.kiosk-settings>.widget-checks{grid-template-columns:1fr 1fr}.kiosk-preview-button{margin-top:12px;width:100%;justify-content:center}.matrix-shell.kiosk-active{height:100vh;grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"main"}.matrix-shell.kiosk-active>.topbar,.matrix-shell.kiosk-active>.sidebar,.matrix-shell.kiosk-active>.statusbar{display:none}.matrix-shell.kiosk-active:before{inset:0}.matrix-shell.kiosk-active>.content{padding:12px;overflow:auto}.kiosk-view{width:100%;min-height:100%;display:flex;flex-direction:column;gap:10px}.kiosk-header{min-height:72px;border:1px solid rgba(32,234,255,.3);background:linear-gradient(90deg,rgba(3,24,45,.96),rgba(1,10,20,.94));display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 16px;box-shadow:inset 0 0 22px rgba(0,190,255,.07)}.kiosk-header h1{margin:2px 0;font-size:23px;letter-spacing:2px}.kiosk-header>div>small{color:#6e98a8}.kiosk-header-tools{display:flex;align-items:center;gap:8px}.kiosk-clock{display:flex;flex-direction:column;align-items:flex-end;min-width:105px}.kiosk-clock b{font:20px monospace;color:var(--cyan)}.kiosk-clock span{font-size:8px;color:#6792a2}.kiosk-metrics{margin:0;grid-template-columns:repeat(auto-fit,minmax(155px,1fr))}.kiosk-flow-card{flex:1;min-height:0;padding:0}.kiosk-flow-card .flow-canvas-v4{margin:0 12px 12px;min-height:560px!important}.flow-height-tall .kiosk-flow-card .flow-canvas-v4{min-height:max(650px,calc(100vh - 300px))!important}.flow-height-full .kiosk-flow-card .flow-canvas-v4{min-height:max(760px,calc(100vh - 195px))!important}.kiosk-status{min-height:36px;border:1px solid rgba(32,234,255,.25);background:rgba(2,15,29,.96);display:flex;align-items:center;justify-content:space-around;gap:18px;padding:6px 13px;color:#719baa;font-size:9px}.kiosk-status span{display:flex;align-items:center;gap:6px}.kiosk-status b{color:var(--cyan);font-family:monospace}
-    @media(max-width:1300px){.overview-widget-layout{grid-template-columns:1fr}.widget-editor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    @media(max-width:850px){.widget-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-chart-grid{grid-template-columns:1fr}.widget-checks.three-checks{grid-template-columns:1fr 1fr}.overview-widget-layout{display:block}.overview-widget-settings{margin-bottom:10px}.kiosk-header{align-items:flex-start}.kiosk-header-tools{flex-wrap:wrap;justify-content:flex-end}.kiosk-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.kiosk-flow-card .flow-canvas-v4{min-height:500px!important}.kiosk-status{justify-content:flex-start;overflow-x:auto}}
-    @media(max-width:560px){.widget-editor-grid,.widget-checks,.widget-checks.three-checks,.kiosk-settings>.widget-checks{grid-template-columns:1fr}.widget-editor-grid>.full{grid-column:auto}.section-heading{align-items:flex-start}.custom-chart-head>strong{font-size:17px}.custom-chart-foot{flex-direction:column}.matrix-shell.kiosk-active>.content{padding:5px}.kiosk-header{flex-direction:column}.kiosk-header-tools{width:100%;justify-content:flex-start}.kiosk-clock{align-items:flex-start;margin-right:auto}.kiosk-metrics{grid-template-columns:1fr}.kiosk-status span:nth-child(n+4){display:none}}
+    /* v0.6 — advanced widgets, recorder history and multi-profile kiosk. */
+    .actionable{cursor:pointer}.actionable:hover,.actionable:focus{outline:none;transform:translateY(-1px);box-shadow:0 0 24px color-mix(in srgb,var(--bubble-color,var(--chart-color,var(--cyan))) 28%,transparent)}.bubble-secondary{margin-top:2px!important;display:flex!important;align-items:baseline!important;gap:3px;color:#88afbd}.bubble-secondary small{margin-right:3px;font-size:7px}.bubble-secondary b{font:11px monospace;color:var(--bubble-color)}.bubble-secondary span{font-size:7px!important}.bubble-related-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 7px;margin-top:5px;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--bubble-color) 18%,transparent)}.bubble-related-value{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline!important;gap:3px;min-width:0}.bubble-related-value small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#7195a2;font-size:7px}.bubble-related-value b{font:10px monospace;color:var(--related-color);white-space:nowrap}.bubble-related-value span{font-size:6px!important;color:#7898a4}.custom-bubble-copy:has(.bubble-related-list) p{margin-bottom:17px}.metrics-grid.bubble-size-compact .custom-bubble:has(.bubble-related-list){height:auto;min-height:88px}.bubble-alert{border-color:var(--alert-color)!important;animation:bubble-alarm 1.2s ease-in-out infinite}.bubble-alert-label{position:absolute;top:6px;right:6px;z-index:3;border:1px solid var(--alert-color);border-radius:999px;background:rgba(40,0,10,.9);color:var(--alert-color);padding:2px 6px;font-size:7px;font-weight:900;letter-spacing:.7px}@keyframes bubble-alarm{0%,100%{box-shadow:0 0 8px color-mix(in srgb,var(--alert-color) 18%,transparent)}50%{box-shadow:0 0 28px color-mix(in srgb,var(--alert-color) 62%,transparent),inset 0 0 18px color-mix(in srgb,var(--alert-color) 12%,transparent)}}
+    .chart-series-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px;padding:6px 8px;border:1px solid rgba(32,234,255,.1);background:rgba(0,35,55,.18)}.chart-series-legend>div{--series-color:var(--cyan);display:flex;align-items:baseline;gap:4px;min-width:0;font-size:8px}.chart-series-legend i{width:12px;height:3px;border-radius:2px;background:var(--series-color);box-shadow:0 0 5px var(--series-color)}.chart-series-legend span{color:#8cadb9;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chart-series-legend b{font:10px monospace;color:var(--series-color)}.chart-series-legend small{color:#658895;font-size:7px}.custom-chart-path{stroke:var(--series-color,var(--chart-color))!important;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--series-color,var(--chart-color)) 65%,transparent))}.graph-area .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 12%,transparent)!important}.graph-bar .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 62%,transparent)!important}
+    .widget-subsection{margin-top:12px;padding:9px 10px;border-left:3px solid var(--cyan);background:linear-gradient(90deg,rgba(0,180,230,.09),transparent);display:flex;flex-direction:column;gap:2px}.widget-subsection b{font-size:9px;color:var(--cyan);letter-spacing:1px}.widget-subsection small{font-size:8px;color:#6b93a2}.widget-related-list{display:grid;gap:8px}.widget-related-card{border:1px solid rgba(32,234,255,.18);border-radius:5px;background:rgba(0,35,55,.18);padding:8px}.widget-related-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.widget-related-head>b{font-size:8px;color:#8fc6d4;letter-spacing:.8px}.widget-related-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 9px}.widget-related-grid>.full{grid-column:1/-1}.widget-related-grid .check-row{align-self:end;border:1px solid rgba(32,234,255,.12);padding:7px}.add-related-btn{justify-self:start}.draggable-widget{transition:opacity .15s,transform .15s,border-color .15s}.draggable-widget .drag-handle{width:17px;height:17px;vertical-align:middle;color:#769aa7;cursor:grab}.draggable-widget.dragging{opacity:.35;transform:scale(.99)}.draggable-widget.drag-target{border-color:var(--green);box-shadow:0 0 22px rgba(82,255,98,.2)}
+    .kiosk-profile-card{padding:8px 14px 16px;margin-top:0}.kiosk-profile-card.kiosk-settings{border-top:1px solid rgba(32,234,255,.35)}.default-kiosk-settings{margin-top:18px}.kiosk-profile-head-actions{display:flex;align-items:center;gap:6px}.kiosk-selection-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}.selection-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.selection-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(32,234,255,.2);border-radius:999px;background:rgba(0,70,105,.08);padding:5px 8px;color:#91b8c5;font-size:8px}.selection-chip:has(input:checked){border-color:var(--green);color:var(--green);background:rgba(82,255,98,.07)}.selection-chip ha-icon{width:14px;height:14px}.selection-chip input{margin:0}.kiosk-profile-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(32,234,255,.15)}.kiosk-profile-footer code{font-size:9px;overflow:hidden;text-overflow:ellipsis}
+    .kiosk-slides{position:relative;flex:1;min-height:0}.kiosk-slide{display:none;min-height:100%;flex-direction:column;gap:10px}.kiosk-slide.active{display:flex}.kiosk-chart-grid{margin:0;align-content:start}.kiosk-summary-grid{display:grid;grid-template-columns:1.2fr 1.2fr .8fr .8fr;gap:10px;flex:1}.kiosk-summary-grid>.panel{min-height:250px}.kiosk-summary-grid .price-panel,.kiosk-summary-grid .consumers-panel{height:auto}.kiosk-slide-nav{height:30px;display:flex;align-items:center;justify-content:center;gap:12px}.kiosk-slide-nav>button{border:0;background:transparent;color:var(--cyan);padding:2px}.kiosk-slide-nav>div{display:flex;gap:7px}.kiosk-dot{width:28px;height:5px;border:0;border-radius:999px;background:#254451;padding:0}.kiosk-dot.active{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}.matrix-shell.kiosk-active{transition:filter 1s ease}.matrix-shell.kiosk-active.kiosk-night{filter:brightness(var(--night-brightness,.3));cursor:none}.matrix-shell.kiosk-active.kiosk-night:hover{cursor:default}
+    @media(max-width:1300px){.overview-widget-layout{grid-template-columns:1fr}.widget-editor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kiosk-summary-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:850px){.widget-editor-grid,.widget-related-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-chart-grid{grid-template-columns:1fr}.widget-checks.three-checks{grid-template-columns:1fr 1fr}.overview-widget-layout{display:block}.overview-widget-settings{margin-bottom:10px}.kiosk-header{align-items:flex-start}.kiosk-header-tools{flex-wrap:wrap;justify-content:flex-end}.kiosk-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.kiosk-flow-card .flow-canvas-v4{min-height:500px!important}.kiosk-status{justify-content:flex-start;overflow-x:auto}.kiosk-selection-grid{grid-template-columns:1fr}.kiosk-summary-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:560px){.widget-editor-grid,.widget-related-grid,.widget-checks,.widget-checks.three-checks,.kiosk-settings>.widget-checks{grid-template-columns:1fr}.widget-editor-grid>.full,.widget-related-grid>.full{grid-column:auto}.section-heading{align-items:flex-start}.custom-chart-head>strong{font-size:17px}.custom-chart-foot{flex-direction:column}.chart-series-legend{gap:4px 8px}.matrix-shell.kiosk-active>.content{padding:5px}.kiosk-header{flex-direction:column}.kiosk-header-tools{width:100%;justify-content:flex-start}.kiosk-clock{align-items:flex-start;margin-right:auto}.kiosk-metrics,.kiosk-summary-grid{grid-template-columns:1fr}.kiosk-status span:nth-child(n+4){display:none}.kiosk-profile-footer{align-items:flex-start;flex-direction:column}.bubble-secondary{display:none!important}.bubble-related-list{grid-template-columns:1fr}}
   `; }
 }
 
