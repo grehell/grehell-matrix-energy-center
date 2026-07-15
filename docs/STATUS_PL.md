@@ -1,4 +1,4 @@
-# Status projektu v0.6.1
+# Status projektu v0.6.2
 
 ## Najważniejsze zmiany względem v0.5
 
@@ -28,7 +28,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v0.6.1
+## Świadome ograniczenia v0.6.2
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -39,7 +39,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v0.6.1`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v0.6.2`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

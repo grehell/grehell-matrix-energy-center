@@ -13,7 +13,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.1"
+    assert manifest["version"] == "0.6.2"
 
 
 def test_hacs_manifest() -> None:
@@ -36,6 +36,7 @@ def test_native_lovelace_flow_card() -> None:
     assert "`${MATRIX_DOMAIN}/config/get`" in frontend
     assert "add_extra_js_url(hass, CARD_MODULE_URL)" in integration
     assert "remove_extra_js_url(hass, card_url)" in integration
+    assert 'module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v={VERSION}"' in integration
 
 
 def test_frontend_v06_features() -> None:

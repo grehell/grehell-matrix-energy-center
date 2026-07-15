@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2 — 2026-07-16
+
+- Reissued the complete v0.6 frontend after the incorrect `v0.6.1` tag pointed to files whose manifest still declared v0.5.0.
+- Included the native `matrix-energy-flow-card.js` Lovelace card in the release source.
+- Tied the custom-panel cache key to the shared integration version to prevent future version drift.
+- Added release verification and GitHub upload instructions.
+
 ## 0.6.1 — 2026-07-15
 
 - Added the native `custom:matrix-energy-flow-card` Lovelace card.
