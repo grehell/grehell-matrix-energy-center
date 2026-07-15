@@ -1,62 +1,50 @@
-# Status projektu v0.2.0
+# Status projektu v0.3.0
 
-## Gotowe w prototypie
+## Najważniejsze zmiany względem v0.2
 
-- instalacja jako niestandardowa integracja Home Assistant,
-- kreator pierwszej konfiguracji w interfejsie HA,
-- pełnoekranowy panel w pasku bocznym,
-- stylistyka Matrix Blue z dodatkowymi kolorami funkcjonalnymi,
-- mapowanie encji sieci, domu, PV, magazynu i EV,
-- dowolna liczba stringów PV,
-- podział każdego stringu na dowolne sekcje/pozycje,
-- dowolna liczba urządzeń dodatkowych,
-- nazwy, opisy, obszary, ikony i kolory urządzeń,
-- osobne encje mocy, energii i sterowania urządzeń,
-- ujednolicone sensory wynikowe,
-- import i eksport konfiguracji JSON,
-- diagnostyka oraz test wskazanej encji,
-- wersja polska i angielska,
-- paczka repozytorium oraz paczka instalacji ręcznej.
+- przebudowany diagram przepływów oparty na jednej responsywnej siatce CSS,
+- linie przepływu pozostają połączone z właściwymi węzłami na komputerze, tablecie i telefonie,
+- kierunek animacji sieci i magazynu zmienia się zgodnie z importem/eksportem oraz ładowaniem/rozładowaniem,
+- checkboxy modułów natychmiast pokazują albo ukrywają pozycje menu, karty podsumowania, węzły przepływu i sekcje konfiguracji,
+- opcje wyglądu mają podgląd na żywo,
+- nowe wyszukiwanie encji działa na aktualnym rejestrze stanów Home Assistant,
+- wynik wyszukiwania pokazuje nazwę, `entity_id`, stan, jednostkę, `device_class`, urządzenie, obszar i integrację źródłową,
+- wybrana encja pokazuje swój aktualny sformatowany stan bezpośrednio w polu,
+- znacznie rozszerzone mapowanie domu, sieci, PV, falownika, BMS, EV oraz cen,
+- osobne sensory importu/eksportu i ładowania/rozładowania mają pierwszeństwo przed sensorami ze znakiem,
+- stringi i sekcje PV mają dodatkowe pola MPPT, napięcia, prądu, stanu i widoczności,
+- urządzenia dodatkowe mają stan, program/cykl, progi pracy i czuwania, kolejność oraz osobne opisy stanu,
+- konfiguracja jest automatycznie migrowana do schematu v3.
 
-## Silnik TAURON G13
+## Nadal gotowe
 
-- automatyczne rozpoznawanie sezonu letniego i zimowego,
-- szczyt przedpołudniowy 07:00–13:00,
-- szczyt popołudniowy latem 19:00–22:00,
-- szczyt popołudniowy zimą 16:00–21:00,
-- pozostałe godziny jako strefa pozaszczytowa,
-- soboty, niedziele i polskie święta ustawowe jako strefa pozaszczytowa przez całą dobę,
-- przedłużenie taniej strefy po dniu wolnym do 07:00 następnego dnia roboczego,
-- możliwość dopisywania własnych dni wolnych,
-- osobne ceny energii dla trzech stref i obu sezonów,
-- osobne ceny dystrybucji dla trzech stref i obu sezonów,
-- osobne opłaty jakościowe, OZE, kogeneracyjne, akcyzowe i własne,
-- opłaty stałe zależne od liczby faz oraz pozostałe miesięczne składniki,
-- tryb ceny składowej, pełnej ceny brutto albo ceny z encji Home Assistant,
-- podgląd aktywnej strefy, kolejnej strefy i czasu do zmiany,
-- wyliczanie bieżącego kosztu importu z sieci oraz kosztu pracy urządzeń na godzinę,
-- gotowy, edytowalny preset dystrybucyjny TAURON G13 na 2026 rok.
+- instalacja przez HACS lub ręcznie,
+- konfigurator integracji,
+- pełnoekranowy panel Matrix Blue,
+- taryfa TAURON G13 lato/zima, weekendy, święta i własne dni wolne,
+- ceny składowe, pełne albo z zewnętrznej encji,
+- dowolna liczba stringów, sekcji i urządzeń,
+- import i eksport konfiguracji,
+- diagnostyka źródeł i runtime,
+- administrator-only zapis oraz opcjonalny podgląd dla innych użytkowników.
 
-Cena energii czynnej nie jest narzucona. Użytkownik wpisuje ceny ze swojej umowy lub mapuje zewnętrzny sensor ceny, ponieważ stawki sprzedaży mogą zależeć od sprzedawcy, cennika i okresu obowiązywania.
+## Świadome ograniczenia v0.3.0
 
-## Świadome ograniczenia v0.2.0
+- pakiet przeszedł testy statyczne i jednostkowe, ale nowy układ wymaga sprawdzenia na rzeczywistych rozdzielczościach Home Assistant,
+- wykresy nadal pokazują próbki od chwili otwarcia panelu; Recorder/Statistics jest planowany na następną wersję,
+- nie ma jeszcze trwałego dziennego i miesięcznego rejestru kosztów,
+- automatyczne sterowanie falownikiem, magazynem i ładowarką EV pozostaje wyłączone,
+- pole języka zapisuje preferencję, ale pełne tłumaczenie całego panelu zostanie domknięte później,
+- wyszukiwarka encji korzysta ze stanów dostępnych zalogowanemu użytkownikowi; nie pokazuje encji, do których użytkownik nie ma dostępu.
 
-- prototyp przeszedł walidację statyczną i testy jednostkowe, ale nadal wymaga testu na rzeczywistej instancji Home Assistant,
-- wykresy w panelu korzystają obecnie z próbek zebranych od chwili otwarcia panelu; podłączenie do Recorder/Statistics jest zaplanowane,
-- silnik pokazuje bieżącą cenę i koszt godzinowy, ale nie zapisuje jeszcze kompletnego rozliczenia dziennego i miesięcznego,
-- użytkownik musi zweryfikować stawki energii, dystrybucji oraz opłaty stałe według własnej umowy i aktualnej taryfy,
-- automatyczne sterowanie falownikiem, magazynem i ładowarką EV jest celowo wyłączone,
-- adaptery producentów będą dodawane po sprawdzeniu rzeczywistych zestawów encji,
-- przed publikacją repozytorium trzeba zmienić `YOUR_GITHUB_USER` w `manifest.json`.
+## Procedura testowa
 
-## Najbliższy test
-
-1. Skopiować integrację do `/config/custom_components/matrix_energy_center`.
-2. Uruchomić ponownie Home Assistant.
-3. Dodać integrację „Matrix Energy Center”.
-4. Otworzyć zakładkę **Ceny / G13**.
-5. Włączyć profil TAURON G13 i użyć presetu 2026.
-6. Wprowadzić własne ceny energii czynnej dla wszystkich stref.
-7. Sprawdzić aktywną strefę w dni robocze, weekend oraz święto.
-8. Przypisać podstawowe encje i zapisać konfigurację.
-9. Zebrać błędy z dziennika i konsoli przeglądarki.
+1. Zaktualizować repozytorium GitHub do v0.3.0.
+2. Poczekać na zielone HACS validation i Hassfest.
+3. Opublikować release `v0.3.0`.
+4. Zaktualizować integrację w HACS i zrestartować Home Assistant.
+5. Wykonać `Ctrl+F5` w przeglądarce.
+6. Sprawdzić przełączanie każdego modułu i zapisywanie ustawień.
+7. Otworzyć każde pole encji i zweryfikować filtrowanie oraz wyświetlanie stanu.
+8. Sprawdzić diagram przy szerokościach desktop, tablet i telefon.
+9. Zebrać błędy z dziennika Home Assistant i konsoli przeglądarki.

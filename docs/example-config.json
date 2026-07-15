@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "revision": 1,
   "general": {
     "installation_name": "Example Home",
@@ -24,18 +24,57 @@
   },
   "mappings": {
     "home_power": "sensor.example_home_power",
+    "home_energy_today": "",
+    "home_energy_month": "",
     "grid_power": "sensor.example_grid_power",
+    "grid_import_power": "",
+    "grid_export_power": "",
     "grid_import_energy": "sensor.example_grid_import_energy",
     "grid_export_energy": "sensor.example_grid_export_energy",
+    "grid_voltage": "",
+    "grid_current": "",
+    "grid_frequency": "",
+    "grid_power_factor": "",
     "pv_power": "",
     "pv_energy_today": "sensor.example_pv_energy_today",
+    "pv_energy_month": "",
+    "pv_energy_total": "",
+    "pv_forecast_today": "",
+    "pv_forecast_tomorrow": "",
+    "inverter_status": "",
+    "inverter_temperature": "",
     "battery_power": "sensor.example_battery_power",
+    "battery_charge_power": "",
+    "battery_discharge_power": "",
     "battery_soc": "sensor.example_battery_soc",
     "battery_energy": "sensor.example_battery_available_energy",
+    "battery_capacity": "",
+    "battery_voltage": "",
+    "battery_current": "",
+    "battery_temperature": "",
+    "battery_health": "",
+    "battery_cycles": "",
+    "battery_charge_energy_today": "",
+    "battery_discharge_energy_today": "",
+    "battery_status": "",
     "ev_power": "sensor.example_ev_power",
+    "ev_energy_session": "",
+    "ev_energy_today": "",
     "ev_soc": "sensor.example_ev_soc",
+    "ev_range": "",
+    "ev_status": "",
+    "ev_current": "",
+    "ev_voltage": "",
+    "ev_charge_switch": "",
+    "ev_target_soc": "",
+    "ev_current_limit": "",
     "price_buy": "",
-    "price_sell": "sensor.example_energy_sell_price"
+    "price_sell": "sensor.example_energy_sell_price",
+    "price_next_hour": "",
+    "price_min_today": "",
+    "price_max_today": "",
+    "cost_today": "",
+    "cost_month": ""
   },
   "pv_strings": [
     {
@@ -57,7 +96,12 @@
           "peak_power_kw": 4.5,
           "share_percent": 70,
           "power_entity": "",
-          "energy_entity": ""
+          "energy_entity": "",
+          "voltage_entity": "",
+          "current_entity": "",
+          "status_entity": "",
+          "enabled": true,
+          "show_on_overview": true
         },
         {
           "id": "garage",
@@ -70,9 +114,20 @@
           "peak_power_kw": 2,
           "share_percent": 30,
           "power_entity": "",
-          "energy_entity": ""
+          "energy_entity": "",
+          "voltage_entity": "",
+          "current_entity": "",
+          "status_entity": "",
+          "enabled": true,
+          "show_on_overview": true
         }
-      ]
+      ],
+      "mppt": "MPPT 1",
+      "voltage_entity": "",
+      "current_entity": "",
+      "status_entity": "",
+      "enabled": true,
+      "show_on_overview": true
     }
   ],
   "devices": [
@@ -88,7 +143,15 @@
       "energy_entity": "sensor.example_dishwasher_energy",
       "control_entity": "switch.example_dishwasher",
       "enabled": true,
-      "include_in_home_total": true
+      "include_in_home_total": true,
+      "status_entity": "",
+      "cycle_entity": "",
+      "active_threshold_w": 10,
+      "standby_threshold_w": 2,
+      "priority": 1,
+      "active_description": "Urządzenie pracuje",
+      "idle_description": "Urządzenie nie pracuje",
+      "show_on_overview": true
     }
   ],
   "tariffs": [],
@@ -186,5 +249,13 @@
   "permissions": {
     "show_configuration_to_non_admin": false,
     "allow_non_admin_control": false
+  },
+  "appearance": {
+    "show_grid_background": true,
+    "enable_animations": true,
+    "compact_header": false,
+    "show_status_bar": true,
+    "show_unconfigured_cards": true,
+    "flow_density": "comfortable"
   }
 }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "matrix_energy_center"
 NAME = "Matrix Energy Center"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 PLATFORMS = ["sensor"]
 
@@ -32,34 +32,67 @@ DEFAULT_CURRENCY = "PLN"
 DEFAULT_PANEL_TITLE = "Energy Center"
 DEFAULT_REFRESH_INTERVAL = 5
 
-ROLE_HOME_POWER = "home_power"
-ROLE_GRID_POWER = "grid_power"
-ROLE_GRID_IMPORT_ENERGY = "grid_import_energy"
-ROLE_GRID_EXPORT_ENERGY = "grid_export_energy"
-ROLE_PV_POWER = "pv_power"
-ROLE_PV_ENERGY_TODAY = "pv_energy_today"
-ROLE_BATTERY_POWER = "battery_power"
-ROLE_BATTERY_SOC = "battery_soc"
-ROLE_BATTERY_ENERGY = "battery_energy"
-ROLE_EV_POWER = "ev_power"
-ROLE_EV_SOC = "ev_soc"
-ROLE_PRICE_BUY = "price_buy"
-ROLE_PRICE_SELL = "price_sell"
-
+# Normalized source roles. The frontend groups and filters these roles, while the
+# backend keeps one stable mapping dictionary independent of device vendors.
 MAPPING_ROLES = (
-    ROLE_HOME_POWER,
-    ROLE_GRID_POWER,
-    ROLE_GRID_IMPORT_ENERGY,
-    ROLE_GRID_EXPORT_ENERGY,
-    ROLE_PV_POWER,
-    ROLE_PV_ENERGY_TODAY,
-    ROLE_BATTERY_POWER,
-    ROLE_BATTERY_SOC,
-    ROLE_BATTERY_ENERGY,
-    ROLE_EV_POWER,
-    ROLE_EV_SOC,
-    ROLE_PRICE_BUY,
-    ROLE_PRICE_SELL,
+    # Home
+    "home_power",
+    "home_energy_today",
+    "home_energy_month",
+    # Grid
+    "grid_power",
+    "grid_import_power",
+    "grid_export_power",
+    "grid_import_energy",
+    "grid_export_energy",
+    "grid_voltage",
+    "grid_current",
+    "grid_frequency",
+    "grid_power_factor",
+    # Photovoltaics
+    "pv_power",
+    "pv_energy_today",
+    "pv_energy_month",
+    "pv_energy_total",
+    "pv_forecast_today",
+    "pv_forecast_tomorrow",
+    "inverter_status",
+    "inverter_temperature",
+    # Battery
+    "battery_power",
+    "battery_charge_power",
+    "battery_discharge_power",
+    "battery_soc",
+    "battery_energy",
+    "battery_capacity",
+    "battery_voltage",
+    "battery_current",
+    "battery_temperature",
+    "battery_health",
+    "battery_cycles",
+    "battery_charge_energy_today",
+    "battery_discharge_energy_today",
+    "battery_status",
+    # EV / charger
+    "ev_power",
+    "ev_energy_session",
+    "ev_energy_today",
+    "ev_soc",
+    "ev_range",
+    "ev_status",
+    "ev_current",
+    "ev_voltage",
+    "ev_charge_switch",
+    "ev_target_soc",
+    "ev_current_limit",
+    # Prices and costs
+    "price_buy",
+    "price_sell",
+    "price_next_hour",
+    "price_min_today",
+    "price_max_today",
+    "cost_today",
+    "cost_month",
 )
 
 SIGN_GRID_POSITIVE_IMPORT = "grid_positive_is_import"

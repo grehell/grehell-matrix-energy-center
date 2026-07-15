@@ -86,6 +86,24 @@ Soboty, niedziele i święta są domyślnie zaliczane do pozostałych godzin prz
 
 Szczegóły i opis wszystkich opłat: [TAURON_G13_PL.md](TAURON_G13_PL.md).
 
+
+## Wyszukiwanie encji w v0.3
+
+Każde pole mapowania otwiera wyszukiwarkę korzystającą z aktualnych stanów Home Assistant. Lista pokazuje:
+
+- nazwę przyjazną,
+- pełny `entity_id`,
+- bieżący stan razem z jednostką,
+- `device_class`,
+- urządzenie, obszar i integrację źródłową,
+- informację, czy encja pasuje do rodzaju pola.
+
+Domyślnie wyświetlane są encje zgodne z polem, np. sensory mocy dla pola mocy. Przycisk **Wszystkie encje** wyłącza filtr zgodności. Po wybraniu encji jej bieżący stan jest widoczny bezpośrednio w konfiguracji.
+
+## Widoczność modułów
+
+Checkboxy w **Konfiguracja → Aktywne moduły** natychmiast przebudowują nawigację, podsumowanie i diagram przepływów. Zmiana jest podglądana od razu, ale musi zostać zatwierdzona przyciskiem **Zapisz zmiany**, aby przetrwała przeładowanie panelu.
+
 ## Znaki przepływu
 
 Dwa przełączniki określają interpretację sensorów dwukierunkowych:
@@ -124,18 +142,18 @@ W zakładce **Urządzenia** można dodać dowolny odbiornik. Każde urządzenie 
 - sensor energii,
 - opcjonalną encję sterowania.
 
-Przycisk sterowania w v0.2 obsługuje `switch`, `input_boolean`, `light` i `button`.
+Przycisk sterowania w v0.3 obsługuje `switch`, `input_boolean`, `light` i `button`.
 
 Bieżący koszt pracy urządzenia na godzinę jest obliczany na podstawie jego mocy oraz aktywnej ceny zakupu.
 
-## Aktualizacja z v0.1
+## Aktualizacja do v0.3
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
 3. Uruchom ponownie Home Assistant.
 4. Otwórz panel i skonfiguruj nową zakładkę **Ceny / G13**.
 
-Dane v0.1 są automatycznie uzupełniane o domyślną sekcję taryfową schematu v2. Nie usuwaj pliku `.storage/matrix_energy_center`.
+Dane z v0.1 i v0.2 są automatycznie uzupełniane do schematu v3. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v0.3 zawiera nowy plik frontendowy.
 
 ## Usuwanie
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,15 +15,58 @@ from .const import DOMAIN
 from .storage import MatrixEnergyStore
 from .tariff import evaluate_tauron_g13
 
-POWER_KEYS = {"home_power", "grid_power", "pv_power", "battery_power", "ev_power"}
+_LOGGER = logging.getLogger(__name__)
+
+POWER_KEYS = {
+    "home_power",
+    "grid_power",
+    "grid_import_power",
+    "grid_export_power",
+    "pv_power",
+    "battery_power",
+    "battery_charge_power",
+    "battery_discharge_power",
+    "ev_power",
+}
 ENERGY_KEYS = {
+    "home_energy_today",
+    "home_energy_month",
     "grid_import_energy",
     "grid_export_energy",
     "pv_energy_today",
+    "pv_energy_month",
+    "pv_energy_total",
+    "pv_forecast_today",
+    "pv_forecast_tomorrow",
     "battery_energy",
+    "battery_capacity",
+    "battery_charge_energy_today",
+    "battery_discharge_energy_today",
+    "ev_energy_session",
+    "ev_energy_today",
 }
-PERCENTAGE_KEYS = {"battery_soc", "ev_soc"}
-PRICE_KEYS = {"price_buy", "price_sell"}
+PERCENTAGE_KEYS = {
+    "battery_soc",
+    "battery_health",
+    "ev_soc",
+    "ev_target_soc",
+    "grid_power_factor",
+}
+PRICE_KEYS = {
+    "price_buy",
+    "price_sell",
+    "price_next_hour",
+    "price_min_today",
+    "price_max_today",
+    "cost_today",
+    "cost_month",
+}
+TEXT_KEYS = {
+    "inverter_status",
+    "battery_status",
+    "ev_status",
+    "ev_charge_switch",
+}
 
 
 class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -37,7 +81,7 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         refresh = int(entry.options.get("refresh_interval", 5))
         super().__init__(
             hass,
-            logger=__import__("logging").getLogger(__name__),
+            logger=_LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=max(2, min(refresh, 60))),
         )
@@ -72,8 +116,6 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 values["price_buy"] = external_buy_price
             else:
-                # With a tariff profile enabled, its calculated value is authoritative
-                # unless the user explicitly selects/permits the external entity mode.
                 values["price_buy"] = tariff.get("total_price")
 
         values.update(
@@ -97,29 +139,8 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             pv_power = self._sum_pv_string_power(config)
             values["pv_power"] = pv_power
 
-        grid_signed = values.get("grid_power")
-        grid_positive_import = bool(config["signs"]["grid_positive_is_import"])
-        if grid_signed is None:
-            grid_import_power = 0.0
-            grid_export_power = 0.0
-        elif grid_positive_import:
-            grid_import_power = max(grid_signed, 0.0)
-            grid_export_power = max(-grid_signed, 0.0)
-        else:
-            grid_import_power = max(-grid_signed, 0.0)
-            grid_export_power = max(grid_signed, 0.0)
-
-        battery_signed = values.get("battery_power")
-        battery_positive_charge = bool(config["signs"]["battery_positive_is_charge"])
-        if battery_signed is None:
-            battery_charge_power = 0.0
-            battery_discharge_power = 0.0
-        elif battery_positive_charge:
-            battery_charge_power = max(battery_signed, 0.0)
-            battery_discharge_power = max(-battery_signed, 0.0)
-        else:
-            battery_charge_power = max(-battery_signed, 0.0)
-            battery_discharge_power = max(battery_signed, 0.0)
+        grid_import_power, grid_export_power = self._grid_flows(values, config)
+        battery_charge_power, battery_discharge_power = self._battery_flows(values, config)
 
         home_power = values.get("home_power")
         if home_power is None:
@@ -158,15 +179,26 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         appliance_values = []
         for device in config["devices"]:
-            power_state = self.hass.states.get(device["power_entity"]) if device["power_entity"] else None
-            energy_state = self.hass.states.get(device["energy_entity"]) if device["energy_entity"] else None
+            power_state = self._get_state(device.get("power_entity", ""))
+            energy_state = self._get_state(device.get("energy_entity", ""))
             device_power = self._convert_power(power_state)
+            threshold = float(device.get("active_threshold_w", 10))
+            is_active = device_power is not None and device_power >= threshold
+            status_state = self._raw_state(device.get("status_entity", ""))
             appliance_values.append(
                 {
                     **device,
                     "power": device_power,
                     "energy": self._convert_energy(energy_state),
-                    "control_state": self._raw_state(device["control_entity"]),
+                    "status_state": status_state,
+                    "cycle_state": self._raw_state(device.get("cycle_entity", "")),
+                    "control_state": self._raw_state(device.get("control_entity", "")),
+                    "is_active": is_active,
+                    "display_description": (
+                        device.get("active_description")
+                        if is_active
+                        else device.get("idle_description")
+                    ),
                     "cost_per_hour": (
                         device_power / 1000.0 * current_price
                         if device_power is not None and current_price is not None
@@ -185,15 +217,48 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "self_sufficiency_live": autarky,
             "self_consumption_live": self_consumption,
             "appliances": appliance_values,
+            "pv_strings": self._pv_string_runtime(config),
             "source_status": source_status,
             "tariff": tariff,
             "revision": config.get("revision", 0),
         }
 
+    def _grid_flows(
+        self, values: dict[str, Any], config: dict[str, Any]
+    ) -> tuple[float, float]:
+        separate_import = values.get("grid_import_power")
+        separate_export = values.get("grid_export_power")
+        if separate_import is not None or separate_export is not None:
+            return max(separate_import or 0.0, 0.0), max(separate_export or 0.0, 0.0)
+
+        signed = values.get("grid_power")
+        if signed is None:
+            return 0.0, 0.0
+        if bool(config["signs"]["grid_positive_is_import"]):
+            return max(signed, 0.0), max(-signed, 0.0)
+        return max(-signed, 0.0), max(signed, 0.0)
+
+    def _battery_flows(
+        self, values: dict[str, Any], config: dict[str, Any]
+    ) -> tuple[float, float]:
+        separate_charge = values.get("battery_charge_power")
+        separate_discharge = values.get("battery_discharge_power")
+        if separate_charge is not None or separate_discharge is not None:
+            return max(separate_charge or 0.0, 0.0), max(separate_discharge or 0.0, 0.0)
+
+        signed = values.get("battery_power")
+        if signed is None:
+            return 0.0, 0.0
+        if bool(config["signs"]["battery_positive_is_charge"]):
+            return max(signed, 0.0), max(-signed, 0.0)
+        return max(-signed, 0.0), max(signed, 0.0)
+
     def _sum_pv_string_power(self, config: dict[str, Any]) -> float | None:
         total = 0.0
         found = False
         for string in config["pv_strings"]:
+            if not string.get("enabled", True):
+                continue
             entity_id = string.get("power_entity")
             if entity_id:
                 value = self._convert_power(self.hass.states.get(entity_id))
@@ -202,6 +267,8 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     found = True
                     continue
             for section in string.get("sections", []):
+                if not section.get("enabled", True):
+                    continue
                 section_entity = section.get("power_entity")
                 if not section_entity:
                     continue
@@ -211,16 +278,43 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     found = True
         return total if found else None
 
-    def _normalize_value(self, key: str, state: State | None) -> float | None:
+    def _pv_string_runtime(self, config: dict[str, Any]) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        for string in config.get("pv_strings", []):
+            power = self._convert_power(self._get_state(string.get("power_entity", "")))
+            if power is None:
+                section_values = [
+                    self._convert_power(self._get_state(section.get("power_entity", "")))
+                    for section in string.get("sections", [])
+                    if section.get("enabled", True)
+                ]
+                valid = [value for value in section_values if value is not None]
+                power = sum(valid) if valid else None
+            result.append(
+                {
+                    **string,
+                    "power": power,
+                    "energy": self._convert_energy(self._get_state(string.get("energy_entity", ""))),
+                    "voltage": self._float_state(self._get_state(string.get("voltage_entity", ""))),
+                    "current": self._float_state(self._get_state(string.get("current_entity", ""))),
+                    "status": self._raw_state(string.get("status_entity", "")),
+                }
+            )
+        return result
+
+    def _normalize_value(self, key: str, state: State | None) -> Any:
         if key in POWER_KEYS:
             return self._convert_power(state)
         if key in ENERGY_KEYS:
             return self._convert_energy(state)
-        if key in PERCENTAGE_KEYS:
+        if key in PERCENTAGE_KEYS or key in PRICE_KEYS:
             return self._float_state(state)
-        if key in PRICE_KEYS:
-            return self._float_state(state)
-        return self._float_state(state)
+        if key in TEXT_KEYS:
+            return state.state if state else None
+        return self._float_state(state) if state else None
+
+    def _get_state(self, entity_id: str | None) -> State | None:
+        return self.hass.states.get(entity_id) if entity_id else None
 
     @staticmethod
     def _float_state(state: State | None) -> float | None:
@@ -253,8 +347,8 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return value * 1000
         return value
 
-    def _raw_state(self, entity_id: str) -> str | None:
-        state = self.hass.states.get(entity_id) if entity_id else None
+    def _raw_state(self, entity_id: str | None) -> str | None:
+        state = self._get_state(entity_id)
         return state.state if state else None
 
     @staticmethod
@@ -275,6 +369,7 @@ class MatrixEnergyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "entity_id": entity_id,
             "status": "ok" if state.state not in {"unknown", "unavailable"} else state.state,
             "state": state.state,
+            "friendly_name": state.attributes.get("friendly_name"),
             "unit": state.attributes.get("unit_of_measurement"),
             "device_class": state.attributes.get("device_class"),
             "state_class": state.attributes.get("state_class"),

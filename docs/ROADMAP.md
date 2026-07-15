@@ -25,7 +25,17 @@
 - complete Matrix Blue tariff editor,
 - configuration schema migration to version 2.
 
-## v0.3 — recorder analytics and billing
+## v0.3 — configuration and frontend rebuild
+
+- responsive, accurately aligned flow diagram,
+- immediate module show/hide behavior,
+- Home Assistant-style entity picker with live states,
+- expanded mappings for grid, PV, inverter, battery/BMS, EV and prices,
+- expanded PV string/section metadata,
+- appliance status, cycle, thresholds, priorities and contextual descriptions,
+- configuration schema migration to version 3.
+
+## v0.4 — recorder analytics and billing
 
 - recorder-backed day/week/month/year charts,
 - energy aggregation by G13 zone and season,
@@ -35,7 +45,7 @@
 - invoice estimate and actual invoice comparison,
 - configuration backup versioning.
 
-## v0.4 — vendor profiles
+## v0.5 — vendor profiles
 
 - Deye / Sunsynk,
 - Huawei,
@@ -47,7 +57,7 @@
 - generic Modbus mapping assistant,
 - Pstryk and other dynamic-price adapters.
 
-## v0.5 — EV and battery control
+## v0.6 — EV and battery control
 
 - EV charger profiles,
 - surplus-PV charging,
@@ -56,7 +66,7 @@
 - battery reserve and time-of-use policies,
 - simulation and dry-run decisions.
 
-## v0.6 — multi-site and permissions
+## v0.7 — multi-site and permissions
 
 - multiple sites or buildings,
 - configuration subentries,

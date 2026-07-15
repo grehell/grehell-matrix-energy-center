@@ -20,7 +20,7 @@ The standard Home Assistant config flow creates one installation entry. It conta
 - automation policy placeholders,
 - panel permissions.
 
-Configuration schema version 2 adds the full tariff object. Existing schema-v1 data is deep-merged with the new defaults during load. The backend validates entity IDs, text lengths, dates, time values, numeric ranges and list sizes before saving.
+Configuration schema version 3 adds appearance preferences, expanded mappings, PV electrical metadata and appliance state rules. Existing schema-v1/v2 data is deep-merged with the new defaults during load. The backend validates entity IDs, text lengths, dates, time values, numeric ranges and list sizes before saving.
 
 ### 3. Tariff engine
 
@@ -72,7 +72,7 @@ Write, reset and entity-test commands require administrator access.
 
 The integration serves one dependency-free JavaScript Web Component. It uses the Home Assistant object supplied to custom panels, so states and service calls remain local and authenticated.
 
-The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
+The dedicated **Ceny / G13** view edits the structured tariff object and displays current backend calculations. Entity fields use a self-contained Home Assistant-style picker built from the live state registry; it does not depend on private frontend component APIs. The frontend never decides the authoritative tariff zone; the backend result is the source of truth.
 
 ## Future adapter model
 

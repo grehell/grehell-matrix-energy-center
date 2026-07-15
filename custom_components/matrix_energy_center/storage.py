@@ -29,7 +29,7 @@ from .tariff import (
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -51,6 +51,14 @@ def default_configuration() -> dict[str, Any]:
         "signs": {
             "grid_positive_is_import": True,
             "battery_positive_is_charge": True,
+        },
+        "appearance": {
+            "show_grid_background": True,
+            "enable_animations": True,
+            "compact_header": False,
+            "show_status_bar": True,
+            "show_unconfigured_cards": True,
+            "flow_density": "comfortable",
         },
         "mappings": {role: "" for role in MAPPING_ROLES},
         "pv_strings": [],
@@ -120,6 +128,7 @@ class MatrixEnergyStore:
             "mappings",
             "automation",
             "permissions",
+            "appearance",
         ):
             value = loaded.get(section)
             if isinstance(value, dict):
@@ -137,7 +146,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 2
+        config["schema_version"] = 3
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -154,12 +163,18 @@ class MatrixEnergyStore:
             }
         )
 
-        for section in ("features", "signs", "permissions"):
+        for section in ("features", "signs", "permissions", "appearance"):
             incoming = raw.get(section, {})
             if not isinstance(incoming, dict):
                 raise ValueError(f"{section} must be an object")
             for key in config[section]:
-                if key in incoming:
+                if key not in incoming:
+                    continue
+                if section == "appearance" and key == "flow_density":
+                    config[section][key] = self._choice(
+                        incoming[key], "comfortable", {"compact", "comfortable", "spacious"}
+                    )
+                else:
                     config[section][key] = bool(incoming[key])
 
         mappings = raw.get("mappings", {})
@@ -285,7 +300,7 @@ class MatrixEnergyStore:
                     {
                         "id": self._identifier(section.get("id"), f"section_{section_index + 1}"),
                         "name": self._text(section.get("name"), f"Section {section_index + 1}", 80),
-                        "description": self._text(section.get("description"), "", 500),
+                        "description": self._text(section.get("description"), "", 1000),
                         "area": self._text(section.get("area"), "", 80),
                         "orientation": self._text(section.get("orientation"), "unknown", 32),
                         "tilt": self._number(section.get("tilt"), 0, 0, 90),
@@ -294,16 +309,27 @@ class MatrixEnergyStore:
                         "share_percent": self._number(section.get("share_percent"), 0, 0, 100),
                         "power_entity": self._entity_id(section.get("power_entity", "")),
                         "energy_entity": self._entity_id(section.get("energy_entity", "")),
+                        "voltage_entity": self._entity_id(section.get("voltage_entity", "")),
+                        "current_entity": self._entity_id(section.get("current_entity", "")),
+                        "status_entity": self._entity_id(section.get("status_entity", "")),
+                        "enabled": bool(section.get("enabled", True)),
+                        "show_on_overview": bool(section.get("show_on_overview", True)),
                     }
                 )
             result.append(
                 {
                     "id": item_id,
                     "name": self._text(item.get("name"), f"String {index + 1}", 80),
-                    "description": self._text(item.get("description"), "", 500),
+                    "description": self._text(item.get("description"), "", 1000),
+                    "mppt": self._text(item.get("mppt"), f"MPPT {index + 1}", 80),
                     "power_entity": self._entity_id(item.get("power_entity", "")),
                     "energy_entity": self._entity_id(item.get("energy_entity", "")),
+                    "voltage_entity": self._entity_id(item.get("voltage_entity", "")),
+                    "current_entity": self._entity_id(item.get("current_entity", "")),
+                    "status_entity": self._entity_id(item.get("status_entity", "")),
                     "capacity_kw": self._number(item.get("capacity_kw"), 0, 0, 100000),
+                    "enabled": bool(item.get("enabled", True)),
+                    "show_on_overview": bool(item.get("show_on_overview", True)),
                     "sections": sections,
                 }
             )
@@ -325,15 +351,23 @@ class MatrixEnergyStore:
                 {
                     "id": item_id,
                     "name": self._text(item.get("name"), f"Device {index + 1}", 80),
-                    "description": self._text(item.get("description"), "", 500),
+                    "description": self._text(item.get("description"), "", 1000),
                     "category": self._text(item.get("category"), "other", 40),
                     "area": self._text(item.get("area"), "", 80),
                     "icon": self._text(item.get("icon"), "mdi:flash", 80),
                     "accent": self._text(item.get("accent"), "cyan", 24),
                     "power_entity": self._entity_id(item.get("power_entity", "")),
                     "energy_entity": self._entity_id(item.get("energy_entity", "")),
+                    "status_entity": self._entity_id(item.get("status_entity", "")),
+                    "cycle_entity": self._entity_id(item.get("cycle_entity", "")),
                     "control_entity": self._entity_id(item.get("control_entity", "")),
+                    "active_threshold_w": self._number(item.get("active_threshold_w"), 10, 0, 1_000_000),
+                    "standby_threshold_w": self._number(item.get("standby_threshold_w"), 2, 0, 1_000_000),
+                    "priority": int(self._number(item.get("priority"), index + 1, 0, 10000)),
+                    "active_description": self._text(item.get("active_description"), "Urządzenie pracuje", 250),
+                    "idle_description": self._text(item.get("idle_description"), "Urządzenie nie pracuje", 250),
                     "enabled": bool(item.get("enabled", True)),
+                    "show_on_overview": bool(item.get("show_on_overview", True)),
                     "include_in_home_total": bool(item.get("include_in_home_total", True)),
                 }
             )

@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.2.0 technical preview**. Monitoring, configuration, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.3.0 technical preview**. Monitoring, configuration, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
@@ -25,17 +25,21 @@
 - Diagnostics view for entity availability, units, device classes, tariff state and runtime values.
 - English and Polish configuration-flow translations.
 - HACS-ready repository layout, HACS and Hassfest workflows.
+- Responsive CSS-grid flow canvas whose connectors remain aligned with their source and destination nodes.
+- Live module visibility: enabling or disabling a module immediately rebuilds navigation, overview metrics, flow nodes and configuration sections.
+- Home Assistant-style entity search over the live state registry, including friendly name, entity ID, current state, unit, device class, device, area and source integration.
+- Extended mappings for grid quality, inverter diagnostics, PV forecasts, BMS data, EV charging details and day/month costs.
+- Live appliance state descriptions based on configurable working and standby thresholds.
 
 ## Installation through HACS as a custom repository
 
 1. Publish this folder as a public GitHub repository.
-2. Replace `YOUR_GITHUB_USER` in `custom_components/matrix_energy_center/manifest.json`.
-3. In HACS open **Custom repositories**.
-4. Add the repository URL and choose **Integration**.
-5. Install **Matrix Energy Center** and restart Home Assistant.
-6. Open **Settings → Devices & services → Add integration**.
-7. Search for **Matrix Energy Center**.
-8. Open the new **Energy Center** item in the sidebar and configure entity mappings.
+2. In HACS open **Custom repositories**.
+3. Add `https://github.com/grehell/grehell-matrix-energy-center` and choose **Integration**.
+4. Install **Matrix Energy Center** and restart Home Assistant.
+5. Open **Settings → Devices & services → Add integration**.
+6. Search for **Matrix Energy Center**.
+7. Open the new **Energy Center** item in the sidebar and configure entity mappings.
 
 ## Manual installation
 
@@ -71,7 +75,7 @@ The project never contains private entity IDs, IP addresses, usernames, tokens o
 
 ## TAURON G13
 
-Version 0.2 adds a complete editable G13 profile. The default schedule follows TAURON's published rules:
+Version 0.3 retains the complete editable G13 profile and adds a substantially expanded configuration and entity-selection layer. The default schedule follows TAURON's published rules:
 
 - summer period: 1 April–30 September,
 - winter period: 1 October–31 March,
@@ -133,7 +137,7 @@ A section may have its own sensor. When only a string-level sensor exists, the p
 
 ## Appliance controls
 
-Version 0.2 supports generic control buttons for:
+Version 0.3 supports generic control buttons for:
 
 - `switch.*`
 - `input_boolean.*`
@@ -155,9 +159,8 @@ Other domains will receive dedicated adapters in later versions.
 - Historical charts contain real samples collected while the panel is open; recorder-backed historical charts are planned.
 - The tariff engine calculates the active price and live cost rate, but persistent day/month invoice aggregation is not yet implemented.
 - Energy prices and fixed fees must be reviewed whenever the user's contract or official tariff changes.
-- Automatic inverter, battery and EV control is not executed in v0.2.
+- Automatic inverter, battery and EV control is not executed in v0.3.
 - Dynamic per-appliance entities are not created yet; additional appliances are displayed and managed in the panel.
-- The GitHub owner placeholders must be replaced before HACS publication.
 
 ## Documentation
 
@@ -165,7 +168,7 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v0.2 (PL)](docs/STATUS_PL.md)
+- [Status wersji v0.3 (PL)](docs/STATUS_PL.md)
 - [Example configuration](docs/example-config.json)
 
 ## License

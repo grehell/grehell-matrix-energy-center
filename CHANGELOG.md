@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 — 2026-07-15
+
+- Rebuilt the live flow diagram on a responsive CSS grid so nodes and connectors stay aligned on desktop, tablet and mobile.
+- Added immediate show/hide behavior for grid, PV, battery, EV, prices, appliances and automation modules.
+- Added live appearance controls for the Matrix background, animations, compact header, status bar and flow density.
+- Replaced plain entity text fields with a Home Assistant-style entity picker driven by the live `hass.states` registry.
+- Added entity filtering by power, energy, voltage, current, temperature, percentage, price, status and control capability.
+- Added friendly name, entity ID, device class, unit and current formatted state to search results and selected fields.
+- Greatly expanded source mappings for home, grid, inverter, PV, battery/BMS, EV/charger and prices/costs.
+- Added separate grid import/export and battery charge/discharge power mappings with priority over signed sensors.
+- Expanded PV strings and sections with MPPT, voltage, current, status, enabled and overview visibility settings.
+- Expanded appliances with status/cycle entities, active and standby thresholds, priority, live descriptions and overview visibility.
+- Added configuration schema version 3 with automatic deep migration from earlier installations.
+- Updated panel cache version and package metadata to v0.3.0.
+
 ## 0.2.0 — 2026-07-15
 
 - Added the built-in, editable TAURON G13 tariff engine.
