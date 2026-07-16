@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.0.4 — 2026-07-16
+
+- Fixed flow routing on tablets by recalculating every path from the live DOM canvas width and height after layout and after each resize.
+- Made the router use each bubble's complete measured border box, including padding, borders and font-driven growth, instead of only its configured nominal size.
+- Added edge-intersection checks between neighboring routing cells and safe out-of-canvas fallback corridors so a failed search never silently draws a direct line through a bubble.
+- Added adaptive clearance for tightly packed bubbles whose configured safety margins overlap while still forbidding crossings through their visible boxes.
+- Stopped rebuilding the Settings inspector and bubble dialog for normal live edits; only their preview canvas is refreshed, so Enter and value changes no longer reset the editor position.
+- Added narrow-tablet, measured-bubble, crowded-scene and stable-preview runtime tests.
+
 ## 8.0.3 — 2026-07-16
 
 - Added automatic obstacle-aware routing for every flow connection on Summary, Flows and all kiosk profiles.

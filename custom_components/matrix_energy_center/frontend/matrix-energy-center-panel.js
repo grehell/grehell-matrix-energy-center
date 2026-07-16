@@ -242,6 +242,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._restoreBubbleEditorViewport();
     this._updateClock();
     this._updateLive();
+    this._setupSceneGeometryObserver();
+    this._scheduleSceneConnectionGeometry();
     this._loadRecorderHistories();
     this._startKioskRotation();
     clearInterval(this._clockTimer);
@@ -962,7 +964,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         <div class="widget-subsection"><b>TREŚĆ I WYGLĄD DYMKU</b></div>
         <label class="check-row"><input type="checkbox" data-path="${stylePath}.appearance_enabled" data-live-rerender="1" ${style.appearance_enabled ? "checked" : ""} ${disabled}><span><b>Własny wygląd</b></span></label>
         ${this._field(`${stylePath}.name`, "Własna nazwa", style.name, node.label, disabled, true)}
-        <div class="two-grid">${this._selectField(`${stylePath}.icon_type`, "Typ ikony", style.icon_type === "emoji" ? "emoji" : "mdi", [["mdi","MDI"],["emoji","Emoji"]], disabled, true)}${style.icon_type === "emoji" ? this._field(`${stylePath}.emoji`, "Wklej emoji", style.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", disabled, true) : this._field(`${stylePath}.icon`, "Ikona MDI", style.icon || node.icon, "mdi:home", disabled, true)}${this._numberField(`${stylePath}.icon_size`, "Rozmiar ikony / emoji", style.icon_size || 32, 10, 120, 1, disabled, true)}</div>
+        <div class="two-grid">${this._selectField(`${stylePath}.icon_type`, "Typ ikony", style.icon_type === "emoji" ? "emoji" : "mdi", [["mdi","MDI"],["emoji","Emoji"]], disabled, true)}<div data-settings-icon-mode="mdi" ${style.icon_type === "emoji" ? "hidden" : ""}>${this._field(`${stylePath}.icon`, "Ikona MDI", style.icon || node.icon, "mdi:home", disabled, true)}</div><div data-settings-icon-mode="emoji" ${style.icon_type === "emoji" ? "" : "hidden"}>${this._field(`${stylePath}.emoji`, "Wklej emoji", style.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", disabled, true)}</div>${this._numberField(`${stylePath}.icon_size`, "Rozmiar ikony / emoji", style.icon_size || 32, 10, 120, 1, disabled, true)}</div>
         <div class="widget-subsection"><b>ROZMIARY TEKSTU</b><small>Każdy rodzaj tekstu w dymku ma własny rozmiar.</small></div>
         <div class="two-grid">${this._numberField(`${stylePath}.name_size`, "Nazwa (px)", style.name_size || 9, 6, 32, 1, disabled, true)}${this._numberField(`${stylePath}.value_size`, "Wartość (px)", style.value_size || 18, 8, 56, 1, disabled, true)}${this._numberField(`${stylePath}.unit_size`, "Jednostka (px)", style.unit_size || 7, 5, 28, 1, disabled, true)}${this._numberField(`${stylePath}.status_size`, "Opis / status (px)", style.status_size || 7, 5, 28, 1, disabled, true)}</div>
         <div class="widget-checks four-checks"><label class="check-row"><input type="checkbox" data-path="${stylePath}.name_bold" data-live-rerender="1" ${style.name_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub nazwę</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.value_bold" data-live-rerender="1" ${style.value_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub wartość</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.unit_bold" data-live-rerender="1" ${style.unit_bold ? "checked" : ""} ${disabled}><span><b>Pogrub jednostkę</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.status_bold" data-live-rerender="1" ${style.status_bold ? "checked" : ""} ${disabled}><span><b>Pogrub opis/status</b></span></label></div>
@@ -1543,9 +1545,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   }
 
   _sceneNodeRect(node, scene, padding = 0) {
-    const canvasHeight = Math.max(320, Math.min(1200, Number(scene?.canvas_height || 600)));
-    const width = Math.max(40, Number(node?.width || 132));
-    const height = Math.max(30, Number(node?.height || 82)) * 600 / canvasHeight;
+    const measured = scene?._node_rects?.[node?.key];
+    if (measured) return { left: measured.left - padding, right: measured.right + padding, top: measured.top - padding, bottom: measured.bottom + padding, cx: measured.cx, cy: measured.cy, width: measured.width, height: measured.height };
+    const viewportWidth = Math.max(1, Number(scene?._viewport_width || 1000));
+    const viewportHeight = Math.max(1, Number(scene?._viewport_height || scene?.canvas_height || 600));
+    const width = Math.max(40, Number(node?.width || 132)) * 1000 / viewportWidth;
+    const height = Math.max(30, Number(node?.height || 82)) * 600 / viewportHeight;
     const cx = Number(node?.x || 0) * 10, cy = Number(node?.y || 0) * 6;
     return { left: cx - width / 2 - padding, right: cx + width / 2 + padding, top: cy - height / 2 - padding, bottom: cy + height / 2 + padding, cx, cy, width, height };
   }
@@ -1579,13 +1584,13 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           const radius = entry.node.key === "home" ? rect.width / 2 * Math.sqrt(Math.max(0, 1 - Math.pow(offset / Math.max(1, rect.height / 2), 2))) : rect.width / 2;
           port = { x: rect.cx + direction * radius, y: rect.cy + offset };
           gate = { x: direction > 0 ? rect.right + clearance : rect.left - clearance, y: port.y };
-          grid = { x: Math.max(0, Math.min(1000, direction > 0 ? Math.ceil(gate.x / spacing) * spacing : Math.floor(gate.x / spacing) * spacing)), y: Math.max(0, Math.min(600, Math.round(gate.y / spacing) * spacing)) };
+          grid = { x: direction > 0 ? Math.ceil(gate.x / spacing) * spacing : Math.floor(gate.x / spacing) * spacing, y: Math.round(gate.y / spacing) * spacing };
         } else {
           const direction = entry.side === "bottom" ? 1 : -1;
           const radius = entry.node.key === "home" ? rect.height / 2 * Math.sqrt(Math.max(0, 1 - Math.pow(offset / Math.max(1, rect.width / 2), 2))) : rect.height / 2;
           port = { x: rect.cx + offset, y: rect.cy + direction * radius };
           gate = { x: port.x, y: direction > 0 ? rect.bottom + clearance : rect.top - clearance };
-          grid = { x: Math.max(0, Math.min(1000, Math.round(gate.x / spacing) * spacing)), y: Math.max(0, Math.min(600, direction > 0 ? Math.ceil(gate.y / spacing) * spacing : Math.floor(gate.y / spacing) * spacing)) };
+          grid = { x: Math.round(gate.x / spacing) * spacing, y: direction > 0 ? Math.ceil(gate.y / spacing) * spacing : Math.floor(gate.y / spacing) * spacing };
         }
         assignments[`${entry.connection.key}:${entry.endpoint}`] = { port, gate, grid, side: entry.side };
       });
@@ -1612,10 +1617,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   }
 
   _sceneGridRoute(start, end, obstacles, usedEdges, usedPoints, spacing) {
-    const maxX = Math.ceil(1000 / spacing), maxY = Math.ceil(600 / spacing);
-    const toIndex = point => ({ x: Math.max(0, Math.min(maxX, Math.round(point.x / spacing))), y: Math.max(0, Math.min(maxY, Math.round(point.y / spacing))) });
-    const toPoint = index => ({ x: Math.min(1000, index.x * spacing), y: Math.min(600, index.y * spacing) });
+    const canvasMaxX = Math.ceil(1000 / spacing), canvasMaxY = Math.ceil(600 / spacing);
+    const toIndex = point => ({ x: Math.round(point.x / spacing), y: Math.round(point.y / spacing) });
+    const toPoint = index => ({ x: index.x * spacing, y: index.y * spacing });
     const source = toIndex(start), target = toIndex(end), directions = [[1,0],[-1,0],[0,1],[0,-1]];
+    const outerMargin = Math.max(4, Math.ceil(48 / spacing));
+    const minX = Math.min(-outerMargin, source.x - outerMargin, target.x - outerMargin);
+    const minY = Math.min(-outerMargin, source.y - outerMargin, target.y - outerMargin);
+    const maxX = Math.max(canvasMaxX + outerMargin, source.x + outerMargin, target.x + outerMargin);
+    const maxY = Math.max(canvasMaxY + outerMargin, source.y + outerMargin, target.y + outerMargin);
     const edgeKey = (a, b) => `${Math.min(a.x,b.x)},${Math.min(a.y,b.y)}|${Math.max(a.x,b.x)},${Math.max(a.y,b.y)}`;
     const pointKey = point => `${point.x},${point.y}`;
     const stateKey = (point, direction) => `${point.x},${point.y},${direction}`;
@@ -1638,7 +1648,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       if (current.x === target.x && current.y === target.y) { finalKey = current.key; break; }
       directions.forEach(([dx, dy], direction) => {
         const next = { x: current.x + dx, y: current.y + dy };
-        if (next.x < 0 || next.y < 0 || next.x > maxX || next.y > maxY || blocked(next)) return;
+        if (next.x < minX || next.y < minY || next.x > maxX || next.y > maxY || blocked(next)) return;
+        if (obstacles.some(rect => this._sceneSegmentHitsRect(toPoint(current), toPoint(next), rect))) return;
         const edgeUse = usedEdges.get(edgeKey(current, next)) || 0;
         const pointUse = usedPoints.get(pointKey(next)) || 0;
         const turn = current.direction === 4 || current.direction === direction ? 0 : .45;
@@ -1650,10 +1661,29 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         push({ f: g + h, g, ...next, direction, key });
       });
     }
-    if (!finalKey) return [start, end];
+    if (!finalKey) return this._sceneFallbackRoute(start, end, obstacles, spacing);
     const result = [];
     for (let key = finalKey; key; key = previous.get(key)) { const state = states.get(key); if (state) result.push(toPoint(state)); }
     return result.reverse();
+  }
+
+  _sceneFallbackRoute(start, end, obstacles, spacing) {
+    const margin = Math.max(36, spacing * 3);
+    const left = Math.min(-margin, ...obstacles.map(rect => rect.left - margin));
+    const right = Math.max(1000 + margin, ...obstacles.map(rect => rect.right + margin));
+    const top = Math.min(-margin, ...obstacles.map(rect => rect.top - margin));
+    const bottom = Math.max(600 + margin, ...obstacles.map(rect => rect.bottom + margin));
+    const candidates = [
+      [start, { x: start.x, y: top }, { x: end.x, y: top }, end],
+      [start, { x: start.x, y: bottom }, { x: end.x, y: bottom }, end],
+      [start, { x: left, y: start.y }, { x: left, y: end.y }, end],
+      [start, { x: right, y: start.y }, { x: right, y: end.y }, end],
+      [start, { x: start.x, y: end.y }, end],
+      [start, { x: end.x, y: start.y }, end],
+    ];
+    const intersections = points => points.slice(1).reduce((count, point, index) => count + obstacles.filter(rect => this._sceneSegmentHitsRect(points[index], point, rect)).length, 0);
+    candidates.sort((a, b) => intersections(a) - intersections(b));
+    return candidates[0];
   }
 
   _sceneCleanPolyline(points) {
@@ -1703,6 +1733,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const spacing = Math.max(8, Math.min(30, Number(scene.routing_spacing || 14)));
     const visibleNodes = Object.values(byKey).filter(node => node?.visible !== false);
     const obstacles = visibleNodes.map(node => ({ ...this._sceneNodeRect(node, scene, clearance), key: node.key }));
+    const safetyObstacles = visibleNodes.map(node => ({ ...this._sceneNodeRect(node, scene, Math.max(2, Math.min(6, clearance * .25))), key: node.key }));
     const ports = this._sceneConnectionPorts(connections, byKey, scene, clearance, spacing);
     const usedEdges = new Map(), usedPoints = new Map(), usedSegments = [], usedLabels = [], routes = {};
     const edgeKey = (a, b) => `${Math.min(a.x,b.x)},${Math.min(a.y,b.y)}|${Math.max(a.x,b.x)},${Math.max(a.y,b.y)}`;
@@ -1710,12 +1741,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const fromPort = ports[`${connection.key}:from`], toPort = ports[`${connection.key}:to`];
       if (!fromPort || !toPort) { routes[connection.key] = { path: "", points: [], labelPoint: { x: 500, y: 300 } }; return; }
       const foreignObstacles = obstacles.filter(rect => ![connection.from, connection.to].includes(rect.key));
+      const tightEndpoint = foreignObstacles.some(rect => this._scenePointInRect(fromPort.grid, rect) || this._scenePointInRect(toPort.grid, rect));
+      const routingObstacles = tightEndpoint ? safetyObstacles.filter(rect => ![connection.from, connection.to].includes(rect.key)) : foreignObstacles;
       const directPoints = [fromPort.port, toPort.port];
       const directBlocked = foreignObstacles.some(rect => this._sceneSegmentHitsRect(directPoints[0], directPoints[1], rect)) || usedSegments.some(([a,b]) => this._sceneSegmentsIntersect(directPoints[0], directPoints[1], a, b));
       let gridPoints = [], points;
       if (connection.route === "direct" && !directBlocked) points = directPoints;
       else {
-        gridPoints = this._sceneGridRoute(fromPort.grid, toPort.grid, obstacles, usedEdges, usedPoints, spacing);
+        gridPoints = this._sceneGridRoute(fromPort.grid, toPort.grid, routingObstacles, usedEdges, usedPoints, spacing);
         points = [fromPort.port, fromPort.gate, ...gridPoints, toPort.gate, toPort.port];
       }
       points = this._sceneCleanPolyline(points);
@@ -2138,7 +2171,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
             <div class="widget-subsection full"><b>IKONA LUB EMOJI</b><small>Wklej zwykłe emoji albo wybierz ikonę MDI. Link do obrazu nie jest potrzebny.</small></div>
             <div class="bubble-editor-grid">
               ${this._selectField(`${base}.icon_type`, "Typ", iconType, [["mdi","Ikona MDI"],["emoji","Emoji"]], "", true)}
-              ${iconType === "emoji" ? this._field(`${base}.emoji`, "Wklej emoji", item.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", "", true) : this._field(`${base}.icon`, "Ikona MDI", item.icon || "mdi:information-outline", "mdi:home", "", true)}
+              <div data-bubble-icon-mode="mdi" ${iconType === "emoji" ? "hidden" : ""}>${this._field(`${base}.icon`, "Ikona MDI", item.icon || "mdi:information-outline", "mdi:home", "", true)}</div>
+              <div data-bubble-icon-mode="emoji" ${iconType === "emoji" ? "" : "hidden"}>${this._field(`${base}.emoji`, "Wklej emoji", item.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", "", true)}</div>
               ${this._numberField(`${base}.icon_size`, "Rozmiar ikony / emoji (px)", item.icon_size || 22, 12, 72, 1, "", true)}
               ${this._colorField(`${base}.icon_color`, "Kolor ikony MDI", item.icon_color || item.color)}
             </div>
@@ -2388,6 +2422,46 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return ({grid:"mdi:transmission-tower",pv:"mdi:solar-power",battery:"mdi:battery-high",ev:"mdi:car-electric",prices:"mdi:cash-multiple",appliances:"mdi:power-plug",automation:"mdi:robot"})[key] || "mdi:puzzle-outline";
   }
 
+  _refreshBubbleEditorPreview(path = "") {
+    if (!this._bubbleEditor?.draft) return;
+    const preview = this.shadowRoot.querySelector(".bubble-editor-preview .metrics-grid");
+    if (preview) preview.innerHTML = this._overviewBubble(this._bubbleEditor.draft, -1);
+    if (String(path).endsWith(".icon_type")) {
+      const mode = this._bubbleEditor.draft.icon_type === "emoji" ? "emoji" : "mdi";
+      this.shadowRoot.querySelectorAll("[data-bubble-icon-mode]").forEach(element => { element.hidden = element.dataset.bubbleIconMode !== mode; });
+    }
+  }
+
+  _refreshSettingsPreview(path = "") {
+    if (this._view !== "settings") return;
+    const context = this._settingsContext();
+    const preview = this.shadowRoot.querySelector(".settings-live-preview");
+    if (!context || !preview) return;
+    preview.innerHTML = `<div class="settings-preview-label"><b>${this._esc(context.label)}</b><span>Przeciągnij dymek · linie podążają automatycznie</span></div>${this._flowDiagram(true, false, context.profile, true)}`;
+    if (String(path).endsWith(".icon_type")) {
+      const selected = this._flowSceneModel(context.profile).nodes.find(item => item.key === this._settingsSelectedKey);
+      const mode = context.profile.flow_element_styles?.[selected?.key]?.icon_type === "emoji" ? "emoji" : "mdi";
+      this.shadowRoot.querySelectorAll("[data-settings-icon-mode]").forEach(element => { element.hidden = element.dataset.settingsIconMode !== mode; });
+    }
+    this._bindSettingsSceneEditor();
+    this._updateLive();
+    this._setupSceneGeometryObserver();
+    this._scheduleSceneConnectionGeometry();
+  }
+
+  _refreshLiveField(path) {
+    if (String(path).startsWith("bubble_editor.")) {
+      this._refreshBubbleEditorPreview(path);
+      return true;
+    }
+    const context = this._view === "settings" ? this._settingsContext() : null;
+    if (context && String(path).startsWith(`${context.path}.`)) {
+      this._refreshSettingsPreview(path);
+      return true;
+    }
+    return false;
+  }
+
   _bindCommonEvents() {
     this.shadowRoot.querySelectorAll("[data-view]").forEach(el => el.addEventListener("click", () => {
       const leavingKiosk = this._view === "kiosk" && el.dataset.view !== "kiosk";
@@ -2414,12 +2488,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           this.shadowRoot.querySelectorAll(".flow-title>span").forEach(title => { title.textContent = value || "PRZEPŁYW ENERGII — NA ŻYWO"; });
         }
         if (el.dataset.liveRerender === "1") {
+          if (this._refreshLiveField(el.dataset.path)) return;
           const scroll = this.shadowRoot.querySelector(".content")?.scrollTop || 0;
+          const inspectorScroll = this.shadowRoot.querySelector(".settings-inspector")?.scrollTop || 0;
           const bubbleScroll = this.shadowRoot.querySelector(".bubble-editor-body")?.scrollTop || 0;
           requestAnimationFrame(() => {
             this._render();
             const content = this.shadowRoot.querySelector(".content");
             if (content) content.scrollTop = scroll;
+            const inspector = this.shadowRoot.querySelector(".settings-inspector");
+            if (inspector) inspector.scrollTop = inspectorScroll;
             const bubbleBody = this.shadowRoot.querySelector(".bubble-editor-body");
             if (bubbleBody) bubbleBody.scrollTop = bubbleScroll;
           });
@@ -3463,6 +3541,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     slides.forEach((slide, slideIndex) => slide.classList.toggle("active", slideIndex === this._kioskSlide));
     slides.forEach(slide => slide.querySelectorAll(".kiosk-dot,.kiosk-tab-button").forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === this._kioskSlide)));
     this._updateLive();
+    this._scheduleSceneConnectionGeometry();
   }
 
   _advanceKiosk(direction) { this._setKioskSlide(this._kioskSlide + direction); }
@@ -3479,25 +3558,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _applySettingsSceneGeometry(profile) {
     const model = this._flowSceneModel(profile);
     const nodes = Object.fromEntries(model.nodes.map(item => [item.key, item]));
-    this.shadowRoot.querySelectorAll("[data-scene-node]").forEach(element => {
+    const sceneElement = this.shadowRoot.querySelector("[data-flow-scene]");
+    sceneElement?.querySelectorAll("[data-scene-node]").forEach(element => {
       const node = nodes[element.dataset.sceneNode];
       if (!node) return;
       element.style.setProperty("--scene-x", `${node.x}%`);
       element.style.setProperty("--scene-y", `${node.y}%`);
     });
-    const visibleConnections = model.connections.filter(connection => connection.visible !== false && nodes[connection.from]?.visible !== false && nodes[connection.to]?.visible !== false);
-    const routes = this._sceneConnectionRoutes(visibleConnections, nodes, model.scene);
-    visibleConnections.forEach(connection => {
-      const route = routes[connection.key], path = route?.path || "";
-      this.shadowRoot.querySelectorAll("[data-scene-connection]").forEach(element => {
-        if (element.dataset.sceneConnection === connection.key) element.querySelectorAll("path").forEach(pathElement => pathElement.setAttribute("d", path));
-      });
-      const label = [...this.shadowRoot.querySelectorAll("[data-scene-connection-label]")].find(element => element.dataset.sceneConnectionLabel === connection.key);
-      if (route?.labelPoint && label) {
-        label.style.setProperty("--label-x", `${route.labelPoint.x / 10}%`);
-        label.style.setProperty("--label-y", `${route.labelPoint.y / 6}%`);
-      }
-    });
+    this._applySceneConnectionGeometry(profile, sceneElement);
   }
 
   _bindSettingsSceneEditor() {
@@ -3826,6 +3894,73 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (this._view === "kiosk") return this._activeKioskProfile();
     if (this._view === "overview") return this._config.overview || {};
     return this._config.flow || {};
+  }
+
+  _sceneRuntimeScene(sceneElement, scene = {}) {
+    const bounds = sceneElement?.getBoundingClientRect?.() || {};
+    const width = Number(bounds.width), height = Number(bounds.height);
+    const measured = {};
+    if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+      [...sceneElement?.querySelectorAll?.("[data-scene-node]") || []].forEach(element => {
+        const rect = element.getBoundingClientRect?.();
+        if (!rect || !element.dataset.sceneNode) return;
+        const left = (Number(rect.left) - Number(bounds.left || 0)) * 1000 / width;
+        const right = (Number(rect.right) - Number(bounds.left || 0)) * 1000 / width;
+        const top = (Number(rect.top) - Number(bounds.top || 0)) * 600 / height;
+        const bottom = (Number(rect.bottom) - Number(bounds.top || 0)) * 600 / height;
+        measured[element.dataset.sceneNode] = { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2, width: right - left, height: bottom - top };
+      });
+    }
+    return {
+      ...scene,
+      _viewport_width: Number.isFinite(width) && width > 0 ? width : 1000,
+      _viewport_height: Number.isFinite(height) && height > 0 ? height : Math.max(1, Number(scene.canvas_height || 600)),
+      _node_rects: measured,
+    };
+  }
+
+  _applySceneConnectionGeometry(profile, sceneElement) {
+    if (!profile || !sceneElement) return;
+    const model = this._flowSceneModel(profile);
+    const runtimeScene = this._sceneRuntimeScene(sceneElement, model.scene);
+    const visibleConnections = model.connections.filter(connection => connection.visible !== false && model.byKey[connection.from]?.visible !== false && model.byKey[connection.to]?.visible !== false);
+    const routes = this._sceneConnectionRoutes(visibleConnections, model.byKey, runtimeScene);
+    visibleConnections.forEach(connection => {
+      const route = routes[connection.key], path = route?.path || "";
+      sceneElement.querySelectorAll?.(`[data-scene-connection="${connection.key}"] path`).forEach(pathElement => pathElement.setAttribute("d", path));
+      const label = [...sceneElement.querySelectorAll?.("[data-scene-connection-label]") || []].find(element => element.dataset.sceneConnectionLabel === connection.key);
+      if (route?.labelPoint && label) {
+        label.style.setProperty("--label-x", `${route.labelPoint.x / 10}%`);
+        label.style.setProperty("--label-y", `${route.labelPoint.y / 6}%`);
+      }
+    });
+  }
+
+  _syncSceneConnectionGeometry(profile = this._renderedFlowProfile()) {
+    const scenes = [...this.shadowRoot?.querySelectorAll?.("[data-flow-scene]") || []];
+    scenes.filter(scene => {
+      const rect = scene.getBoundingClientRect?.();
+      return !rect || (Number(rect.width) > 0 && Number(rect.height) > 0);
+    }).forEach(scene => this._applySceneConnectionGeometry(profile, scene));
+  }
+
+  _scheduleSceneConnectionGeometry() {
+    if (this._sceneGeometryFrame) return;
+    this._sceneGeometryFrame = requestAnimationFrame(() => {
+      this._sceneGeometryFrame = null;
+      this._syncSceneConnectionGeometry();
+      requestAnimationFrame(() => this._syncSceneConnectionGeometry());
+    });
+  }
+
+  _setupSceneGeometryObserver() {
+    this._sceneResizeObserver?.disconnect?.();
+    this._sceneResizeObserver = null;
+    if (typeof ResizeObserver === "undefined") return;
+    const scenes = [...this.shadowRoot?.querySelectorAll?.("[data-flow-scene]") || []];
+    if (!scenes.length) return;
+    this._sceneResizeObserver = new ResizeObserver(() => this._scheduleSceneConnectionGeometry());
+    scenes.forEach(scene => this._sceneResizeObserver.observe(scene));
   }
 
   _updateSceneConnections(values = this._runtimeValues()) {

@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.3"
+    assert manifest["version"] == "8.0.4"
 
 
 def test_hacs_manifest() -> None:
@@ -120,6 +120,11 @@ def test_frontend_features() -> None:
     assert "unavailable_color" in frontend
     assert "_sceneConnectionRoutes" in frontend
     assert "_sceneGridRoute" in frontend
+    assert "_sceneRuntimeScene" in frontend
+    assert "_syncSceneConnectionGeometry" in frontend
+    assert "ResizeObserver" in frontend
+    assert "_refreshSettingsPreview" in frontend
+    assert "_refreshBubbleEditorPreview" in frontend
     assert "Odstęp od dymków" in frontend
     assert "Odstęp między liniami" in frontend
     assert "name_size" in frontend

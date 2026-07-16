@@ -1,6 +1,16 @@
-# Status projektu v8.0.3
+# Status projektu v8.0.4
 
-## Najważniejsze zmiany v8.0.3
+## Najważniejsze zmiany v8.0.4
+
+- trasy są ponownie liczone na podstawie rzeczywistej szerokości i wysokości sceny po jej wyświetleniu na tablecie,
+- router mierzy pełną ramkę każdego dymku razem z paddingiem, obramowaniem i zmianą wielkości tekstu,
+- odcinki między sąsiednimi punktami siatki również są sprawdzane pod kątem przecięcia dymku,
+- przy braku standardowej trasy używany jest bezpieczny korytarz poza sceną zamiast prostej przecinającej dymki,
+- na ciasnych układach odstęp może być automatycznie zmniejszony, ale widoczna ramka dymku nadal pozostaje przeszkodą,
+- zmiana wartości i Enter odświeżają tylko diagram, bez przebudowy i przewijania prawego inspektora,
+- modal dymku aktualizuje wyłącznie własny podgląd i pozostaje w aktualnym miejscu,
+
+## Funkcje wprowadzone w v8.0.3
 
 - linie przepływu zaczynają się na krawędziach dymków zamiast w ich środku,
 - każdy dymek otrzymuje osobne porty dla wielu dochodzących połączeń,
@@ -74,7 +84,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.3
+## Świadome ograniczenia v8.0.4
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -86,7 +96,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.3`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.4`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

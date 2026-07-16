@@ -91,6 +91,25 @@ assert(routed.route_a.path !== routed.route_b.path, "parallel connections must r
 assert(routed.route_a.labelPoint.x !== routed.route_b.labelPoint.x || routed.route_a.labelPoint.y !== routed.route_b.labelPoint.y, "connection labels must not occupy the same point");
 assert(routed.route_a.points[0].x !== routingNodes.source.x * 10, "connection must start at the bubble edge, not its center");
 
+const tabletScene = { ...routingScene, _viewport_width: 640, _viewport_height: 360 };
+const tabletBlockerRect = panel._sceneNodeRect(routingNodes.blocker, tabletScene, 0);
+assert(tabletBlockerRect.width > blockerRect.width, "fixed-pixel bubbles must occupy more SVG space on a narrow tablet");
+assert(Math.abs(tabletBlockerRect.height - 250) < .01, "bubble height must use the real rendered scene height");
+const tabletRoutes = panel._sceneConnectionRoutes(routingConnections, routingNodes, tabletScene);
+for (const route of Object.values(tabletRoutes)) {
+  for (let index = 1; index < route.points.length; index++) {
+    assert(!panel._sceneSegmentHitsRect(route.points[index - 1], route.points[index], tabletBlockerRect), "tablet route crosses a visually enlarged bubble");
+  }
+}
+const measuredScene = panel._sceneRuntimeScene({ getBoundingClientRect: () => ({ width: 640, height: 360 }) }, routingScene);
+assert(measuredScene._viewport_width === 640 && measuredScene._viewport_height === 360, "renderer must use live DOM scene dimensions");
+const measuredNodeScene = panel._sceneRuntimeScene({
+  getBoundingClientRect: () => ({ left: 10, top: 20, width: 640, height: 360 }),
+  querySelectorAll: () => [{ dataset: { sceneNode: "blocker" }, getBoundingClientRect: () => ({ left: 210, right: 410, top: 110, bottom: 230 }) }],
+}, routingScene);
+const measuredNodeRect = panel._sceneNodeRect(routingNodes.blocker, measuredNodeScene, 0);
+assert(Math.abs(measuredNodeRect.width - 312.5) < .01 && Math.abs(measuredNodeRect.height - 200) < .01, "router must use the complete rendered bubble box");
+
 const originalStrings = panel._config.pv_strings, originalDevices = panel._config.devices;
 panel._config.pv_strings = [1, 2, 3].map(index => ({ id: `pv_${index}`, name: `PV ${index}`, enabled: true, show_in_flow: true }));
 panel._config.devices = [
@@ -165,6 +184,11 @@ const bubbleEditorHtml = panel._renderBubbleEditor();
 assert(bubbleEditorHtml.includes("ZAPISZ DYMEK"), "unified bubble editor save action missing");
 assert(bubbleEditorHtml.includes("Wklej emoji"), "emoji text field missing from bubble editor");
 assert(!bubbleEditorHtml.includes("Adres obrazu"), "bubble editor must not require an image URL");
+let bubblePreviewHtml = "";
+panel.shadowRoot.querySelector = selector => selector === ".bubble-editor-preview .metrics-grid" ? { set innerHTML(value) { bubblePreviewHtml = value; } } : null;
+panel.shadowRoot.querySelectorAll = () => [];
+assert(panel._refreshLiveField("bubble_editor.value_size"), "bubble editor changes must use the stable local preview");
+assert(bubblePreviewHtml.includes("🔋"), "stable bubble preview was not refreshed");
 panel._bubbleEditor = null;
 
 panel._settingsTarget = "flow";

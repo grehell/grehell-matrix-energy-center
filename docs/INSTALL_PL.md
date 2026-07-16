@@ -207,7 +207,7 @@ Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Za
 
 ## Karta przepływów w trybie kiosk
 
-### Natywna karta Lovelace v8.0.3
+### Natywna karta Lovelace v8.0.4
 
 Po instalacji lub aktualizacji uruchom ponownie Home Assistant i wykonaj `Ctrl+F5`. Następnie:
 
@@ -258,7 +258,7 @@ Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
 
 Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
 
-## Aktualizacja do v8.0.3
+## Aktualizacja do v8.0.4
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -268,7 +268,7 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie otwórz osobny panel **Kiosk** i skonfiguruj zakładki profili.
 
-Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a nowe sceny, nagłówki i ustawienia zakładek otrzymują bezpieczne wartości domyślne. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v8.0.3 zawiera nowy plik frontendowy i nowy klucz pamięci podręcznej.
+Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v8.0.4 zawiera poprawiony plik frontendowy i nowy klucz pamięci podręcznej. Linie są przeliczane po wyrenderowaniu oraz zmianie rozmiaru ekranu, a edycja pól nie przewija już prawego inspektora ani okna dymku na początek.
 
 ## Usuwanie
 

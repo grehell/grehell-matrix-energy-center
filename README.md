@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.0.3 technical preview**. Flow connections now use obstacle-aware routing, separate ports and independent tracks, so they avoid bubbles and each other. The bubble editor also preserves its scroll position, active field and cursor while values are changed.
+> Status: **v8.0.4 technical preview**. Flow routes are recalculated from the real tablet canvas and complete measured bubble boxes. Live edits update only the preview, so the Settings inspector and bubble dialog remain in place.
 
 ## Main features
 
@@ -17,7 +17,7 @@
 - Independent flow scenes for Summary, Flows, the default kiosk and every named kiosk profile.
 - Drag-and-resize editing for every core, PV-string, EV and additional-device bubble while the background grid remains fixed.
 - SVG connections that automatically follow moved nodes, with direct, curved or orthogonal routing.
-- Automatic obstacle-aware connection routing: lines start at bubble edges, avoid every other bubble, use separate tracks and place labels away from collisions.
+- Automatic obstacle-aware connection routing: lines start at bubble edges, avoid complete measured bubble boxes on the actual screen size, use separate tracks and place labels away from collisions.
 - Per-dashboard controls for line clearance from bubbles and spacing between parallel connection tracks.
 - Per-connection forward, reverse, idle and unavailable colors, direction source, sign convention, deadband, thickness and animation speed.
 - Editable and draggable connection labels with independent text, background, border, size and offset settings.
@@ -92,7 +92,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 8.0.3 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 8.0.4 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -220,8 +220,8 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v0.7 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v8.0.3 (PL)](docs/RELEASE_8_0_3_PL.md)
+- [Status wersji v8.0.4 (PL)](docs/STATUS_PL.md)
+- [Informacje o wydaniu v8.0.4 (PL)](docs/RELEASE_8_0_4_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 
