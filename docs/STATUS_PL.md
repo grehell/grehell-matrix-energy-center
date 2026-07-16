@@ -1,4 +1,4 @@
-# Status projektu v0.6.5
+# Status projektu v0.6.6
 
 ## Najważniejsze zmiany względem v0.5
 
@@ -13,8 +13,12 @@
 - kolejność kart można zmieniać przeciąganiem,
 - można tworzyć wiele profili kiosk z własnym wyborem dymków i wykresów,
 - pozycje węzłów diagramu i górnych dymków edytuje się w ustawieniach bez przesuwania siatki,
+- osobno przesuwa się też linie, opisy wartości, magistrale i przewody urządzeń,
+- wszystkie dymki przepływu mają własny rozmiar, kolory, ramkę, ikonę oraz do 8 dodatkowych pól encji,
+- każdy obiekt przepływu może otwierać szczegóły, przełączać encję, nawigować albo wywoływać usługę HA,
 - każdy pulpit i profil kiosku zachowuje własny układ,
 - profil Galaxy Tab A9 16:9 mieści dolny rząd urządzeń nad nawigacją,
+- natywne slajdy kiosku można zmieniać przeciągnięciem ekranu w bok,
 - kiosk obsługuje automatyczną rotację widoków, ręczne sterowanie i przyciemnianie nocne,
 - konfiguracja jest automatycznie migrowana do schematu v6.
 
@@ -31,7 +35,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v0.6.5
+## Świadome ograniczenia v0.6.6
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -39,16 +43,17 @@
 - trwały dzienny i miesięczny rejestr kosztów nie jest jeszcze gotowy,
 - automatyczne sterowanie falownikiem, magazynem i ładowarką EV pozostaje wyłączone,
 - układ wielu wartości należy sprawdzić na docelowej rozdzielczości ekranu kiosk.
+- gest zmiany slajdu nie może rozpocząć się wewnątrz obcego dokumentu `iframe`; należy rozpocząć go na tle lub natywnym slajdzie kiosku.
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v0.6.5`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v0.6.6`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.
 5. Sprawdzić zakres sesyjny, 24 h, 7 dni i 30 dni.
-6. W ustawieniach przeciągnąć osobno węzły diagramu i górne dymki, zapisać i odświeżyć stronę.
-7. Sprawdzić akcje szczegółów, nawigacji i bezpieczną usługę testową.
+6. W ustawieniach przeciągnąć osobno dymki, linie, opisy, magistrale i przewody, zapisać i odświeżyć stronę.
+7. Zmienić rozmiar, kolory i ikonę dymku, dodać pole encji oraz sprawdzić akcje `more-info`, `toggle`, nawigację i bezpieczną usługę testową.
 8. Utworzyć dwa profile kiosk z różnymi elementami.
-9. Sprawdzić rotację, sterowanie slajdami, porę nocną i pełny ekran.
+9. Sprawdzić rotację, gest przeciągnięcia slajdu, porę nocną i pełny ekran.
 10. Sprawdzić panel na desktopie, tablecie i telefonie oraz przejrzeć dziennik Home Assistant i konsolę przeglądarki.

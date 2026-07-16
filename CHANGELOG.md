@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.6 — 2026-07-16
+
+- Extended the central layout editor to every energy-flow object: core and additional nodes, connector lines, connector labels, source/load buses and individual device wires.
+- Removed internal bus and flow-panel clipping so independently moved device bubbles remain visible above or below their original rows.
+- Added per-dashboard width, height, colors, border, radius, icon size, MDI icon or safe custom image URL for every flow bubble.
+- Added up to eight extra Home Assistant entity/attribute fields inside each flow bubble with independent labels, units, precision, multiplier and color.
+- Added per-object actions for every flow dashboard: none, more-info, generic toggle, local navigation or an arbitrary Home Assistant service with JSON data.
+- Added touch selection of objects in the editor and a separate properties inspector.
+- Added horizontal swipe navigation between native kiosk slides with drag feedback and protected interactive controls.
+
 ## 0.6.5 — 2026-07-16
 
 - Moved all layout editing out of the kiosk header and into a central editor opened from the Settings/Widgets screen.

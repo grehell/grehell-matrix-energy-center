@@ -13,7 +13,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.5"
+    assert manifest["version"] == "0.6.6"
 
 
 def test_hacs_manifest() -> None:
@@ -37,6 +37,12 @@ def test_native_lovelace_flow_card() -> None:
     assert "add_extra_js_url(hass, CARD_MODULE_URL)" in integration
     assert "remove_extra_js_url(hass, card_url)" in integration
     assert 'module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v={VERSION}"' in integration
+    assert "flow_element_styles" in frontend
+    assert "flow_node_positions" in frontend
+    assert "data-flow-action" in frontend
+    assert 'callService("homeassistant", "toggle"' in frontend
+    assert "flow-custom-image" in frontend
+    assert "flow-extra-fields" in frontend
 
 
 def test_frontend_v06_features() -> None:
@@ -73,9 +79,22 @@ def test_frontend_v06_features() -> None:
     assert "value_color" in frontend
     assert "icon_color" in frontend
     assert "open-bubble-layout-editor" in frontend
-    assert "data-flow-layout-node" in frontend
+    assert "data-flow-layout-element" in frontend
     assert "flow-layout-editing" in frontend
     assert "layout-editor-fixed-background" in frontend
+    assert "branch-bus-line" in frontend
+    assert "label_grid" in frontend
+    assert "wire_ev" in frontend
+    assert "_bindKioskSwipe" in frontend
+    assert "touch-action:pan-y" in frontend
+    assert "flow_element_styles" in frontend
+    assert "flow-node-custom-image" in frontend
+    assert "data-flow-custom-field" in frontend
+    assert "data-flow-action-element" in frontend
+    assert 'callService("homeassistant", "toggle"' in frontend
+    assert "add-flow-extra-field" in frontend
+    assert "appearance_enabled" in frontend
+    assert "select-flow-layout-element" in frontend
     assert "height:calc(100% - 32px)!important" in frontend
     assert "overflow:visible;pointer-events:none;background:transparent" in frontend
     assert "toggle-kiosk-builtin" in frontend
@@ -110,6 +129,11 @@ def test_configuration_schema_v6() -> None:
     assert '"description_color"' in storage
     assert '"bubble_positions"' in storage
     assert '"flow_node_positions"' in storage
+    assert '"flow_element_styles"' in storage
+    assert '"appearance_enabled"' in storage
+    assert '"tap_action"' in storage
+    assert '"extra_fields"' in storage
+    assert 'image_url.startswith("/local/")' in storage
     assert '"show_battery_gauge": False' in storage
     assert '"show_self_sufficiency_gauge": False' in storage
     assert '"lovelace_views": []' in storage
@@ -123,6 +147,10 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert all(item["show_in_flow"] for item in example["pv_strings"][:2])
     assert example["devices"][0]["show_in_flow"] is True
     assert example["devices"][0]["flow_direction"] == "consumer"
+    assert "flow_element_styles" in example["flow"]
+    assert "flow_element_styles" in example["overview"]
+    assert "flow_element_styles" in example["kiosk"]
+    assert "flow_element_styles" in example["kiosk_profiles"][0]
     assert example["flow"]["show_pv_strings"] is True
     assert example["flow"]["show_devices"] is True
     assert example["flow"]["flow_node_positions"] == {}

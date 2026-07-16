@@ -107,6 +107,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._kioskSlide = 0;
     this._layoutEditorTarget = null;
     this._layoutEditorSnapshot = null;
+    this._layoutSelectedElement = "home";
     this._layoutPointerState = null;
     this._autoFullscreenArmed = false;
     this._dragState = null;
@@ -491,7 +492,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           <div class="widget-add-actions">
             <button class="primary-btn" data-action="add-overview-bubble" ${disabled}><ha-icon icon="mdi:plus-circle-outline"></ha-icon>DODAJ DYMEK</button>
             <button class="secondary-btn" data-action="add-overview-chart" ${disabled}><ha-icon icon="mdi:chart-line-variant"></ha-icon>DODAJ WYKRES</button>
-            <button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="overview" ${disabled}><ha-icon icon="mdi:cursor-move"></ha-icon>EDYTUJ POŁOŻENIE DYMKÓW</button>
+            <button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="overview" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ DIAGRAM I DYMKI</button>
             <button class="secondary-btn" data-action="refresh-recorder"><ha-icon icon="mdi:history"></ha-icon>ODŚWIEŻ HISTORIĘ</button>
           </div>
           ${this._renderKioskSettings(this._config.kiosk || {}, "kiosk", "DOMYŚLNA KARTA KIOSK", -1, disabled)}
@@ -568,7 +569,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       </div>
       <div class="widget-subsection"><b>DODATKOWE WIDOKI LOVELACE</b><small>Lokalne widoki Home Assistant są wyświetlane jako osobne slajdy kiosku i uczestniczą w automatycznej rotacji.</small></div>
       <div class="widget-related-list kiosk-lovelace-list">${lovelaceCards || `<div class="mini-empty">Brak dodatkowych widoków Lovelace.</div>`}<button class="secondary-btn add-related-btn" data-action="add-kiosk-lovelace-view" data-profile-index="${profileIndex}" ${lovelaceViews.length >= 12 ? "disabled" : disabled}><ha-icon icon="mdi:view-dashboard-plus-outline"></ha-icon>DODAJ WIDOK LOVELACE (${lovelaceViews.length}/12)</button></div>
-      <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><div class="kiosk-profile-head-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="kiosk:${profileIndex}" ${disabled}><ha-icon icon="mdi:cursor-move"></ha-icon>EDYTUJ POŁOŻENIE DYMKÓW</button><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div></div>
+      <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><div class="kiosk-profile-head-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="kiosk:${profileIndex}" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ DIAGRAM I DYMKI</button><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div></div>
     </div>`;
   }
 
@@ -584,6 +585,48 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const profile = index < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[index];
     if (!profile) return null;
     return { target, profile, label: index < 0 ? "Domyślny kiosk" : profile.name || `Kiosk ${index + 1}`, kiosk: true, metrics: true };
+  }
+
+  _layoutEditorProfilePath(target = this._layoutEditorTarget) {
+    if (target === "overview") return "overview";
+    if (target === "flow") return "flow";
+    const match = /^kiosk:(-?\d+)$/.exec(target || "");
+    if (!match) return "";
+    const index = Number(match[1]);
+    return index < 0 ? "kiosk" : `kiosk_profiles.${index}`;
+  }
+
+  _layoutFlowBubbleDefinitions() {
+    const flow = this._config.flow || {};
+    const maxStrings = Math.max(0, Math.min(16, Number(flow.max_pv_strings ?? 6)));
+    const maxDevices = Math.max(0, Math.min(24, Number(flow.max_devices ?? 6)));
+    const definitions = [{ key: "home", label: "Dymek DOM", icon: "mdi:home-lightning-bolt-outline", kind: "node" }];
+    if (this._showModule("grid")) definitions.push({ key: "grid", label: "Dymek SIEĆ", icon: "mdi:transmission-tower", kind: "node" }, { key: "link_grid", label: "Linia SIEĆ ↔ DOM", kind: "link" }, { key: "label_grid", label: "Opis linii SIEĆ", kind: "label" });
+    if (this._showModule("pv")) definitions.push({ key: "pv", label: "Dymek PV", icon: "mdi:solar-power", kind: "node" }, { key: "link_pv", label: "Linia PV → DOM", kind: "link" }, { key: "label_pv", label: "Opis linii PV", kind: "label" });
+    if (this._showModule("battery")) definitions.push({ key: "battery", label: "Dymek MAGAZYN", icon: "mdi:battery-charging-high", kind: "node" }, { key: "link_battery", label: "Linia DOM ↔ MAGAZYN", kind: "link" }, { key: "label_battery", label: "Opis linii MAGAZYN", kind: "label" });
+    if (this._showModule("ev")) definitions.push({ key: "ev", label: "Dymek EV", icon: "mdi:car-electric", kind: "node" }, { key: "wire_ev", label: "Przewód EV", kind: "wire" });
+    let sourceCount = 0, loadCount = this._showModule("ev") ? 1 : 0;
+    const strings = flow.show_pv_strings === false ? [] : (this._config.pv_strings || []).map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.enabled !== false && item.show_in_flow !== false)
+      .sort((a, b) => Number(a.item.flow_order ?? a.index) - Number(b.item.flow_order ?? b.index))
+      .slice(0, maxStrings);
+    strings.forEach(({ item, index }) => {
+      const key = this._flowNodeKey(`string_${item.id || index + 1}`);
+      definitions.push({ key, label: `Dymek ${item.flow_label || item.name || `String ${index + 1}`}`, icon: item.flow_icon || "mdi:solar-panel-large", kind: "node" }, { key: `wire_${key}`, label: `Przewód ${item.flow_label || item.name || `String ${index + 1}`}`, kind: "wire" });
+      sourceCount += 1;
+    });
+    const devices = flow.show_devices === false || this._config.features?.appliances === false ? [] : (this._config.devices || []).map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.enabled !== false && item.show_in_flow === true)
+      .sort((a, b) => Number(a.item.flow_order ?? a.item.priority ?? a.index) - Number(b.item.flow_order ?? b.item.priority ?? b.index))
+      .slice(0, maxDevices);
+    devices.forEach(({ item, index }) => {
+      const key = this._flowNodeKey(`device_${item.id || index + 1}`), label = item.flow_label || item.name || `Urządzenie ${index + 1}`;
+      definitions.push({ key, label: `Dymek ${label}`, icon: item.icon || "mdi:flash", kind: "node" }, { key: `wire_${key}`, label: `Przewód ${label}`, kind: "wire" });
+      if (item.flow_direction === "source") sourceCount += 1; else loadCount += 1;
+    });
+    if (sourceCount) definitions.push({ key: "bus_sources", label: "Magistrala ŹRÓDŁA", kind: "bus" }, { key: "link_sources", label: "Linia ŹRÓDŁA → PV", kind: "link" }, { key: "label_sources", label: "Opis ŹRÓDŁA", kind: "label" });
+    if (loadCount) definitions.push({ key: "link_loads", label: "Linia DOM → ODBIORNIKI", kind: "link" }, { key: "label_loads", label: "Opis ODBIORNIKI", kind: "label" }, { key: "bus_loads", label: "Magistrala ODBIORNIKI", kind: "bus" });
+    return definitions;
   }
 
   _layoutEditorBubbleItems(context) {
@@ -621,6 +664,35 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return [...builtin, ...custom].slice(0, Math.max(1, Math.min(16, Number(profile.max_bubbles || 6))));
   }
 
+  _renderFlowElementInspector(context) {
+    const definitions = this._layoutFlowBubbleDefinitions();
+    if (!definitions.length) return "";
+    let definition = definitions.find(item => item.key === this._layoutSelectedElement) || definitions[0];
+    this._layoutSelectedElement = definition.key;
+    const profilePath = this._layoutEditorProfilePath();
+    context.profile.flow_element_styles ||= {};
+    const style = context.profile.flow_element_styles[definition.key] ||= {};
+    const path = `${profilePath}.flow_element_styles.${definition.key}`;
+    const isNode = definition.kind === "node";
+    const baseColor = this._flowBaseColor(definition.key);
+    const fields = Array.isArray(style.extra_fields) ? style.extra_fields : [];
+    const options = definitions.map(item => `<option value="${this._escAttr(item.key)}" ${item.key === definition.key ? "selected" : ""}>${this._esc(item.label)}</option>`).join("");
+    const fieldCards = fields.map((field, index) => `<article class="layout-extra-field"><div class="widget-related-head"><b>POLE ${index + 1}</b><button class="danger-link" data-action="remove-flow-extra-field" data-index="${index}"><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>${this._field(`${path}.extra_fields.${index}.name`, "Nazwa pola", field.name || `Pole ${index + 1}`, "Np. Energia dzisiaj", "")}<div>${this._entityField(`${path}.extra_fields.${index}.entity_id`, "Encja", field.entity_id, "Dowolna encja Home Assistant.", "", "any")}</div><div class="two-grid">${this._field(`${path}.extra_fields.${index}.attribute`, "Atrybut", field.attribute, "Opcjonalnie", "")}${this._field(`${path}.extra_fields.${index}.unit`, "Jednostka", field.unit, "Puste = z encji", "")}</div><div class="three-grid">${this._numberField(`${path}.extra_fields.${index}.decimals`, "Precyzja", field.decimals ?? 1, 0, 6, 1, "")}${this._numberField(`${path}.extra_fields.${index}.multiplier`, "Mnożnik", field.multiplier ?? 1, -1000000, 1000000, 0.001, "")}${this._colorField(`${path}.extra_fields.${index}.color`, "Kolor", field.color || "#8eb5c3", "")}</div><label class="check-row"><input type="checkbox" data-path="${path}.extra_fields.${index}.enabled" data-live-rerender="1" ${field.enabled !== false ? "checked" : ""}><span><b>Pole widoczne</b><small>Można je zachować i czasowo ukryć.</small></span></label></article>`).join("");
+    return `<aside class="layout-element-inspector">
+      <div class="panel-title"><span>WŁAŚCIWOŚCI ELEMENTU</span><ha-icon icon="mdi:tune-variant"></ha-icon></div>
+      <label class="field"><span>Edytowany obiekt</span><select data-action="select-flow-layout-element">${options}</select></label>
+      <div class="widget-subsection"><b>WYGLĄD</b><small>Ustawienia zapisują się tylko dla bieżącego pulpitu.</small></div>
+      <label class="check-row"><input type="checkbox" data-path="${path}.appearance_enabled" data-live-rerender="1" ${style.appearance_enabled ? "checked" : ""}><span><b>Własny wygląd</b><small>Wyłącz, aby używać stylu domyślnego.</small></span></label>
+      ${isNode ? `<div class="two-grid">${this._field(`${path}.name`, "Własna nazwa", style.name, definition.label.replace(/^Dymek /, ""), "", true)}${this._selectField(`${path}.icon_type`, "Typ ikony", style.icon_type || "mdi", [["mdi","Ikona MDI"],["image","Własny obraz"]], "", true)}</div><div class="two-grid">${this._field(`${path}.icon`, "Ikona MDI", style.icon || definition.icon || "mdi:information-outline", "mdi:home", "", true)}${this._field(`${path}.image_url`, "Obraz spoza MDI", style.image_url, "/local/ikony/dom.svg lub https://…", "", true)}</div><div class="three-grid">${this._numberField(`${path}.width`, "Szerokość (0 = auto)", style.width || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.height`, "Wysokość (0 = auto)", style.height || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.icon_size`, "Rozmiar ikony", style.icon_size || 32, 10, 120, 1, "", true)}</div><div class="three-grid">${this._numberField(`${path}.border_width`, "Grubość ramki", style.border_width || 1, 1, 8, 1, "", true)}${this._numberField(`${path}.border_radius`, "Zaokrąglenie", style.border_radius ?? 18, 0, 100, 1, "", true)}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div><div class="three-grid">${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.icon_color`, "Kolor ikony", style.icon_color || baseColor, "")}${this._colorField(`${path}.name_color`, "Kolor nazwy", style.name_color || "#eefaff", "")}${this._colorField(`${path}.value_color`, "Kolor wartości", style.value_color || baseColor, "")}${this._colorField(`${path}.unit_color`, "Kolor jednostki", style.unit_color || "#94b5c0", "")}</div><div class="widget-subsection"><b>DODATKOWE POLA W DYMKU</b><small>Do 8 dowolnych encji lub atrybutów.</small></div><div class="layout-extra-fields">${fieldCards || `<div class="mini-empty">Brak dodatkowych pól.</div>`}<button class="secondary-btn" data-action="add-flow-extra-field" ${fields.length >= 8 ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon>DODAJ POLE (${fields.length}/8)</button></div>` : definition.kind === "label" ? `<div class="three-grid">${this._colorField(`${path}.value_color`, "Kolor tekstu", style.value_color || "#eefaff", "")}${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div>` : `<div class="two-grid">${this._colorField(`${path}.line_color`, "Kolor linii", style.line_color || baseColor, "")}${this._numberField(`${path}.line_thickness`, "Grubość linii", style.line_thickness || 3, 1, 14, 1, "", true)}</div>`}
+      <div class="widget-subsection"><b>INTERAKCJA</b><small>Akcja wykonywana po dotknięciu obiektu poza trybem edycji.</small></div>
+      ${this._selectField(`${path}.tap_action`, "Akcja", style.tap_action || "none", [["none","Brak"],["more_info","Szczegóły encji"],["toggle","Przełącz (toggle)"],["navigate","Nawigacja"],["service","Dowolna usługa HA"]], "", true)}
+      <div>${this._entityField(`${path}.action_entity_id`, "Encja akcji", style.action_entity_id, "Dla szczegółów, toggle lub jako domyślna encja usługi.", "", "any")}</div>
+      ${this._field(`${path}.navigation_path`, "Ścieżka nawigacji", style.navigation_path, "/lovelace/energia", "")}
+      ${this._field(`${path}.service`, "Usługa Home Assistant", style.service, "Np. light.toggle", "")}
+      ${this._textarea(`${path}.service_data`, "Dane usługi JSON", style.service_data || "{}", "{\"brightness_pct\":50}", "")}
+    </aside>`;
+  }
+
   _renderBubbleLayoutEditor() {
     if (!this._isAdmin()) return "";
     const context = this._layoutEditorContext();
@@ -628,12 +700,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const items = this._layoutEditorBubbleItems(context);
     const slots = items.map((item, index) => this._kioskBubbleSlot(item, index, items.length, context.profile)).join("");
     return `<div class="layout-editor-backdrop">
-      <section class="layout-editor-dialog" role="dialog" aria-modal="true" aria-label="Edycja położenia dymków">
-        <header class="layout-editor-toolbar"><div><span class="eyebrow">USTAWIENIA · UKŁAD DIAGRAMU I DYMKÓW</span><h2>${this._esc(context.label)}</h2><small>Przesuwasz pojedyncze elementy. Tło i siatka pozostają nieruchome.</small></div><div><button class="secondary-btn" data-action="reset-bubble-layout-editor"><ha-icon icon="mdi:restore"></ha-icon>RESETUJ</button><button class="secondary-btn" data-action="cancel-bubble-layout-editor"><ha-icon icon="mdi:close"></ha-icon>ANULUJ</button><button class="primary-btn" data-action="save-bubble-layout-editor"><ha-icon icon="mdi:content-save"></ha-icon>ZAPISZ POŁOŻENIE</button></div></header>
-        <div class="layout-editor-help"><ha-icon icon="mdi:gesture-tap-hold"></ha-icon><span>Złap węzeł SIEĆ, DOM, PV, MAGAZYN lub dodatkowe urządzenie i przesuń. Górne dymki także można przenosić i zmieniać ich szerokość. Pozycje zapisują się tylko dla wybranego pulpitu.</span></div>
-        <div class="layout-editor-canvas layout-editing" data-layout-boundary>
-          <div class="layout-editor-fixed-background flow-layout-editing">${this._flowDiagram(true, false, context.profile)}</div>
-          ${slots ? `<div class="metrics-grid dynamic kiosk-metrics kiosk-bubble-stage layout-free bubble-size-${this._escAttr(this._config.overview?.bubble_size || "medium")}">${slots}</div>` : context.metrics === false ? "" : this._emptyState("mdi:message-off-outline", "Brak górnych dymków", "Włącz lub dodaj dymki w ustawieniach tego pulpitu.")}
+      <section class="layout-editor-dialog" role="dialog" aria-modal="true" aria-label="Edycja diagramu przepływu i dymków">
+        <header class="layout-editor-toolbar"><div><span class="eyebrow">USTAWIENIA · UKŁAD DIAGRAMU I DYMKÓW</span><h2>${this._esc(context.label)}</h2><small>Przesuwasz pojedyncze elementy. Tło i siatka pozostają nieruchome.</small></div><div><button class="secondary-btn" data-action="reset-bubble-layout-editor"><ha-icon icon="mdi:restore"></ha-icon>RESETUJ UKŁAD</button><button class="secondary-btn" data-action="cancel-bubble-layout-editor"><ha-icon icon="mdi:close"></ha-icon>ANULUJ</button><button class="primary-btn" data-action="save-bubble-layout-editor"><ha-icon icon="mdi:content-save"></ha-icon>ZAPISZ USTAWIENIA</button></div></header>
+        <div class="layout-editor-help"><ha-icon icon="mdi:gesture-tap-hold"></ha-icon><span>Przeciągnij dowolny dymek, linię, opis, magistralę lub przewód. Dotknij obiektu bez przesuwania, aby wybrać go w panelu właściwości. Pozycje, wygląd i akcje zapisują się tylko dla wybranego pulpitu.</span></div>
+        <div class="layout-editor-workspace">
+          <div class="layout-editor-canvas layout-editing" data-layout-boundary>
+            <div class="layout-editor-fixed-background flow-layout-editing">${this._flowDiagram(true, false, context.profile)}</div>
+            ${slots ? `<div class="metrics-grid dynamic kiosk-metrics kiosk-bubble-stage layout-free bubble-size-${this._escAttr(this._config.overview?.bubble_size || "medium")}">${slots}</div>` : context.metrics === false ? "" : this._emptyState("mdi:message-off-outline", "Brak górnych dymków", "Włącz lub dodaj dymki w ustawieniach tego pulpitu.")}
+          </div>
+          ${this._renderFlowElementInspector(context)}
         </div>
       </section>
     </div>`;
@@ -833,7 +908,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
             <label class="check-row"><input type="checkbox" data-path="flow.show_connectors" data-live-rerender="1" ${flow.show_connectors !== false ? "checked" : ""} ${disabled}><span><b>Linie przepływu</b><small>Pokaż magistrale i animowane połączenia.</small></span></label>
             <label class="check-row"><input type="checkbox" data-path="flow.hide_inactive_devices" data-live-rerender="1" ${flow.hide_inactive_devices ? "checked" : ""} ${disabled}><span><b>Ukrywaj nieaktywne</b><small>Nie pokazuj urządzeń pobierających mniej niż próg pracy.</small></span></label>
           </div>
-          <div class="widget-add-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="flow" ${disabled}><ha-icon icon="mdi:cursor-move"></ha-icon>EDYTUJ POŁOŻENIE WĘZŁÓW</button></div>
+          <div class="widget-add-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="flow" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ CAŁY DIAGRAM</button></div>
         </article>
         <article class="panel flow-config-preview">
           <div class="preview-badge"><ha-icon icon="mdi:eye-outline"></ha-icon>PODGLĄD NA ŻYWO</div>
@@ -1085,6 +1160,77 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return `--flow-node-x:${x}px;--flow-node-y:${y}px`;
   }
 
+  _flowElementSettings(profile, key) {
+    return profile?.flow_element_styles?.[this._flowNodeKey(key)] || {};
+  }
+
+  _safeFlowImageUrl(value) {
+    const url = String(value || "").trim();
+    return /^(\/local\/|\/media\/|\/api\/image\/serve\/|https:\/\/)/i.test(url) ? url : "";
+  }
+
+  _flowBaseColor(key) {
+    const value = this._flowNodeKey(key);
+    if (value === "grid" || value.includes("grid")) return "#b95cff";
+    if (value === "pv" || value.includes("pv") || value.includes("string") || value.includes("source")) return "#52ff62";
+    if (value === "battery" || value.includes("battery")) return "#b8ff3d";
+    return "#20eaff";
+  }
+
+  _flowElementStyle(profile, key, kind = "position") {
+    const parts = [this._flowNodeStyle(profile, key)];
+    const style = this._flowElementSettings(profile, key);
+    if (style.appearance_enabled) {
+      const baseColor = this._flowBaseColor(key);
+      const lineColor = this._safeColor(style.line_color, baseColor);
+      const thickness = Math.max(1, Math.min(14, Number(style.line_thickness || 3)));
+      if (["node", "extra-node"].includes(kind)) {
+        if (Number(style.width) > 0) parts.push(`width:${Math.max(50, Math.min(360, Number(style.width)))}px!important`);
+        if (Number(style.height) > 0) parts.push(`height:${Math.max(40, Math.min(360, Number(style.height)))}px!important`, `min-height:${Math.max(40, Math.min(360, Number(style.height)))}px!important`);
+        parts.push(`--flow-custom-border:${this._safeColor(style.border_color, baseColor)}`);
+        parts.push(`--flow-custom-bg:${this._safeColor(style.background_color, "#020c18")}`);
+        parts.push(`--flow-custom-icon:${this._safeColor(style.icon_color, baseColor)}`);
+        parts.push(`--flow-custom-name:${this._safeColor(style.name_color, "#eefaff")}`);
+        parts.push(`--flow-custom-value:${this._safeColor(style.value_color, baseColor)}`);
+        parts.push(`--flow-custom-unit:${this._safeColor(style.unit_color, "#94b5c0")}`);
+        parts.push(`--flow-custom-border-width:${Math.max(1, Math.min(8, Number(style.border_width || 1)))}px`);
+        parts.push(`--flow-custom-radius:${Math.max(0, Math.min(100, Number(style.border_radius ?? 18)))}px`);
+        parts.push(`--flow-custom-icon-size:${Math.max(10, Math.min(120, Number(style.icon_size || 32)))}px`);
+      } else if (kind === "link") parts.push(`--link:${lineColor}`, `--flow-line-thickness:${thickness}px`);
+      else if (kind === "wire") parts.push(`--branch-color:${lineColor}`, `--flow-line-thickness:${thickness}px`);
+      else if (kind === "bus") parts.push(`--bus-color:${lineColor}`, `--flow-line-thickness:${thickness}px`);
+      else if (kind === "label") parts.push(`--flow-label-color:${this._safeColor(style.value_color, "#eefaff")}`, `--flow-label-bg:${this._safeColor(style.background_color, "#020c18")}`, `--flow-label-border:${this._safeColor(style.border_color, lineColor)}`);
+    }
+    return parts.join(";");
+  }
+
+  _flowElementName(profile, key, fallback) {
+    return this._flowElementSettings(profile, key).name || fallback;
+  }
+
+  _flowElementIcon(profile, key, fallback) {
+    const style = this._flowElementSettings(profile, key);
+    const imageUrl = style.icon_type === "image" ? this._safeFlowImageUrl(style.image_url) : "";
+    if (imageUrl) return `<img class="flow-node-custom-image" src="${this._escAttr(imageUrl)}" alt="" loading="eager">`;
+    const icon = String(style.icon || fallback || "mdi:information-outline");
+    return `<ha-icon icon="${this._escAttr(icon.startsWith("mdi:") ? icon : fallback || "mdi:information-outline")}"></ha-icon>`;
+  }
+
+  _flowElementExtraFields(profile, key) {
+    const fields = this._flowElementSettings(profile, key).extra_fields || [];
+    const enabled = fields.filter(field => field.enabled !== false).slice(0, 8);
+    if (!enabled.length) return "";
+    return `<div class="flow-node-extra-fields">${enabled.map((field, index) => {
+      const value = this._widgetValue(field);
+      return `<div class="flow-node-extra-field" style="--flow-field-color:${this._safeColor(field.color, "#8eb5c3")}" data-flow-custom-field data-entity-id="${this._escAttr(field.entity_id || "")}" data-attribute="${this._escAttr(field.attribute || "")}" data-unit="${this._escAttr(field.unit || "")}" data-decimals="${Math.max(0, Math.min(6, Number(field.decimals ?? 1)))}" data-multiplier="${Number(field.multiplier ?? 1)}"><small>${this._esc(field.name || `Pole ${index + 1}`)}</small><b>${this._esc(value.formatted)}</b><span>${this._esc(value.unit)}</span></div>`;
+    }).join("")}</div>`;
+  }
+
+  _flowElementActionAttrs(profile, key) {
+    const action = this._flowElementSettings(profile, key).tap_action || "none";
+    return action === "none" ? "" : `data-flow-action-element="${this._escAttr(this._flowNodeKey(key))}" tabindex="0" role="button"`;
+  }
+
   _flowDiagram(large = false, preview = false, layoutProfile = null) {
     const density = this._config.appearance?.flow_density || "comfortable";
     const flow = {
@@ -1123,7 +1269,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
     const node = (cls, icon, title, liveKey, extra = "") => {
       const key = this._flowNodeKey(cls.replace(/-node$/, ""));
-      return `<div class="flow-node ${cls}" data-flow-layout-node="${this._escAttr(key)}" style="${this._flowNodeStyle(layoutProfile, key)}"><ha-icon icon="${this._escAttr(icon)}"></ha-icon><b>${this._esc(title)}</b><strong data-live="${liveKey}">--</strong><small>${extra || "kW"}</small></div>`;
+      return `<div class="flow-node ${cls}" data-flow-layout-element="${this._escAttr(key)}" style="${this._flowElementStyle(layoutProfile, key, "node")}" ${this._flowElementActionAttrs(layoutProfile, key)}>${this._flowElementIcon(layoutProfile, key, icon)}<b>${this._esc(this._flowElementName(layoutProfile, key, title))}</b><strong data-live="${liveKey}">--</strong><small>${extra || "kW"}</small>${this._flowElementExtraFields(layoutProfile, key)}</div>`;
     };
     const stringBranch = ({ item, index }) => {
       const runtime = this._pvStringRuntime(item, index);
@@ -1131,9 +1277,10 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const status = runtime.status || item.mppt || "PV";
       const active = Math.abs(Number(runtime.power || 0)) > 1;
       const nodeKey = this._flowNodeKey(`string_${item.id || index + 1}`);
-      return `<div class="flow-branch source-branch accent-green ${active ? "is-active" : "is-idle"}" data-flow-string-branch="${index}" data-flow-layout-node="${this._escAttr(nodeKey)}" style="${this._flowNodeStyle(layoutProfile, nodeKey)}">
-        <div class="flow-extra-node"><ha-icon icon="${this._escAttr(item.flow_icon || "mdi:solar-panel-large")}"></ha-icon><b>${this._esc(label)}</b><div class="flow-extra-value"><strong data-flow-string-power="${index}">${this._kw(runtime.power)}</strong><span>kW</span></div><small data-flow-string-status="${index}">${this._esc(status)}</small></div>
-        <span class="branch-wire" data-flow-extra-link="string-${index}"><i></i></span>
+      const wireKey = this._flowNodeKey(`wire_${nodeKey}`);
+      return `<div class="flow-branch source-branch accent-green ${active ? "is-active" : "is-idle"}" data-flow-string-branch="${index}">
+        <div class="flow-extra-node" data-flow-layout-element="${this._escAttr(nodeKey)}" style="${this._flowElementStyle(layoutProfile, nodeKey, "extra-node")}" ${this._flowElementActionAttrs(layoutProfile, nodeKey)}>${this._flowElementIcon(layoutProfile, nodeKey, item.flow_icon || "mdi:solar-panel-large")}<b>${this._esc(this._flowElementName(layoutProfile, nodeKey, label))}</b><div class="flow-extra-value"><strong data-flow-string-power="${index}">${this._kw(runtime.power)}</strong><span>kW</span></div><small data-flow-string-status="${index}">${this._esc(status)}</small>${this._flowElementExtraFields(layoutProfile, nodeKey)}</div>
+        <span class="branch-wire" data-flow-extra-link="string-${index}" data-flow-layout-element="${this._escAttr(wireKey)}" style="${this._flowElementStyle(layoutProfile, wireKey, "wire")}" ${this._flowElementActionAttrs(layoutProfile, wireKey)}><i></i></span>
       </div>`;
     };
     const deviceBranch = ({ item, index }, source = false) => {
@@ -1144,15 +1291,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const active = runtime.power != null && Math.abs(Number(runtime.power)) >= Number(item.active_threshold_w ?? 10);
       const bidirectional = item.flow_direction === "bidirectional";
       const nodeKey = this._flowNodeKey(`device_${item.id || index + 1}`);
-      return `<div class="flow-branch ${source ? "source-branch" : "load-branch"} accent-${accent} ${active ? "is-active" : "is-idle"} ${flow.hide_inactive_devices ? "hidden-when-idle" : ""}" data-flow-device-branch="${index}" data-flow-direction="${this._escAttr(item.flow_direction || "consumer")}" data-flow-layout-node="${this._escAttr(nodeKey)}" style="${this._flowNodeStyle(layoutProfile, nodeKey)}">
-        ${source ? "" : `<span class="branch-wire ${bidirectional ? "bidirectional" : ""}" data-flow-extra-link="device-${index}"><i></i></span>`}
-        <div class="flow-extra-node"><ha-icon icon="${this._escAttr(item.icon || "mdi:flash")}"></ha-icon><b>${this._esc(label)}</b><div class="flow-extra-value"><strong data-flow-device-flow-power="${index}">${this._kw(runtime.power == null ? null : Math.abs(Number(runtime.power)))}</strong><span>kW</span></div><small data-flow-device-status="${index}">${this._esc(status)}</small></div>
-        ${source ? `<span class="branch-wire" data-flow-extra-link="device-${index}"><i></i></span>` : ""}
+      const wireKey = this._flowNodeKey(`wire_${nodeKey}`);
+      return `<div class="flow-branch ${source ? "source-branch" : "load-branch"} accent-${accent} ${active ? "is-active" : "is-idle"} ${flow.hide_inactive_devices ? "hidden-when-idle" : ""}" data-flow-device-branch="${index}" data-flow-direction="${this._escAttr(item.flow_direction || "consumer")}">
+        ${source ? "" : `<span class="branch-wire ${bidirectional ? "bidirectional" : ""}" data-flow-extra-link="device-${index}" data-flow-layout-element="${this._escAttr(wireKey)}" style="${this._flowElementStyle(layoutProfile, wireKey, "wire")}" ${this._flowElementActionAttrs(layoutProfile, wireKey)}><i></i></span>`}
+        <div class="flow-extra-node" data-flow-layout-element="${this._escAttr(nodeKey)}" style="${this._flowElementStyle(layoutProfile, nodeKey, "extra-node")}" ${this._flowElementActionAttrs(layoutProfile, nodeKey)}>${this._flowElementIcon(layoutProfile, nodeKey, item.icon || "mdi:flash")}<b>${this._esc(this._flowElementName(layoutProfile, nodeKey, label))}</b><div class="flow-extra-value"><strong data-flow-device-flow-power="${index}">${this._kw(runtime.power == null ? null : Math.abs(Number(runtime.power)))}</strong><span>kW</span></div><small data-flow-device-status="${index}">${this._esc(status)}</small>${this._flowElementExtraFields(layoutProfile, nodeKey)}</div>
+        ${source ? `<span class="branch-wire" data-flow-extra-link="device-${index}" data-flow-layout-element="${this._escAttr(wireKey)}" style="${this._flowElementStyle(layoutProfile, wireKey, "wire")}" ${this._flowElementActionAttrs(layoutProfile, wireKey)}><i></i></span>` : ""}
       </div>`;
     };
-    const evBranch = showEv ? `<div class="flow-branch load-branch accent-cyan" data-flow-core-branch="ev" data-flow-layout-node="ev" style="${this._flowNodeStyle(layoutProfile, "ev")}">
-      <span class="branch-wire" data-flow-extra-link="ev"><i></i></span>
-      <div class="flow-extra-node"><ha-icon icon="mdi:car-electric"></ha-icon><b>EV</b><div class="flow-extra-value"><strong data-live="ev">--</strong><span>kW</span></div><small><span data-live="evSoc">--</span>% SOC</small></div>
+    const evBranch = showEv ? `<div class="flow-branch load-branch accent-cyan" data-flow-core-branch="ev">
+      <span class="branch-wire" data-flow-extra-link="ev" data-flow-layout-element="wire_ev" style="${this._flowElementStyle(layoutProfile, "wire_ev", "wire")}" ${this._flowElementActionAttrs(layoutProfile, "wire_ev")}><i></i></span>
+      <div class="flow-extra-node" data-flow-layout-element="ev" style="${this._flowElementStyle(layoutProfile, "ev", "extra-node")}" ${this._flowElementActionAttrs(layoutProfile, "ev")}>${this._flowElementIcon(layoutProfile, "ev", "mdi:car-electric")}<b>${this._esc(this._flowElementName(layoutProfile, "ev", "EV"))}</b><div class="flow-extra-value"><strong data-live="ev">--</strong><span>kW</span></div><small><span data-live="evSoc">--</span>% SOC</small>${this._flowElementExtraFields(layoutProfile, "ev")}</div>
     </div>` : "";
     const sourceBranches = `${strings.map(stringBranch).join("")}${sourceDevices.map(item => deviceBranch(item, true)).join("")}`;
     const loadBranches = `${evBranch}${loadDevices.map(item => deviceBranch(item, false)).join("")}`;
@@ -1169,15 +1317,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return `<div class="panel-title flow-title"><span>${this._esc(flow.title || "PRZEPŁYW ENERGII — NA ŻYWO")}</span><small>${preview ? "Podgląd konfiguracji" : "Wartości rzeczywiste"}</small></div>
       <div class="flow-canvas flow-canvas-v4 ${classes}" style="--branch-gap:${branchGap}px">
         <div class="flow-grid flow-grid-v4">
-          ${hasSources ? `<div class="flow-branch-bus source-bus">${sourceBranches}</div><div class="flow-link vertical source-link" data-flow-link="sources"><i></i><span>ŹRÓDŁA</span></div>` : ""}
+          ${hasSources ? `<div class="flow-branch-bus source-bus"><span class="branch-bus-line" data-flow-layout-element="bus_sources" style="${this._flowElementStyle(layoutProfile, "bus_sources", "bus")}" ${this._flowElementActionAttrs(layoutProfile, "bus_sources")}></span>${sourceBranches}</div><div class="flow-link vertical source-link" data-flow-link="sources" data-flow-layout-element="link_sources" style="${this._flowElementStyle(layoutProfile, "link_sources", "link")}" ${this._flowElementActionAttrs(layoutProfile, "link_sources")}><i></i><span data-flow-layout-element="label_sources" style="${this._flowElementStyle(layoutProfile, "label_sources", "label")}" ${this._flowElementActionAttrs(layoutProfile, "label_sources")}>ŹRÓDŁA</span></div>` : ""}
           ${showPv ? node("pv-node", "mdi:solar-power", "PV", "pv") : ""}
-          ${showPv ? `<div class="flow-link vertical pv-link forward" data-flow-link="pv"><i></i><span data-live="pv">--</span></div>` : ""}
+          ${showPv ? `<div class="flow-link vertical pv-link forward" data-flow-link="pv" data-flow-layout-element="link_pv" style="${this._flowElementStyle(layoutProfile, "link_pv", "link")}" ${this._flowElementActionAttrs(layoutProfile, "link_pv")}><i></i><span data-live="pv" data-flow-layout-element="label_pv" style="${this._flowElementStyle(layoutProfile, "label_pv", "label")}" ${this._flowElementActionAttrs(layoutProfile, "label_pv")}>--</span></div>` : ""}
           ${showGrid ? node("grid-node", "mdi:transmission-tower", "SIEĆ", "gridSigned") : ""}
-          ${showGrid ? `<div class="flow-link horizontal grid-link bidirectional" data-flow-link="grid"><i></i><span data-live="gridFlow">--</span></div>` : ""}
+          ${showGrid ? `<div class="flow-link horizontal grid-link bidirectional" data-flow-link="grid" data-flow-layout-element="link_grid" style="${this._flowElementStyle(layoutProfile, "link_grid", "link")}" ${this._flowElementActionAttrs(layoutProfile, "link_grid")}><i></i><span data-live="gridFlow" data-flow-layout-element="label_grid" style="${this._flowElementStyle(layoutProfile, "label_grid", "label")}" ${this._flowElementActionAttrs(layoutProfile, "label_grid")}>--</span></div>` : ""}
           ${node("home-node", "mdi:home-lightning-bolt-outline", "DOM", "home")}
-          ${showBattery ? `<div class="flow-link horizontal battery-link bidirectional" data-flow-link="battery"><i></i><span data-live="batteryFlow">--</span></div>` : ""}
+          ${showBattery ? `<div class="flow-link horizontal battery-link bidirectional" data-flow-link="battery" data-flow-layout-element="link_battery" style="${this._flowElementStyle(layoutProfile, "link_battery", "link")}" ${this._flowElementActionAttrs(layoutProfile, "link_battery")}><i></i><span data-live="batteryFlow" data-flow-layout-element="label_battery" style="${this._flowElementStyle(layoutProfile, "label_battery", "label")}" ${this._flowElementActionAttrs(layoutProfile, "label_battery")}>--</span></div>` : ""}
           ${showBattery ? node("battery-node", "mdi:battery-charging-high", "MAGAZYN", "battery", `<span data-live="batterySoc">--</span>% · kW`) : ""}
-          ${hasLoads ? `<div class="flow-link vertical loads-link" data-flow-link="loads"><i></i><span>ODBIORNIKI</span></div><div class="flow-branch-bus load-bus">${loadBranches}</div>` : ""}
+          ${hasLoads ? `<div class="flow-link vertical loads-link" data-flow-link="loads" data-flow-layout-element="link_loads" style="${this._flowElementStyle(layoutProfile, "link_loads", "link")}" ${this._flowElementActionAttrs(layoutProfile, "link_loads")}><i></i><span data-flow-layout-element="label_loads" style="${this._flowElementStyle(layoutProfile, "label_loads", "label")}" ${this._flowElementActionAttrs(layoutProfile, "label_loads")}>ODBIORNIKI</span></div><div class="flow-branch-bus load-bus"><span class="branch-bus-line" data-flow-layout-element="bus_loads" style="${this._flowElementStyle(layoutProfile, "bus_loads", "bus")}" ${this._flowElementActionAttrs(layoutProfile, "bus_loads")}></span>${loadBranches}</div>` : ""}
         </div>
       </div>`;
   }
@@ -1323,8 +1471,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return `<div class="save-actions"><button class="secondary-btn" data-action="export-config" ${disabled}><ha-icon icon="mdi:export-variant"></ha-icon>EKSPORT</button><label class="secondary-btn file-btn"><ha-icon icon="mdi:import"></ha-icon>IMPORT<input type="file" accept="application/json" data-action="import-config" ${disabled}></label><button class="primary-btn" data-action="save-config" ${disabled}><ha-icon icon="mdi:content-save-outline"></ha-icon>ZAPISZ ZMIANY</button></div>`;
   }
 
-  _field(path, label, value, placeholder = "", disabled = "") {
-    return `<label class="field"><span>${label}</span><input type="text" data-path="${path}" value="${this._escAttr(value ?? "")}" placeholder="${this._escAttr(placeholder)}" ${disabled}></label>`;
+  _field(path, label, value, placeholder = "", disabled = "", liveRerender = false) {
+    return `<label class="field"><span>${label}</span><input type="text" data-path="${path}" value="${this._escAttr(value ?? "")}" placeholder="${this._escAttr(placeholder)}" ${liveRerender ? 'data-live-rerender="1"' : ""} ${disabled}></label>`;
   }
 
   _colorField(path, label, value, disabled = "") {
@@ -1546,7 +1694,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     }));
     this.shadowRoot.querySelector("[data-action='toggle-nav']")?.addEventListener("click", () => this.shadowRoot.querySelector(".sidebar")?.classList.toggle("open"));
     this.shadowRoot.querySelectorAll("[data-path]").forEach(el => {
-      const event = el.type === "checkbox" || el.tagName === "SELECT" || (el.type === "number" && el.dataset.liveRerender === "1") ? "change" : "input";
+      const event = el.type === "checkbox" || el.tagName === "SELECT" || el.dataset.liveRerender === "1" ? "change" : "input";
       el.addEventListener(event, () => {
         const value = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
         this._setPath(this._config, el.dataset.path, value);
@@ -1568,9 +1716,13 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _bindViewEvents() {
     this.shadowRoot.querySelector(".entity-dialog")?.addEventListener("click", event => event.stopPropagation());
+    this.shadowRoot.querySelector("[data-action='select-flow-layout-element']")?.addEventListener("change", event => {
+      this._layoutSelectedElement = event.currentTarget.value;
+      this._render();
+    });
     this.shadowRoot.querySelectorAll("[data-action]").forEach(el => {
       const action = el.dataset.action;
-      if (["toggle-nav", "import-config"].includes(action)) return;
+      if (["toggle-nav", "import-config", "select-flow-layout-element"].includes(action)) return;
       el.addEventListener("click", async event => {
         if (action === "save-config") await this._saveConfig();
         if (action === "apply-g13-preset") this._applyTauronG13Preset();
@@ -1600,6 +1752,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "cancel-bubble-layout-editor") this._cancelBubbleLayoutEditor();
         if (action === "reset-bubble-layout-editor") this._resetBubbleLayoutEditor();
         if (action === "save-bubble-layout-editor") await this._saveBubbleLayoutEditor();
+        if (action === "add-flow-extra-field") this._addFlowExtraField();
+        if (action === "remove-flow-extra-field") this._removeFlowExtraField(Number(el.dataset.index));
         if (action === "kiosk-prev") this._advanceKiosk(-1);
         if (action === "kiosk-next") this._advanceKiosk(1);
         if (action === "kiosk-slide") this._setKioskSlide(Number(el.dataset.slideIndex));
@@ -1676,8 +1830,20 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       el.addEventListener("click", execute);
       el.addEventListener("keydown", execute);
     });
+    this.shadowRoot.querySelectorAll("[data-flow-action-element]").forEach(el => {
+      const execute = async event => {
+        if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+        if (this._layoutEditorTarget || el.closest(".layout-editor-dialog")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        await this._executeFlowElementAction(el.dataset.flowActionElement);
+      };
+      el.addEventListener("click", execute);
+      el.addEventListener("keydown", execute);
+    });
     this._bindWidgetDragDrop();
     this._bindKioskLayoutEditor();
+    this._bindKioskSwipe();
   }
 
 
@@ -1851,7 +2017,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     items.push({
       id: `ekran_${n}`, name: `Ekran ${n}`, description: "", title: "PRZEPŁYW ENERGII",
       display_preset: "tablet_16_9", compact_header: true, max_bubbles: 6, chart_columns: 2,
-      builtin_bubble_ids: ["home", "pv", "grid"], bubble_layout: "free", bubble_stage_height: 96, bubble_positions: {}, flow_node_positions: {},
+      builtin_bubble_ids: ["home", "pv", "grid"], bubble_layout: "free", bubble_stage_height: 96, bubble_positions: {}, flow_node_positions: {}, flow_element_styles: {},
       flow_offset_x: 0, flow_offset_y: -30, flow_scale: 100, show_price_panel: true, show_consumers_panel: true,
       show_battery_gauge: false, show_self_sufficiency_gauge: false, auto_fullscreen: true, lovelace_views: [],
       show_clock: true, show_builtin_bubbles: true, show_custom_bubbles: true, show_charts: true,
@@ -1892,6 +2058,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._layoutEditorSnapshot = {
       bubble_positions: JSON.parse(JSON.stringify(context.profile.bubble_positions || {})),
       flow_node_positions: JSON.parse(JSON.stringify(context.profile.flow_node_positions || {})),
+      flow_element_styles: JSON.parse(JSON.stringify(context.profile.flow_element_styles || {})),
       bubble_layout: context.profile.bubble_layout || "grid",
     };
     if (context.metrics !== false) {
@@ -1899,7 +2066,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       context.profile.bubble_positions ||= {};
     }
     context.profile.flow_node_positions ||= {};
-    this._message = `Edycja położenia dymków: ${context.label}.`;
+    context.profile.flow_element_styles ||= {};
+    this._layoutSelectedElement = "home";
+    this._message = `Edycja diagramu i dymków: ${context.label}.`;
     this._render();
   }
 
@@ -1908,11 +2077,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (context && this._layoutEditorSnapshot) {
       if (context.metrics !== false) context.profile.bubble_positions = this._layoutEditorSnapshot.bubble_positions;
       context.profile.flow_node_positions = this._layoutEditorSnapshot.flow_node_positions;
+      context.profile.flow_element_styles = this._layoutEditorSnapshot.flow_element_styles;
       if (context.metrics !== false) context.profile.bubble_layout = this._layoutEditorSnapshot.bubble_layout;
     }
     this._layoutEditorTarget = null;
     this._layoutEditorSnapshot = null;
-    this._message = "Anulowano zmianę położenia dymków.";
+    this._message = "Anulowano edycję diagramu i dymków.";
     this._render();
   }
 
@@ -1921,7 +2091,29 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (!context) return;
     if (context.metrics !== false) context.profile.bubble_positions = {};
     context.profile.flow_node_positions = {};
-    this._message = "Przywrócono domyślne położenie dymków i węzłów. Kliknij ZAPISZ POŁOŻENIE.";
+    this._message = "Przywrócono domyślne położenie dymków i elementów diagramu. Kliknij ZAPISZ USTAWIENIA.";
+    this._render();
+  }
+
+  _addFlowExtraField() {
+    if (!this._isAdmin()) return;
+    const context = this._layoutEditorContext();
+    if (!context || !this._layoutSelectedElement) return;
+    context.profile.flow_element_styles ||= {};
+    const style = context.profile.flow_element_styles[this._layoutSelectedElement] ||= {};
+    const fields = style.extra_fields ||= [];
+    if (fields.length >= 8) return;
+    const n = fields.length + 1;
+    fields.push({ id: this._id("field"), name: `Pole ${n}`, entity_id: "", attribute: "", unit: "", decimals: 1, multiplier: 1, color: "#8eb5c3", enabled: true });
+    this._render();
+  }
+
+  _removeFlowExtraField(index) {
+    if (!this._isAdmin()) return;
+    const context = this._layoutEditorContext();
+    const fields = context?.profile?.flow_element_styles?.[this._layoutSelectedElement]?.extra_fields;
+    if (!Array.isArray(fields) || !Number.isInteger(index)) return;
+    fields.splice(index, 1);
     this._render();
   }
 
@@ -1930,6 +2122,41 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._layoutEditorTarget = null;
     this._layoutEditorSnapshot = null;
     await this._saveConfig();
+  }
+
+  _activeFlowElementProfile() {
+    if (this._view === "kiosk") return this._activeKioskProfile();
+    if (this._view === "overview") return this._config.overview || {};
+    return this._config.flow || {};
+  }
+
+  async _executeFlowElementAction(key) {
+    if (this._view === "configuration") return;
+    const style = this._activeFlowElementProfile()?.flow_element_styles?.[this._flowNodeKey(key)] || {};
+    const action = style.tap_action || "none";
+    const entityId = String(style.action_entity_id || "").trim();
+    try {
+      if (action === "more_info" && entityId) {
+        this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
+      } else if (action === "toggle" && entityId) {
+        await this._hass.callService("homeassistant", "toggle", { entity_id: entityId });
+      } else if (action === "navigate") {
+        const path = String(style.navigation_path || "").trim();
+        if (!path.startsWith("/")) return;
+        window.history.pushState(null, "", path);
+        window.dispatchEvent(new Event("location-changed"));
+      } else if (action === "service") {
+        const [domain, service] = String(style.service || "").split(".", 2);
+        if (!domain || !service) return;
+        let data = {};
+        try { data = JSON.parse(style.service_data || "{}"); } catch (_) { this._message = "Nieprawidłowy JSON danych usługi."; this._updateMessage(); return; }
+        if (entityId && data.entity_id == null) data.entity_id = entityId;
+        await this._hass.callService(domain, service, data);
+      }
+    } catch (err) {
+      this._message = `Błąd akcji elementu: ${err?.message || err}`;
+      this._updateMessage();
+    }
   }
 
   _toggleKioskBuiltin(profileIndex, itemId, checked) {
@@ -2014,7 +2241,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const handle = event.currentTarget;
       const slot = handle.closest("[data-kiosk-item]");
       const stage = handle.closest(".kiosk-bubble-stage");
-      const flowNode = handle.closest("[data-flow-layout-node]");
+      const flowNode = handle.closest("[data-flow-layout-element]");
       if ((mode === "move" || mode === "resize") && (!slot || !stage || !stage.classList.contains("layout-free"))) return;
       if (mode === "node" && !flowNode) return;
       event.preventDefault();
@@ -2027,17 +2254,18 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const startXPercent = stageRect && slotRect ? ((slotRect.left - stageRect.left) / stageRect.width) * 100 : 0;
       const startY = stageRect && slotRect ? slotRect.top - stageRect.top : 0;
       const startWidth = stageRect && slotRect ? (slotRect.width / stageRect.width) * 100 : 16;
-      const nodeKey = flowNode?.dataset.flowLayoutNode;
+      const nodeKey = flowNode?.dataset.flowLayoutElement;
       const nodePosition = nodeKey ? (profile.flow_node_positions[nodeKey] ||= {}) : null;
-      const nodeVisual = flowNode?.classList.contains("flow-branch") ? flowNode.querySelector(".flow-extra-node") : flowNode;
+      const nodeVisual = flowNode;
       const nodeRect = nodeVisual?.getBoundingClientRect();
-      this._layoutPointerState = { mode, startClientX: event.clientX, startClientY: event.clientY, stageRect, boundaryRect, slot, key, position, startXPercent, startY, startWidth, flowNode, nodeVisual, nodeRect, nodePosition, nodeX: Number(nodePosition?.x || 0), nodeY: Number(nodePosition?.y || 0) };
+      this._layoutPointerState = { mode, startClientX: event.clientX, startClientY: event.clientY, stageRect, boundaryRect, slot, key, position, startXPercent, startY, startWidth, flowNode, nodeVisual, nodeRect, nodePosition, nodeKey, nodeX: Number(nodePosition?.x || 0), nodeY: Number(nodePosition?.y || 0), moved: false };
       const move = pointerEvent => {
         const state = this._layoutPointerState;
         if (!state) return;
         pointerEvent.preventDefault();
         const dx = pointerEvent.clientX - state.startClientX;
         const dy = pointerEvent.clientY - state.startClientY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) state.moved = true;
         if (state.mode === "node" && state.flowNode && state.nodePosition) {
           const leftLimit = state.boundaryRect && state.nodeRect ? state.nodeX + state.boundaryRect.left - state.nodeRect.left : -600;
           const rightLimit = state.boundaryRect && state.nodeRect ? state.nodeX + state.boundaryRect.right - state.nodeRect.right : 600;
@@ -2072,11 +2300,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         }
       };
       const end = () => {
+        const state = this._layoutPointerState;
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", end);
         window.removeEventListener("pointercancel", end);
         this._layoutPointerState = null;
-        this._message = "Układ zmieniony. Kliknij ZAPISZ POŁOŻENIE.";
+        this._message = "Układ zmieniony. Kliknij ZAPISZ USTAWIENIA.";
+        if (state?.mode === "node" && !state.moved && state.nodeKey) {
+          this._layoutSelectedElement = state.nodeKey;
+          this._render();
+        }
       };
       window.addEventListener("pointermove", move, { passive: false });
       window.addEventListener("pointerup", end, { once: true });
@@ -2085,7 +2318,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-layout-drag='bubble']").forEach(handle => handle.addEventListener("pointerdown", event => begin(event, "move")));
     this.shadowRoot.querySelectorAll(".layout-editor-dialog .kiosk-bubble-slot > .metric-card").forEach(bubble => bubble.addEventListener("pointerdown", event => begin(event, "move")));
     this.shadowRoot.querySelectorAll("[data-layout-resize='bubble']").forEach(handle => handle.addEventListener("pointerdown", event => begin(event, "resize")));
-    this.shadowRoot.querySelectorAll(".layout-editor-dialog .flow-node[data-flow-layout-node],.layout-editor-dialog [data-flow-layout-node]>.flow-extra-node").forEach(node => node.addEventListener("pointerdown", event => begin(event, "node")));
+    this.shadowRoot.querySelectorAll(".layout-editor-dialog [data-flow-layout-element]").forEach(element => element.addEventListener("pointerdown", event => begin(event, "node")));
   }
 
   async _executeWidgetAction(kind, index) {
@@ -2244,6 +2477,45 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _advanceKiosk(direction) { this._setKioskSlide(this._kioskSlide + direction); }
 
+  _bindKioskSwipe() {
+    if (this._view !== "kiosk" || this._layoutEditorTarget) return;
+    const container = this.shadowRoot.querySelector(".kiosk-slides");
+    if (!container) return;
+    let swipe = null;
+    const finish = (event, cancelled = false) => {
+      if (!swipe || (event.pointerId != null && event.pointerId !== swipe.pointerId)) return;
+      const { slide, dx, width, horizontal } = swipe;
+      slide?.style.removeProperty("transform");
+      slide?.style.removeProperty("opacity");
+      slide?.style.removeProperty("transition");
+      swipe = null;
+      if (!cancelled && horizontal && Math.abs(dx) >= Math.max(55, width * 0.1)) this._advanceKiosk(dx < 0 ? 1 : -1);
+    };
+    container.addEventListener("pointerdown", event => {
+      if (event.button !== 0 || event.target.closest("button,input,select,textarea,a,iframe,[data-widget-action],[data-kiosk-item]")) return;
+      const slide = event.target.closest(".kiosk-slide.active");
+      if (!slide) return;
+      const rect = container.getBoundingClientRect();
+      swipe = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dx: 0, width: rect.width, horizontal: false, slide };
+      container.setPointerCapture?.(event.pointerId);
+    });
+    container.addEventListener("pointermove", event => {
+      if (!swipe || event.pointerId !== swipe.pointerId) return;
+      const dx = event.clientX - swipe.startX;
+      const dy = event.clientY - swipe.startY;
+      if (!swipe.horizontal && Math.abs(dy) > Math.abs(dx) + 8) return finish(event, true);
+      if (Math.abs(dx) < 8) return;
+      swipe.horizontal = true;
+      swipe.dx = Math.max(-swipe.width * 0.42, Math.min(swipe.width * 0.42, dx));
+      event.preventDefault();
+      swipe.slide.style.transition = "none";
+      swipe.slide.style.transform = `translateX(${swipe.dx}px)`;
+      swipe.slide.style.opacity = String(Math.max(0.55, 1 - Math.abs(swipe.dx) / swipe.width));
+    }, { passive: false });
+    container.addEventListener("pointerup", event => finish(event));
+    container.addEventListener("pointercancel", event => finish(event, true));
+  }
+
   _applyKioskNightMode(profile = this._activeKioskProfile()) {
     const shell = this.shadowRoot.querySelector(".matrix-shell");
     if (!shell) return;
@@ -2343,6 +2615,19 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       importCostHour: this._num(v.importCostHour, 3),
     };
     this.shadowRoot.querySelectorAll("[data-live]").forEach(el => { const key = el.dataset.live; if (key in live) el.textContent = live[key]; });
+    this.shadowRoot.querySelectorAll("[data-flow-custom-field]").forEach(el => {
+      const value = this._widgetValue({
+        entity_id: el.dataset.entityId || "",
+        attribute: el.dataset.attribute || "",
+        unit: el.dataset.unit || "",
+        decimals: Number(el.dataset.decimals ?? 1),
+        multiplier: Number(el.dataset.multiplier ?? 1),
+      });
+      const number = el.querySelector("b");
+      const unit = el.querySelector("span");
+      if (number) number.textContent = value.formatted;
+      if (unit) unit.textContent = value.unit;
+    });
     const setFlowDirection = (name, reverse, active) => {
       this.shadowRoot.querySelectorAll(`[data-flow-link="${name}"]`).forEach(link => {
         link.classList.toggle("reverse", Boolean(reverse));
@@ -2752,8 +3037,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .flow-config-section{display:grid;grid-template-columns:minmax(520px,1.05fr) minmax(520px,.95fr);gap:10px;margin-bottom:10px}.flow-config-editor{padding:8px 14px 16px}.flow-config-preview{padding:4px 8px 8px;min-width:0}.preview-badge{position:absolute;right:14px;top:42px;z-index:5;border:1px solid rgba(82,255,98,.35);border-radius:999px;background:rgba(3,20,25,.92);color:var(--green);padding:5px 8px;display:flex;align-items:center;gap:5px;font-size:8px;font-weight:900}.preview-badge ha-icon{width:14px;height:14px}.flow-checks .check-row{border:1px solid rgba(32,234,255,.12);border-radius:10px;padding:10px;background:rgba(0,75,110,.05)}
     .flow-canvas-v4{--source-row:108px;--source-link-row:34px;--pv-row:132px;--pv-link-row:42px;--core-row:158px;--load-link-row:38px;--load-row:112px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 28px)!important;height:auto!important;overflow:auto;padding:14px}.flow-canvas-v4.no-sources{--source-row:0px;--source-link-row:0px}.flow-canvas-v4.no-pv{--pv-row:0px;--pv-link-row:0px}.flow-canvas-v4.no-loads{--load-link-row:0px;--load-row:0px}.flow-canvas-v4.density-compact{--source-row:90px;--source-link-row:26px;--pv-row:108px;--pv-link-row:32px;--core-row:130px;--load-link-row:30px;--load-row:94px}.flow-canvas-v4.layout-wide .flow-grid-v4{width:min(100%,1280px)}.flow-canvas-v4.layout-compact .flow-grid-v4{width:min(100%,880px)}.flow-canvas-v4.density-spacious{--source-row:126px;--source-link-row:42px;--pv-row:150px;--pv-link-row:50px;--core-row:178px;--load-link-row:46px;--load-row:130px}.flow-canvas-v4.preview{--source-row:86px;--source-link-row:24px;--pv-row:102px;--pv-link-row:28px;--core-row:122px;--load-link-row:26px;--load-row:90px;padding:10px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 20px)!important}
     .flow-grid-v4{position:relative;width:min(100%,1080px);min-width:520px;min-height:0!important;height:auto!important;display:grid;grid-template-columns:minmax(106px,1fr) minmax(38px,.52fr) minmax(136px,.85fr) minmax(38px,.52fr) minmax(106px,1fr);grid-template-rows:var(--source-row) var(--source-link-row) var(--pv-row) var(--pv-link-row) var(--core-row) var(--load-link-row) var(--load-row);align-items:center;justify-items:center;gap:0}.flow-grid-v4 .flow-node{width:clamp(106px,10vw,138px)!important;height:clamp(106px,10vw,138px)!important}.flow-grid-v4 .home-node{grid-column:3;grid-row:5;width:clamp(126px,11.5vw,158px)!important;height:clamp(126px,11.5vw,158px)!important}.flow-grid-v4 .pv-node{grid-column:3;grid-row:3}.flow-grid-v4 .grid-node{grid-column:1;grid-row:5}.flow-grid-v4 .battery-node{grid-column:5;grid-row:5}.flow-grid-v4 .pv-link{grid-column:3;grid-row:4}.flow-grid-v4 .grid-link{grid-column:2;grid-row:5}.flow-grid-v4 .battery-link{grid-column:4;grid-row:5}.flow-grid-v4 .source-link{--link:var(--green);grid-column:3;grid-row:2}.flow-grid-v4 .loads-link{--link:var(--cyan);grid-column:3;grid-row:6}.flow-canvas-v4.no-pv .source-link{grid-row:2/5}.flow-canvas-v4.no-pv.no-sources .home-node,.flow-canvas-v4.no-pv.no-sources .grid-node,.flow-canvas-v4.no-pv.no-sources .battery-node,.flow-canvas-v4.no-pv.no-sources .grid-link,.flow-canvas-v4.no-pv.no-sources .battery-link{grid-row:5}
-    .flow-branch-bus{position:relative;z-index:2;grid-column:1/-1;width:100%;height:100%;display:flex;align-items:stretch;justify-content:center;gap:var(--branch-gap);padding:0 max(8px,var(--branch-gap));overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(32,234,255,.35) transparent}.source-bus{grid-row:1}.load-bus{grid-row:7}.flow-branch-bus:after{content:"";position:absolute;left:8%;right:8%;height:2px;background:rgba(32,234,255,.32);box-shadow:0 0 8px rgba(32,234,255,.3);z-index:-1}.source-bus:after{bottom:0;background:rgba(82,255,98,.35);box-shadow:0 0 8px rgba(82,255,98,.32)}.load-bus:after{top:0}.flow-branch{--branch-color:var(--cyan);position:relative;flex:0 1 128px;min-width:92px;max-width:150px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;transition:opacity .2s,filter .2s}.flow-branch.accent-green{--branch-color:var(--green)}.flow-branch.accent-lime{--branch-color:var(--lime)}.flow-branch.accent-orange{--branch-color:var(--orange)}.flow-branch.accent-purple{--branch-color:var(--purple)}.flow-branch.is-idle{opacity:.58;filter:saturate(.55)}.flow-branch.hidden-when-idle.is-idle{display:none}.flow-extra-node{position:relative;width:100%;min-height:76px;border:1px solid color-mix(in srgb,var(--branch-color) 58%,transparent);border-radius:13px;background:radial-gradient(circle at 10% 10%,color-mix(in srgb,var(--branch-color) 12%,transparent),transparent 45%),rgba(2,12,24,.97);box-shadow:0 0 15px color-mix(in srgb,var(--branch-color) 12%,transparent),inset 0 0 18px rgba(0,120,180,.04);display:grid;grid-template-columns:29px minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;column-gap:6px;padding:8px 9px;color:white}.flow-extra-node>ha-icon{grid-column:1;grid-row:1/4;align-self:center;width:25px;height:25px;color:var(--branch-color);filter:drop-shadow(0 0 6px currentColor)}.flow-extra-node>b{grid-column:2;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.flow-extra-value{grid-column:2;display:flex;align-items:baseline;gap:3px}.flow-extra-value strong{font:16px monospace;color:var(--branch-color)}.flow-extra-value span{font-size:7px;color:#85a8b5}.flow-extra-node>small{grid-column:2;display:block;max-width:100%;font-size:7px;color:#658d9c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.branch-wire{position:relative;display:block;width:20px;flex:1;min-height:10px;overflow:hidden}.branch-wire:before{content:"";position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:color-mix(in srgb,var(--branch-color) 55%,transparent);box-shadow:0 0 6px color-mix(in srgb,var(--branch-color) 55%,transparent)}.branch-wire i{position:absolute;left:calc(50% - 2px);top:-35%;width:4px;height:35%;border-radius:999px;background:linear-gradient(180deg,transparent,var(--branch-color),#fff,var(--branch-color),transparent);box-shadow:0 0 10px var(--branch-color);animation:flow-y 1.3s linear infinite}.branch-wire.reverse i{animation-direction:reverse}.branch-wire.idle i{animation-play-state:paused;opacity:.15}.branch-wire.idle:before{opacity:.35}.source-branch .flow-extra-node{order:1}.source-branch .branch-wire{order:2}.load-branch .branch-wire{order:1}.load-branch .flow-extra-node{order:2}.flow-branch.is-active .flow-extra-node{box-shadow:0 0 22px color-mix(in srgb,var(--branch-color) 21%,transparent),inset 0 0 20px color-mix(in srgb,var(--branch-color) 7%,transparent)}
-    .flow-canvas-v4.node-style-technical .flow-node,.flow-canvas-v4.node-style-technical .flow-extra-node{border-radius:2px}.flow-canvas-v4.node-style-technical .home-node{border-radius:50%}.flow-canvas-v4.node-style-soft .flow-node,.flow-canvas-v4.node-style-soft .flow-extra-node{border-radius:26px;background:radial-gradient(circle at 30% 15%,rgba(32,234,255,.14),rgba(2,12,24,.96))}.flow-canvas-v4.hide-labels .flow-node>b,.flow-canvas-v4.hide-labels .flow-extra-node>b{display:none}.flow-canvas-v4.hide-values .flow-node strong,.flow-canvas-v4.hide-values .flow-extra-value,.flow-canvas-v4.hide-values .flow-link span[data-live]{display:none}.flow-canvas-v4.hide-status .flow-extra-node>small{display:none}.flow-canvas-v4.hide-connectors .flow-link,.flow-canvas-v4.hide-connectors .branch-wire,.flow-canvas-v4.hide-connectors .flow-branch-bus:after{opacity:0}.flow-canvas-v4.speed-slow .flow-link i,.flow-canvas-v4.speed-slow .branch-wire i{animation-duration:2.4s}.flow-canvas-v4.speed-fast .flow-link i,.flow-canvas-v4.speed-fast .branch-wire i{animation-duration:.7s}.flow-canvas-v4.preview .flow-node{width:100px!important;height:100px!important}.flow-canvas-v4.preview .home-node{width:116px!important;height:116px!important}.flow-canvas-v4.preview .flow-extra-node{min-height:66px}.flow-canvas-v4.preview .flow-extra-value strong{font-size:14px}
+    .flow-branch-bus{position:relative;z-index:2;grid-column:1/-1;width:100%;height:100%;display:flex;align-items:stretch;justify-content:center;gap:var(--branch-gap);padding:0 max(8px,var(--branch-gap));overflow:visible}.source-bus{grid-row:1}.load-bus{grid-row:7}.branch-bus-line{position:absolute;left:8%;right:8%;height:14px;z-index:1;pointer-events:none}.branch-bus-line:after{content:"";position:absolute;left:0;right:0;top:6px;height:2px;background:rgba(32,234,255,.42);box-shadow:0 0 8px rgba(32,234,255,.35)}.source-bus>.branch-bus-line{bottom:-7px}.source-bus>.branch-bus-line:after{background:rgba(82,255,98,.42);box-shadow:0 0 8px rgba(82,255,98,.35)}.load-bus>.branch-bus-line{top:-7px}.flow-branch{--branch-color:var(--cyan);position:relative;z-index:3;flex:0 1 128px;min-width:92px;max-width:150px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:visible;transition:opacity .2s,filter .2s}.flow-branch.accent-green{--branch-color:var(--green)}.flow-branch.accent-lime{--branch-color:var(--lime)}.flow-branch.accent-orange{--branch-color:var(--orange)}.flow-branch.accent-purple{--branch-color:var(--purple)}.flow-branch.is-idle{opacity:.58;filter:saturate(.55)}.flow-branch.hidden-when-idle.is-idle{display:none}.flow-extra-node{position:relative;z-index:4;width:100%;min-height:76px;border:1px solid color-mix(in srgb,var(--branch-color) 58%,transparent);border-radius:13px;background:radial-gradient(circle at 10% 10%,color-mix(in srgb,var(--branch-color) 12%,transparent),transparent 45%),rgba(2,12,24,.97);box-shadow:0 0 15px color-mix(in srgb,var(--branch-color) 12%,transparent),inset 0 0 18px rgba(0,120,180,.04);display:grid;grid-template-columns:29px minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;column-gap:6px;padding:8px 9px;color:white}.flow-extra-node>ha-icon{grid-column:1;grid-row:1/4;align-self:center;width:25px;height:25px;color:var(--branch-color);filter:drop-shadow(0 0 6px currentColor)}.flow-extra-node>b{grid-column:2;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.flow-extra-value{grid-column:2;display:flex;align-items:baseline;gap:3px}.flow-extra-value strong{font:16px monospace;color:var(--branch-color)}.flow-extra-value span{font-size:7px;color:#85a8b5}.flow-extra-node>small{grid-column:2;display:block;max-width:100%;font-size:7px;color:#658d9c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.branch-wire{position:relative;z-index:3;display:block;width:20px;flex:1;min-height:10px;overflow:visible}.branch-wire:before{content:"";position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:color-mix(in srgb,var(--branch-color) 55%,transparent);box-shadow:0 0 6px color-mix(in srgb,var(--branch-color) 55%,transparent)}.branch-wire i{position:absolute;left:calc(50% - 2px);top:-35%;width:4px;height:35%;border-radius:999px;background:linear-gradient(180deg,transparent,var(--branch-color),#fff,var(--branch-color),transparent);box-shadow:0 0 10px var(--branch-color);animation:flow-y 1.3s linear infinite}.branch-wire.reverse i{animation-direction:reverse}.branch-wire.idle i{animation-play-state:paused;opacity:.15}.branch-wire.idle:before{opacity:.35}.source-branch .flow-extra-node{order:1}.source-branch .branch-wire{order:2}.load-branch .branch-wire{order:1}.load-branch .flow-extra-node{order:2}.flow-branch.is-active .flow-extra-node{box-shadow:0 0 22px color-mix(in srgb,var(--branch-color) 21%,transparent),inset 0 0 20px color-mix(in srgb,var(--branch-color) 7%,transparent)}
+    .flow-canvas-v4.node-style-technical .flow-node,.flow-canvas-v4.node-style-technical .flow-extra-node{border-radius:2px}.flow-canvas-v4.node-style-technical .home-node{border-radius:50%}.flow-canvas-v4.node-style-soft .flow-node,.flow-canvas-v4.node-style-soft .flow-extra-node{border-radius:26px;background:radial-gradient(circle at 30% 15%,rgba(32,234,255,.14),rgba(2,12,24,.96))}.flow-canvas-v4.hide-labels .flow-node>b,.flow-canvas-v4.hide-labels .flow-extra-node>b{display:none}.flow-canvas-v4.hide-values .flow-node strong,.flow-canvas-v4.hide-values .flow-extra-value,.flow-canvas-v4.hide-values .flow-link span[data-live]{display:none}.flow-canvas-v4.hide-status .flow-extra-node>small{display:none}.flow-canvas-v4.hide-connectors .flow-link,.flow-canvas-v4.hide-connectors .branch-wire,.flow-canvas-v4.hide-connectors .branch-bus-line{opacity:0}.flow-canvas-v4.speed-slow .flow-link i,.flow-canvas-v4.speed-slow .branch-wire i{animation-duration:2.4s}.flow-canvas-v4.speed-fast .flow-link i,.flow-canvas-v4.speed-fast .branch-wire i{animation-duration:.7s}.flow-canvas-v4.preview .flow-node{width:100px!important;height:100px!important}.flow-canvas-v4.preview .home-node{width:116px!important;height:116px!important}.flow-canvas-v4.preview .flow-extra-node{min-height:66px}.flow-canvas-v4.preview .flow-extra-value strong{font-size:14px}
     @media(max-width:1300px){.flow-config-section{grid-template-columns:1fr}.flow-config-preview{min-height:520px}}
     @media(max-width:850px){.flow-canvas-v4{padding:8px;min-height:calc(var(--source-row) + var(--source-link-row) + var(--pv-row) + var(--pv-link-row) + var(--core-row) + var(--load-link-row) + var(--load-row) + 16px)!important}.flow-grid-v4{min-width:460px;grid-template-columns:minmax(88px,1fr) 26px minmax(112px,.86fr) 26px minmax(88px,1fr)}.flow-grid-v4 .flow-node{width:94px!important;height:94px!important}.flow-grid-v4 .home-node{width:116px!important;height:116px!important}.flow-branch{min-width:86px;max-width:112px}.flow-extra-node{padding:6px;grid-template-columns:24px minmax(0,1fr)}.flow-extra-node>ha-icon{width:21px;height:21px}.flow-extra-value strong{font-size:14px}.flow-config-preview{min-height:470px}}
     @media(max-width:560px){.flow-config-section{display:block}.flow-config-editor,.flow-config-preview{margin-bottom:10px}.flow-canvas-v4{overflow-x:auto!important;min-height:0!important}.flow-grid-v4{min-width:420px}.flow-canvas-v4 .flow-link span{display:none}.flow-branch{min-width:80px}.flow-extra-node>b{font-size:8px}.flow-extra-node>small{font-size:6px}.preview-badge{display:none}}
@@ -2770,10 +3055,40 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .chart-series-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px;padding:6px 8px;border:1px solid rgba(32,234,255,.1);background:rgba(0,35,55,.18)}.chart-series-legend>div{--series-color:var(--cyan);display:flex;align-items:baseline;gap:4px;min-width:0;font-size:8px}.chart-series-legend i{width:12px;height:3px;border-radius:2px;background:var(--series-color);box-shadow:0 0 5px var(--series-color)}.chart-series-legend span{color:#8cadb9;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chart-series-legend b{font:10px monospace;color:var(--series-color)}.chart-series-legend small{color:#658895;font-size:7px}.custom-chart-path{stroke:var(--series-color,var(--chart-color))!important;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--series-color,var(--chart-color)) 65%,transparent))}.graph-area .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 12%,transparent)!important}.graph-bar .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 62%,transparent)!important}
     .widget-subsection{margin-top:12px;padding:9px 10px;border-left:3px solid var(--cyan);background:linear-gradient(90deg,rgba(0,180,230,.09),transparent);display:flex;flex-direction:column;gap:2px}.widget-subsection b{font-size:9px;color:var(--cyan);letter-spacing:1px}.widget-subsection small{font-size:8px;color:#6b93a2}.widget-related-list{display:grid;gap:8px}.widget-related-card{border:1px solid rgba(32,234,255,.18);border-radius:5px;background:rgba(0,35,55,.18);padding:8px}.widget-related-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.widget-related-head>b{font-size:8px;color:#8fc6d4;letter-spacing:.8px}.widget-related-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 9px}.widget-related-grid>.full{grid-column:1/-1}.widget-related-grid .check-row{align-self:end;border:1px solid rgba(32,234,255,.12);padding:7px}.add-related-btn{justify-self:start}.draggable-widget{transition:opacity .15s,transform .15s,border-color .15s}.draggable-widget .drag-handle{width:17px;height:17px;vertical-align:middle;color:#769aa7;cursor:grab}.draggable-widget.dragging{opacity:.35;transform:scale(.99)}.draggable-widget.drag-target{border-color:var(--green);box-shadow:0 0 22px rgba(82,255,98,.2)}
     .kiosk-profile-card{padding:8px 14px 16px;margin-top:0}.kiosk-profile-card.kiosk-settings{border-top:1px solid rgba(32,234,255,.35)}.default-kiosk-settings{margin-top:18px}.kiosk-profile-head-actions{display:flex;align-items:center;gap:6px}.kiosk-selection-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}.selection-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.selection-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(32,234,255,.2);border-radius:999px;background:rgba(0,70,105,.08);padding:5px 8px;color:#91b8c5;font-size:8px}.selection-chip:has(input:checked){border-color:var(--green);color:var(--green);background:rgba(82,255,98,.07)}.selection-chip ha-icon{width:14px;height:14px}.selection-chip input{margin:0}.kiosk-profile-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(32,234,255,.15)}.kiosk-profile-footer code{font-size:9px;overflow:hidden;text-overflow:ellipsis}
-    .kiosk-slides{position:relative;flex:1;min-height:0}.kiosk-slide{display:none;min-height:100%;flex-direction:column;gap:10px}.kiosk-slide.active{display:flex}.kiosk-chart-grid{margin:0;align-content:start}.kiosk-summary-grid{display:grid;grid-template-columns:repeat(var(--summary-columns,4),minmax(0,1fr));gap:10px;flex:1}.kiosk-summary-grid>.panel{min-height:250px}.kiosk-summary-grid .price-panel,.kiosk-summary-grid .consumers-panel{height:auto}.kiosk-slide-nav{height:30px;display:flex;align-items:center;justify-content:center;gap:12px}.kiosk-slide-nav>button{border:0;background:transparent;color:var(--cyan);padding:2px}.kiosk-slide-nav>div{display:flex;gap:7px}.kiosk-dot{width:28px;height:5px;border:0;border-radius:999px;background:#254451;padding:0}.kiosk-dot.active{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}.matrix-shell.kiosk-active{transition:filter 1s ease}.matrix-shell.kiosk-active.kiosk-night{filter:brightness(var(--night-brightness,.3));cursor:none}.matrix-shell.kiosk-active.kiosk-night:hover{cursor:default}
+    .kiosk-slides{position:relative;flex:1;min-height:0;touch-action:pan-y}.kiosk-slide{display:none;min-height:100%;flex-direction:column;gap:10px;will-change:transform,opacity}.kiosk-slide.active{display:flex}.kiosk-chart-grid{margin:0;align-content:start}.kiosk-summary-grid{display:grid;grid-template-columns:repeat(var(--summary-columns,4),minmax(0,1fr));gap:10px;flex:1}.kiosk-summary-grid>.panel{min-height:250px}.kiosk-summary-grid .price-panel,.kiosk-summary-grid .consumers-panel{height:auto}.kiosk-slide-nav{height:30px;display:flex;align-items:center;justify-content:center;gap:12px}.kiosk-slide-nav>button{border:0;background:transparent;color:var(--cyan);padding:2px}.kiosk-slide-nav>div{display:flex;gap:7px}.kiosk-dot{width:28px;height:5px;border:0;border-radius:999px;background:#254451;padding:0}.kiosk-dot.active{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}.matrix-shell.kiosk-active{transition:filter 1s ease}.matrix-shell.kiosk-active.kiosk-night{filter:brightness(var(--night-brightness,.3));cursor:none}.matrix-shell.kiosk-active.kiosk-night:hover{cursor:default}
     .widget-checks.four-checks{grid-template-columns:repeat(4,minmax(0,1fr))}.reset-layout-btn{height:39px;justify-content:center}.builtin-kiosk-selection{padding-bottom:4px}.kiosk-bubble-slot{position:relative;min-width:0}.kiosk-bubble-slot>.metric-card{width:100%;margin:0}.kiosk-bubble-stage.layout-grid{display:grid}.kiosk-bubble-stage.layout-free{display:block!important;position:relative;z-index:20;height:var(--kiosk-bubble-stage-height,96px);min-height:var(--kiosk-bubble-stage-height,96px);margin-bottom:0;overflow:visible;pointer-events:none;background:transparent}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot{position:absolute;z-index:21;left:var(--kiosk-x,0);top:var(--kiosk-y,0);width:var(--kiosk-w,16%);height:82px;pointer-events:auto}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot>.metric-card{height:100%;min-height:100%}.layout-drag-handle,.layout-resize-handle{display:none;position:absolute;z-index:40;align-items:center;justify-content:center;border:1px solid var(--orange);background:rgba(24,14,0,.94);color:var(--orange);box-shadow:0 0 12px rgba(255,177,27,.25);touch-action:none;user-select:none}.layout-drag-handle ha-icon,.layout-resize-handle ha-icon{width:15px;height:15px}.bubble-layout-handle{top:3px;right:3px;width:25px;height:25px;border-radius:7px}.layout-resize-handle{right:3px;bottom:3px;width:25px;height:25px;border-radius:7px}.flow-layout-handle{top:7px;left:50%;transform:translateX(-50%);padding:5px 9px;border-radius:999px;font-size:8px;gap:5px}.layout-editing .layout-drag-handle,.layout-editing .layout-resize-handle{display:flex}.layout-editing .kiosk-bubble-slot{outline:1px dashed rgba(255,177,27,.75);outline-offset:2px}.layout-editing .kiosk-bubble-slot>.metric-card{cursor:grab;touch-action:none;user-select:none}.layout-editing .kiosk-bubble-slot>.metric-card:active{cursor:grabbing}.layout-editing .kiosk-flow-card{outline:1px dashed rgba(255,177,27,.75);outline-offset:-4px}.layout-edit-btn.active{border-color:var(--orange);color:var(--orange)}.kiosk-flow-card{position:relative;z-index:1}.kiosk-flow-card .flow-canvas-v4{transform:translate(var(--flow-offset-x,0),var(--flow-offset-y,0)) scale(var(--flow-scale,1));transform-origin:center center;transition:transform .15s ease}.layout-editing .kiosk-flow-card .flow-canvas-v4{transition:none}
-    .flow-grid-v4 [data-flow-layout-node]{transform:translate(var(--flow-node-x,0),var(--flow-node-y,0))}.flow-layout-editing [data-flow-layout-node]{pointer-events:auto;touch-action:none;user-select:none;cursor:grab;outline:2px dashed rgba(255,177,27,.82);outline-offset:3px}.flow-layout-editing [data-flow-layout-node]:active{cursor:grabbing}.flow-layout-editing .flow-branch[data-flow-layout-node]{outline:0}.flow-layout-editing .flow-branch[data-flow-layout-node]>.flow-extra-node{outline:2px dashed rgba(255,177,27,.82);outline-offset:3px}
+    .flow-grid-v4 [data-flow-layout-element]{transform:translate(var(--flow-node-x,0),var(--flow-node-y,0))}.flow-branch{z-index:9}.flow-layout-editing .flow-branch-bus{z-index:20}.flow-layout-editing [data-flow-layout-element]{pointer-events:auto;touch-action:none;user-select:none;cursor:grab;outline:2px dashed rgba(255,177,27,.86);outline-offset:3px}.flow-layout-editing [data-flow-layout-element]:active{cursor:grabbing}.flow-layout-editing .flow-link[data-flow-layout-element],.flow-layout-editing .branch-wire[data-flow-layout-element],.flow-layout-editing .branch-bus-line[data-flow-layout-element]{outline-color:rgba(32,234,255,.9);z-index:8}.flow-layout-editing .flow-link>[data-flow-layout-element]{outline-color:rgba(82,255,98,.95);z-index:12}.flow-layout-editing .branch-bus-line[data-flow-layout-element]{pointer-events:auto;min-height:14px}.flow-layout-editing .flow-extra-node[data-flow-layout-element]{z-index:15}
     .layout-editor-backdrop{position:fixed;inset:0;z-index:12000;background:rgba(0,4,10,.9);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px}.layout-editor-dialog{width:min(1480px,98vw);height:min(920px,96vh);border:1px solid rgba(32,234,255,.65);border-radius:20px;background:#020b16;box-shadow:0 0 70px rgba(0,190,255,.25);display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden}.layout-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 16px;border-bottom:1px solid rgba(32,234,255,.2)}.layout-editor-toolbar h2{margin:3px 0;font-size:19px}.layout-editor-toolbar small{color:#6e98a8}.layout-editor-toolbar>div:last-child{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.layout-editor-help{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(255,177,27,.24);background:rgba(255,177,27,.06);color:#d9b86f;font-size:9px}.layout-editor-help ha-icon{color:var(--orange)}.layout-editor-canvas{position:relative;min-height:0;margin:10px;border:1px solid rgba(32,234,255,.35);border-radius:14px;overflow:hidden;background:linear-gradient(rgba(0,220,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,.04) 1px,transparent 1px),#020b16;background-size:28px 28px}.layout-editor-fixed-background{position:absolute;inset:0;z-index:1;pointer-events:none}.layout-editor-fixed-background .flow-title{display:none}.layout-editor-fixed-background .flow-canvas-v4{position:absolute;inset:0;width:100%;height:100%!important;min-height:0!important;margin:0;padding:10px;border:0;background:transparent;overflow:visible}.layout-editor-fixed-background .flow-grid-v4{height:100%!important}.layout-editor-canvas>.kiosk-bubble-stage.layout-free{position:absolute;inset:0;z-index:20;width:100%;height:100%;min-height:100%;margin:0}.layout-editor-canvas>.empty{position:relative;z-index:25;pointer-events:none}
+    /* v0.6.6 — independent appearance, fields and actions for every flow object */
+    .flow-panel,.large-flow,.kiosk-flow-card{overflow:visible}.display-tablet_16_9 .kiosk-slides,.display-tablet_16_9 .kiosk-slide{overflow:visible}
+    .flow-canvas-v4{overflow:visible}
+    .flow-node[data-flow-layout-element],.flow-extra-node[data-flow-layout-element]{border-color:var(--flow-custom-border);border-width:var(--flow-custom-border-width);border-radius:var(--flow-custom-radius);background:var(--flow-custom-bg)}
+    .flow-node[data-flow-layout-element]>ha-icon,.flow-extra-node[data-flow-layout-element]>ha-icon{color:var(--flow-custom-icon);width:var(--flow-custom-icon-size);height:var(--flow-custom-icon-size)}
+    .flow-node-custom-image{display:block;width:var(--flow-custom-icon-size,32px);height:var(--flow-custom-icon-size,32px);object-fit:contain;filter:drop-shadow(0 0 7px var(--flow-custom-icon,var(--cyan)))}.flow-extra-node>.flow-node-custom-image{grid-column:1;grid-row:1/4;align-self:center}.flow-extra-node>.flow-node-extra-fields{grid-column:1/-1}
+    .flow-node[data-flow-layout-element]>b,.flow-extra-node[data-flow-layout-element]>b{color:var(--flow-custom-name)}
+    .flow-node[data-flow-layout-element]>strong,.flow-extra-node[data-flow-layout-element] .flow-extra-value>strong{color:var(--flow-custom-value)}
+    .flow-node[data-flow-layout-element]>small,.flow-extra-node[data-flow-layout-element]>small,.flow-extra-node[data-flow-layout-element] .flow-extra-value>span{color:var(--flow-custom-unit)}
+    .flow-node-extra-fields{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-top:5px;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--flow-custom-border,var(--cyan)) 24%,transparent)}
+    .flow-node-extra-field{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:3px;color:var(--flow-field-color,#8eb5c3)}
+    .flow-node-extra-field small{grid-column:1/-1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:color-mix(in srgb,var(--flow-field-color,#8eb5c3) 72%,#7c99a3);font-size:6px}
+    .flow-node-extra-field b{overflow:hidden;text-overflow:ellipsis;color:var(--flow-field-color,#8eb5c3);font:9px monospace}
+    .flow-node-extra-field span{color:var(--flow-field-color,#8eb5c3);font-size:6px}
+    .flow-link.horizontal:before{height:var(--flow-line-thickness,3px)}.flow-link.horizontal i{height:max(3px,var(--flow-line-thickness,3px))}
+    .flow-link.vertical:before{width:var(--flow-line-thickness,3px)}.flow-link.vertical i{width:max(3px,var(--flow-line-thickness,3px))}
+    .branch-wire:before{width:var(--flow-line-thickness,2px);background:color-mix(in srgb,var(--branch-color) 55%,transparent)}.branch-wire i{width:max(3px,var(--flow-line-thickness,2px))}
+    .branch-bus-line:after{height:var(--flow-line-thickness,2px);background:var(--bus-color,rgba(32,234,255,.42));box-shadow:0 0 8px var(--bus-color,rgba(32,234,255,.35))}.source-bus>.branch-bus-line:after{background:var(--bus-color,rgba(82,255,98,.42));box-shadow:0 0 8px var(--bus-color,rgba(82,255,98,.35))}
+    .flow-link span[data-flow-layout-element]{color:var(--flow-label-color,white);background:var(--flow-label-bg,rgba(1,8,16,.93));border-color:var(--flow-label-border,color-mix(in srgb,var(--link) 45%,transparent))}
+    [data-flow-action-element]{cursor:pointer}.branch-bus-line[data-flow-action-element]{pointer-events:auto}
+    [data-flow-action-element]:focus-visible{outline:2px solid var(--orange);outline-offset:4px}
+    .flow-canvas-v4:not(.flow-layout-editing) [data-flow-action-element]:hover{filter:brightness(1.18);box-shadow:0 0 15px color-mix(in srgb,var(--cyan) 30%,transparent)}
+    .layout-editor-workspace{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,390px);gap:0}
+    .layout-editor-workspace>.layout-editor-canvas{margin:10px 5px 10px 10px}
+    .layout-element-inspector{min-height:0;overflow:auto;margin:10px 10px 10px 5px;padding:10px;border:1px solid rgba(32,234,255,.28);border-radius:14px;background:rgba(2,13,27,.96)}
+    .layout-element-inspector>.panel-title{position:sticky;top:-10px;z-index:2;margin:-10px -10px 8px;padding:12px;background:#03101e;border-bottom:1px solid rgba(32,234,255,.2)}
+    .layout-extra-fields{display:grid;gap:8px;margin-top:8px}.layout-extra-field{padding:8px;border:1px solid rgba(32,234,255,.18);border-radius:8px;background:rgba(0,45,70,.14)}
+    .entity-modal{z-index:14000}
+    @media(max-width:1050px){.layout-editor-workspace{grid-template-columns:minmax(0,1fr) 330px}.layout-editor-dialog{width:99vw;height:98vh}.layout-editor-toolbar{align-items:flex-start}}
+    @media(max-width:760px){.layout-editor-workspace{grid-template-columns:1fr;grid-template-rows:minmax(380px,1fr) minmax(300px,44vh)}.layout-editor-workspace>.layout-editor-canvas,.layout-element-inspector{margin:6px}.layout-editor-toolbar{display:block}.layout-editor-toolbar>div:last-child{justify-content:flex-start;margin-top:8px}}
     .kiosk-lovelace-list{margin-top:8px}.kiosk-lovelace-editor{padding:8px}.kiosk-lovelace-slide{flex:1;min-height:0;padding:0;overflow:hidden;border-radius:12px}.kiosk-lovelace-slide iframe{display:block;width:100%;height:100%;min-height:0;border:0;background:#010914}
     @media(max-width:1300px){.overview-widget-layout{grid-template-columns:1fr}.widget-editor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kiosk-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.widget-checks.four-checks{grid-template-columns:1fr 1fr}}
     @media(max-width:850px){.widget-editor-grid,.widget-related-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-chart-grid{grid-template-columns:1fr}.widget-checks.three-checks{grid-template-columns:1fr 1fr}.overview-widget-layout{display:block}.overview-widget-settings{margin-bottom:10px}.kiosk-header{align-items:flex-start}.kiosk-header-tools{flex-wrap:wrap;justify-content:flex-end}.kiosk-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.kiosk-flow-card .flow-canvas-v4{min-height:500px!important}.kiosk-status{justify-content:flex-start;overflow-x:auto}.kiosk-selection-grid{grid-template-columns:1fr}.kiosk-summary-grid{grid-template-columns:1fr 1fr}}

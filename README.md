@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.6.5 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.6.6 technical preview**. Monitoring, configuration, the fully editable multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic Home Assistant actions are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
@@ -23,7 +23,10 @@
 - Drag-and-drop bubble/chart ordering in the Widgets editor.
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
 - Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
-- Touch layout editing in kiosk mode: drag and resize bubbles, move/scale the complete flow diagram and save positions per screen profile.
+- Central per-dashboard flow editor: independently drag every bubble, connector, value label, bus and device wire while the Matrix background remains fixed.
+- Per-flow-bubble width, height, frame/background/text/icon colors, icon size, custom MDI or image icon and up to eight additional entity/attribute fields.
+- Per-flow-object tap actions on the overview, Flow dashboard and every kiosk profile: none, more-info, generic toggle, local navigation or an arbitrary Home Assistant service with JSON data.
+- Touch-friendly horizontal kiosk swipe between Matrix slides; buttons, controls, cards and embedded Lovelace frames remain interactive.
 - Independently selectable built-in kiosk bubbles and summary panels; battery and self-sufficiency gauges are optional.
 - Up to twelve local Lovelace views can be added as kiosk slides and included in automatic rotation.
 - Native `custom:matrix-energy-flow-card` for Lovelace dashboards; no self-iframe or reserved-character URL workaround is required.
@@ -76,7 +79,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 0.6.5 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 0.6.6 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -91,6 +94,7 @@ show_devices: true
 ```
 
 Set `profile` to a configured kiosk profile ID such as `salon` to reuse its bubble selection and title. This YAML belongs to a card, not to the Lovelace view configuration.
+The native card also reuses that profile's saved flow-node positions, appearance, additional fields and tap actions.
 
 ## Configuration model
 
@@ -204,7 +208,7 @@ Other domains will receive dedicated adapters in later versions.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Status wersji v0.6 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v0.6.5 (PL)](docs/RELEASE_0_6_5_PL.md)
+- [Informacje o wydaniu v0.6.6 (PL)](docs/RELEASE_0_6_6_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

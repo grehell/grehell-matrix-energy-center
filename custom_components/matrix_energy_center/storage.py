@@ -76,6 +76,7 @@ def default_configuration() -> dict[str, Any]:
             "max_devices": 6,
             "branch_gap": 12,
             "flow_node_positions": {},
+            "flow_element_styles": {},
         },
         "overview": {
             "show_builtin_bubbles": True,
@@ -87,6 +88,7 @@ def default_configuration() -> dict[str, Any]:
             "bubble_stage_height": 104,
             "bubble_positions": {},
             "flow_node_positions": {},
+            "flow_element_styles": {},
         },
         "kiosk": {
             "title": "PRZEPŁYW ENERGII",
@@ -99,6 +101,7 @@ def default_configuration() -> dict[str, Any]:
             "bubble_stage_height": 96,
             "bubble_positions": {},
             "flow_node_positions": {},
+            "flow_element_styles": {},
             "flow_offset_x": 0,
             "flow_offset_y": -30,
             "flow_scale": 100,
@@ -286,6 +289,9 @@ class MatrixEnergyStore:
                 "flow_node_positions": self._validate_flow_node_positions(
                     flow.get("flow_node_positions", {})
                 ),
+                "flow_element_styles": self._validate_flow_element_styles(
+                    flow.get("flow_element_styles", {})
+                ),
             }
         )
 
@@ -312,6 +318,9 @@ class MatrixEnergyStore:
                 ),
                 "flow_node_positions": self._validate_flow_node_positions(
                     overview.get("flow_node_positions", {})
+                ),
+                "flow_element_styles": self._validate_flow_element_styles(
+                    overview.get("flow_element_styles", {})
                 ),
             }
         )
@@ -348,6 +357,9 @@ class MatrixEnergyStore:
                 ),
                 "flow_node_positions": self._validate_flow_node_positions(
                     kiosk.get("flow_node_positions", {})
+                ),
+                "flow_element_styles": self._validate_flow_element_styles(
+                    kiosk.get("flow_element_styles", {})
                 ),
                 "flow_offset_x": int(
                     self._number(kiosk.get("flow_offset_x"), 0, -400, 400)
@@ -725,6 +737,9 @@ class MatrixEnergyStore:
                     "flow_node_positions": self._validate_flow_node_positions(
                         item.get("flow_node_positions", {})
                     ),
+                    "flow_element_styles": self._validate_flow_element_styles(
+                        item.get("flow_element_styles", {})
+                    ),
                     "flow_offset_x": int(
                         self._number(item.get("flow_offset_x"), 0, -400, 400)
                     ),
@@ -804,12 +819,92 @@ class MatrixEnergyStore:
             return {}
         result: dict[str, dict[str, float]] = {}
         for index, (raw_key, value) in enumerate(raw.items()):
-            if index >= 96 or not isinstance(value, dict):
+            if index >= 192 or not isinstance(value, dict):
                 break
             key = self._identifier(raw_key, f"node_{index + 1}")
             result[key] = {
                 "x": round(self._number(value.get("x"), 0, -600, 600), 2),
                 "y": round(self._number(value.get("y"), 0, -600, 600), 2),
+            }
+        return result
+
+    def _validate_flow_element_styles(self, raw: Any) -> dict[str, dict[str, Any]]:
+        """Validate per-dashboard appearance, fields and actions for flow elements."""
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[str, dict[str, Any]] = {}
+        for index, (raw_key, value) in enumerate(raw.items()):
+            if index >= 192 or not isinstance(value, dict):
+                break
+            key = self._identifier(raw_key, f"element_{index + 1}")
+            if key == "grid" or "grid" in key:
+                base_color = "#b95cff"
+            elif key == "pv" or "pv" in key or "string" in key or "source" in key:
+                base_color = "#52ff62"
+            elif key == "battery" or "battery" in key:
+                base_color = "#b8ff3d"
+            else:
+                base_color = "#20eaff"
+            image_url = self._text(value.get("image_url"), "", 600)
+            if image_url and not (
+                image_url.startswith("/local/")
+                or image_url.startswith("/media/")
+                or image_url.startswith("/api/image/serve/")
+                or image_url.startswith("https://")
+            ):
+                image_url = ""
+            fields_raw = value.get("extra_fields", [])
+            if not isinstance(fields_raw, list):
+                fields_raw = []
+            extra_fields: list[dict[str, Any]] = []
+            seen: set[str] = set()
+            for field_index, field in enumerate(fields_raw[:8]):
+                if not isinstance(field, dict):
+                    continue
+                field_id = self._identifier(field.get("id"), f"field_{field_index + 1}")
+                if field_id in seen:
+                    field_id = f"{field_id}_{field_index + 1}"
+                seen.add(field_id)
+                extra_fields.append(
+                    {
+                        "id": field_id,
+                        "name": self._text(field.get("name"), f"Pole {field_index + 1}", 60),
+                        "entity_id": self._entity_id(field.get("entity_id", "")),
+                        "attribute": self._text(field.get("attribute"), "", 100),
+                        "unit": self._text(field.get("unit"), "", 30),
+                        "decimals": int(self._number(field.get("decimals"), 1, 0, 6)),
+                        "multiplier": self._number(field.get("multiplier"), 1, -1_000_000, 1_000_000),
+                        "color": self._color(field.get("color"), "#8eb5c3"),
+                        "enabled": bool(field.get("enabled", True)),
+                    }
+                )
+            result[key] = {
+                "appearance_enabled": bool(value.get("appearance_enabled", False)),
+                "name": self._text(value.get("name"), "", 80),
+                "width": int(self._number(value.get("width"), 0, 0, 360)),
+                "height": int(self._number(value.get("height"), 0, 0, 360)),
+                "border_color": self._color(value.get("border_color"), base_color),
+                "background_color": self._color(value.get("background_color"), "#020c18"),
+                "icon_color": self._color(value.get("icon_color"), base_color),
+                "name_color": self._color(value.get("name_color"), "#eefaff"),
+                "value_color": self._color(value.get("value_color"), base_color),
+                "unit_color": self._color(value.get("unit_color"), "#94b5c0"),
+                "border_width": int(self._number(value.get("border_width"), 1, 1, 8)),
+                "border_radius": int(self._number(value.get("border_radius"), 18, 0, 100)),
+                "icon_type": self._choice(value.get("icon_type"), "mdi", {"mdi", "image"}),
+                "icon": self._text(value.get("icon"), "", 100),
+                "image_url": image_url,
+                "icon_size": int(self._number(value.get("icon_size"), 32, 10, 120)),
+                "line_color": self._color(value.get("line_color"), base_color),
+                "line_thickness": int(self._number(value.get("line_thickness"), 3, 1, 14)),
+                "extra_fields": extra_fields,
+                "tap_action": self._choice(
+                    value.get("tap_action"), "none", {"none", "more_info", "toggle", "navigate", "service"}
+                ),
+                "action_entity_id": self._entity_id(value.get("action_entity_id", "")),
+                "navigation_path": self._text(value.get("navigation_path"), "", 500),
+                "service": self._text(value.get("service"), "", 150),
+                "service_data": self._text(value.get("service_data"), "{}", 4000),
             }
         return result
 
