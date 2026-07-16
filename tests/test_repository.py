@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.2"
+    assert manifest["version"] == "8.0.3"
 
 
 def test_hacs_manifest() -> None:
@@ -118,6 +118,10 @@ def test_frontend_features() -> None:
     assert "forward_color" in frontend
     assert "reverse_color" in frontend
     assert "unavailable_color" in frontend
+    assert "_sceneConnectionRoutes" in frontend
+    assert "_sceneGridRoute" in frontend
+    assert "Odstęp od dymków" in frontend
+    assert "Odstęp między liniami" in frontend
     assert "name_size" in frontend
     assert "status_size" in frontend
     assert "slide_headers" in frontend
@@ -187,6 +191,8 @@ def test_configuration_schema_v8() -> None:
     assert '"offset_x"' in storage
     assert '"icon_type"' in storage
     assert '"emoji"' in storage
+    assert '"routing_clearance"' in storage
+    assert '"routing_spacing"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
@@ -204,6 +210,10 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert "flow_scene" in example["overview"]
     assert "flow_scene" in example["kiosk"]
     assert "flow_scene" in example["kiosk_profiles"][0]
+    assert example["flow"]["flow_scene"]["routing_clearance"] == 20
+    assert example["flow"]["flow_scene"]["routing_spacing"] == 14
+    assert example["overview"]["flow_scene"]["routing_clearance"] == 20
+    assert example["kiosk"]["flow_scene"]["routing_spacing"] == 14
     assert example["flow"]["show_pv_strings"] is True
     assert example["flow"]["show_devices"] is True
     assert example["flow"]["flow_node_positions"] == {}

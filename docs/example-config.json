@@ -324,12 +324,14 @@
       "border_color": "#20eaff",
       "border_width": 1,
       "border_radius": 16,
+      "routing_clearance": 20,
+      "routing_spacing": 14,
       "elements": {},
       "connections": {
         "link_grid": {
           "visible": true,
           "label": "SIEĆ",
-          "route": "curve",
+          "route": "auto",
           "forward_color": "#b95cff",
           "reverse_color": "#52ff62",
           "idle_color": "#49616b",
@@ -374,6 +376,8 @@
       "border_color": "#20eaff",
       "border_width": 1,
       "border_radius": 16,
+      "routing_clearance": 20,
+      "routing_spacing": 14,
       "elements": {},
       "connections": {}
     }
@@ -399,6 +403,8 @@
       "border_color": "#20eaff",
       "border_width": 1,
       "border_radius": 16,
+      "routing_clearance": 20,
+      "routing_spacing": 14,
       "elements": {},
       "connections": {}
     },
@@ -498,6 +504,8 @@
         "border_color": "#20eaff",
         "border_width": 1,
         "border_radius": 16,
+        "routing_clearance": 20,
+        "routing_spacing": 14,
         "elements": {},
         "connections": {}
       },

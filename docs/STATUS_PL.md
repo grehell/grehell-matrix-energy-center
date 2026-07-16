@@ -1,6 +1,14 @@
-# Status projektu v8.0.2
+# Status projektu v8.0.3
 
-## Najważniejsze zmiany v8.0.2
+## Najważniejsze zmiany v8.0.3
+
+- linie przepływu zaczynają się na krawędziach dymków zamiast w ich środku,
+- każdy dymek otrzymuje osobne porty dla wielu dochodzących połączeń,
+- trasy automatycznie omijają wszystkie pozostałe dymki,
+- zajęte odcinki i skrzyżowania mają wysoką karę, dlatego równoległe linie są rozdzielane,
+- opis linii jest umieszczany na wolnym odcinku trasy i odsuwany od innych opisów,
+- dla każdego pulpitu można ustawić odstęp linii od dymków i odstęp pomiędzy liniami,
+- edytor dymku zachowuje przewinięcie, aktywne pole i kursor po zmianie wartości albo naciśnięciu Enter,
 
 - dodawanie i edycja dymku otwierają to samo okno ze szkicem, podglądem i osobnym przyciskiem **ZAPISZ DYMEK**,
 - dymki przeglądu i przepływu przyjmują wklejone emoji, np. `🏠`, `🔋`, `☀️`, bez linku do obrazu,
@@ -66,7 +74,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.2
+## Świadome ograniczenia v8.0.3
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -78,7 +86,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.2`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.3`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

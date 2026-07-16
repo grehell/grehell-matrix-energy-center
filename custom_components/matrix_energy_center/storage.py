@@ -37,6 +37,8 @@ def default_flow_scene(canvas_height: int = 620) -> dict[str, Any]:
         "border_color": "#20eaff",
         "border_width": 1,
         "border_radius": 16,
+        "routing_clearance": 20,
+        "routing_spacing": 14,
         "elements": {},
         "connections": {},
     }
@@ -896,7 +898,7 @@ class MatrixEnergyStore:
                 "visible": bool(value.get("visible", True)),
                 "label": self._text(value.get("label"), "", 80),
                 "route": self._choice(
-                    value.get("route"), "curve", {"direct", "orthogonal", "curve"}
+                    value.get("route"), "auto", {"auto", "direct", "orthogonal", "curve"}
                 ),
                 "forward_color": self._color(value.get("forward_color"), "#52ff62"),
                 "reverse_color": self._color(value.get("reverse_color"), "#b95cff"),
@@ -945,6 +947,12 @@ class MatrixEnergyStore:
             "border_color": self._color(raw.get("border_color"), "#20eaff"),
             "border_width": int(self._number(raw.get("border_width"), 1, 0, 8)),
             "border_radius": int(self._number(raw.get("border_radius"), 16, 0, 80)),
+            "routing_clearance": int(
+                self._number(raw.get("routing_clearance"), 20, 8, 80)
+            ),
+            "routing_spacing": int(
+                self._number(raw.get("routing_spacing"), 14, 8, 30)
+            ),
             "elements": elements,
             "connections": connections,
         }

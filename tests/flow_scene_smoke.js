@@ -69,6 +69,51 @@ assert(panel._sceneConnectionState(custom).state === "forward", "positive entity
 custom.positive_direction = "reverse";
 assert(panel._sceneConnectionState(custom).state === "reverse", "positive-direction inversion must work");
 
+const routingScene = { canvas_height: 600, routing_clearance: 24, routing_spacing: 12 };
+const routingNodes = {
+  source: { key: "source", x: 12, y: 50, width: 120, height: 100, visible: true },
+  blocker: { key: "blocker", x: 50, y: 50, width: 180, height: 150, visible: true },
+  target: { key: "target", x: 88, y: 50, width: 120, height: 100, visible: true },
+};
+const routingConnections = [
+  { key: "route_a", from: "source", to: "target", route: "auto" },
+  { key: "route_b", from: "source", to: "target", route: "auto" },
+];
+const routed = panel._sceneConnectionRoutes(routingConnections, routingNodes, routingScene);
+const blockerRect = panel._sceneNodeRect(routingNodes.blocker, routingScene, 0);
+for (const key of ["route_a", "route_b"]) {
+  assert(routed[key].points.length >= 4, `${key} must contain an obstacle detour`);
+  for (let index = 1; index < routed[key].points.length; index++) {
+    assert(!panel._sceneSegmentHitsRect(routed[key].points[index - 1], routed[key].points[index], blockerRect), `${key} crosses the blocking bubble`);
+  }
+}
+assert(routed.route_a.path !== routed.route_b.path, "parallel connections must receive separate tracks");
+assert(routed.route_a.labelPoint.x !== routed.route_b.labelPoint.x || routed.route_a.labelPoint.y !== routed.route_b.labelPoint.y, "connection labels must not occupy the same point");
+assert(routed.route_a.points[0].x !== routingNodes.source.x * 10, "connection must start at the bubble edge, not its center");
+
+const originalStrings = panel._config.pv_strings, originalDevices = panel._config.devices;
+panel._config.pv_strings = [1, 2, 3].map(index => ({ id: `pv_${index}`, name: `PV ${index}`, enabled: true, show_in_flow: true }));
+panel._config.devices = [
+  { id: "load_1", name: "LOAD 1", enabled: true, show_in_flow: true, flow_direction: "consumer" },
+  { id: "load_2", name: "LOAD 2", enabled: true, show_in_flow: true, flow_direction: "consumer" },
+  { id: "source_1", name: "SOURCE 1", enabled: true, show_in_flow: true, flow_direction: "source" },
+];
+const crowdedModel = panel._flowSceneModel(panel._config.flow);
+const crowdedRoutes = panel._sceneConnectionRoutes(crowdedModel.connections, crowdedModel.byKey, crowdedModel.scene);
+for (const crowdedConnection of crowdedModel.connections) {
+  const crowdedRoute = crowdedRoutes[crowdedConnection.key];
+  assert(crowdedRoute?.path, `missing crowded route ${crowdedConnection.key}`);
+  const foreignNodes = crowdedModel.nodes.filter(node => ![crowdedConnection.from, crowdedConnection.to].includes(node.key));
+  for (let index = 1; index < crowdedRoute.points.length; index++) {
+    for (const foreignNode of foreignNodes) {
+      assert(!panel._sceneSegmentHitsRect(crowdedRoute.points[index - 1], crowdedRoute.points[index], panel._sceneNodeRect(foreignNode, crowdedModel.scene, 0)), `${crowdedConnection.key} crosses ${foreignNode.key}`);
+    }
+  }
+}
+assert(new Set(Object.values(crowdedRoutes).map(route => route.path)).size === crowdedModel.connections.length, "crowded routes must not be exact duplicates");
+panel._config.pv_strings = originalStrings;
+panel._config.devices = originalDevices;
+
 const before = panel._sceneConnectionPath(connection("link_grid"), model.byKey);
 panel._config.flow.flow_scene.elements.home = { x: 65, y: 70, width: 150, height: 150, z_index: 20, visible: true, locked: false };
 model = panel._flowSceneModel(panel._config.flow);
@@ -156,6 +201,17 @@ assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not b
 const kioskConfigHtml = panel._renderKioskConfiguration();
 assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
 assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
+
+const viewportBody = { scrollTop: 0 };
+let viewportFocused = false;
+const viewportField = { dataset: { path: "bubble_editor.value_size" }, focus: () => { viewportFocused = true; }, setSelectionRange: () => {} };
+panel._bubbleEditor = { index: -1, isNew: true, draft: bubbleDraft };
+panel._bubbleEditorViewport = { scrollTop: 417, path: "bubble_editor.value_size", selectionStart: 1, selectionEnd: 2 };
+panel.shadowRoot.querySelector = selector => selector === ".bubble-editor-body" ? viewportBody : null;
+panel.shadowRoot.querySelectorAll = selector => selector === "[data-path]" ? [viewportField] : [];
+panel._restoreBubbleEditorViewport();
+assert(viewportBody.scrollTop === 417, "bubble editor scroll position must survive a live rerender");
+assert(viewportFocused, "bubble editor must restore the active field");
 
 (async () => {
   const savedDraft = panel._newOverviewBubble(2);

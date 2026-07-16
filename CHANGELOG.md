@@ -1,5 +1,15 @@
 # Changelog
 
+## 8.0.3 — 2026-07-16
+
+- Added automatic obstacle-aware routing for every flow connection on Summary, Flows and all kiosk profiles.
+- Moved connection endpoints from node centers to distributed ports on bubble edges.
+- Added a grid router with bubble clearance, occupied-track and crossing penalties so parallel connections use different paths.
+- Added automatic non-overlapping label placement along routed connection segments.
+- Added per-dashboard controls for bubble clearance and inter-line spacing, while retaining direct, rounded and orthogonal presentation modes.
+- Preserved bubble-editor scroll position, active field and text selection across live preview rerenders; Enter now commits the current input without jumping to the top.
+- Added synthetic blocker, crowded-scene and editor-viewport runtime tests.
+
 ## 8.0.2 — 2026-07-16
 
 - Replaced the expanded inline overview-bubble form with one Add/Edit dialog, a live preview, draft cancellation and an explicit Save bubble action.

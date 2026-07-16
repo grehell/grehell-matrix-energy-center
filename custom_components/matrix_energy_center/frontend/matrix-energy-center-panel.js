@@ -119,6 +119,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._rendered = false;
     this._picker = null;
     this._bubbleEditor = null;
+    this._bubbleEditorViewport = null;
     this._pickerQuery = "";
     this._pickerShowAll = false;
     this._entityRegistry = {};
@@ -196,6 +197,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _render() {
     if (!this._config) return;
+    const previousBubbleBody = this.shadowRoot.querySelector?.(".bubble-editor-body");
+    if (this._bubbleEditor && previousBubbleBody) {
+      const active = this.shadowRoot.activeElement;
+      this._bubbleEditorViewport = {
+        scrollTop: previousBubbleBody.scrollTop,
+        path: active?.dataset?.path || "",
+        selectionStart: typeof active?.selectionStart === "number" ? active.selectionStart : null,
+        selectionEnd: typeof active?.selectionEnd === "number" ? active.selectionEnd : null,
+      };
+    }
     this.classList.toggle("kiosk-host", this._view === "kiosk");
     this.shadowRoot.innerHTML = `
       <style>${this._styles()}</style>
@@ -228,6 +239,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     `;
     this._bindCommonEvents();
     this._bindViewEvents();
+    this._restoreBubbleEditorViewport();
     this._updateClock();
     this._updateLive();
     this._loadRecorderHistories();
@@ -769,6 +781,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     scene.border_color ||= "#20eaff";
     scene.border_width ??= 1;
     scene.border_radius ??= 16;
+    scene.routing_clearance ??= 20;
+    scene.routing_spacing ??= 14;
     scene.elements ||= {};
     scene.connections ||= {};
     profile.flow_element_styles ||= {};
@@ -812,7 +826,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const addConnection = (key, from, to, label, automatic, defaults = {}) => {
       if (!byKey[from] || !byKey[to]) return;
       const stored = scene.connections[key] || {};
-      connections.push({ key, from, to, label, automatic, route: "curve", forward_color: "#52ff62", reverse_color: "#b95cff", idle_color: "#49616b", unavailable_color: "#ff4d6d", thickness: 4, animation_speed: 1.2, deadband: 1, label_visible: true, label_color: "#eefaff", label_background: "#010912", label_border_color: "#20eaff", label_size: 9, label_bold: false, positive_direction: "forward", direction_source: "automatic", ...defaults, ...stored, label: stored.label || label, visible: stored.visible !== false });
+      connections.push({ key, from, to, label, automatic, route: "auto", forward_color: "#52ff62", reverse_color: "#b95cff", idle_color: "#49616b", unavailable_color: "#ff4d6d", thickness: 4, animation_speed: 1.2, deadband: 1, label_visible: true, label_color: "#eefaff", label_background: "#010912", label_border_color: "#20eaff", label_size: 9, label_bold: false, positive_direction: "forward", direction_source: "automatic", ...defaults, ...stored, label: stored.label || label, visible: stored.visible !== false });
     };
     addConnection("link_grid", "grid", "home", "SIEĆ", { kind: "grid" }, { forward_color: "#b95cff", reverse_color: "#52ff62" });
     addConnection("link_pv", "pv", "home", "PV", { kind: "pv" }, { forward_color: "#52ff62", reverse_color: "#b95cff" });
@@ -855,6 +869,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         ${this._colorField(`${context.path}.flow_scene.border_color`, "Ramka", scene.border_color, disabled)}
         ${this._numberField(`${context.path}.flow_scene.border_width`, "Grubość ramki", scene.border_width, 0, 8, 1, disabled, true)}
         ${this._numberField(`${context.path}.flow_scene.border_radius`, "Zaokrąglenie", scene.border_radius, 0, 80, 1, disabled, true)}
+        ${this._numberField(`${context.path}.flow_scene.routing_clearance`, "Odstęp od dymków", scene.routing_clearance, 8, 80, 1, disabled, true)}
+        ${this._numberField(`${context.path}.flow_scene.routing_spacing`, "Odstęp między liniami", scene.routing_spacing, 8, 30, 1, disabled, true)}
         <label class="check-row"><input type="checkbox" data-path="${context.path}.flow_scene.show_grid" data-live-rerender="1" ${scene.show_grid !== false ? "checked" : ""} ${disabled}><span><b>Pokaż siatkę</b></span></label>
         <label class="check-row"><input type="checkbox" data-path="${context.path}.flow_scene.snap_to_grid" ${scene.snap_to_grid !== false ? "checked" : ""} ${disabled}><span><b>Przyciągaj do siatki</b></span></label>
         <button class="secondary-btn settings-reset" data-action="reset-settings-scene" ${disabled}><ha-icon icon="mdi:restore"></ha-icon>RESETUJ TEN UKŁAD</button>
@@ -957,7 +973,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       body = `<div class="widget-subsection"><b>REGUŁY KIERUNKU I KOLORÓW</b><small>A→B, B→A, postój i brak danych mają osobne style.</small></div>
         <label class="check-row"><input type="checkbox" data-path="${path}.visible" data-live-rerender="1" ${config.visible !== false ? "checked" : ""} ${disabled}><span><b>Linia widoczna</b></span></label>
         ${this._field(`${path}.label`, "Opis linii", config.label || connection.label, "Np. SIEĆ → DOM", disabled, true)}
-        <div class="two-grid">${this._selectField(`${path}.route`, "Przebieg", config.route || "curve", [["curve","Łuk"],["direct","Prosta"],["orthogonal","Kąty proste"]], disabled, true)}${this._selectField(`${path}.direction_source`, "Źródło kierunku", config.direction_source || "automatic", [["automatic","Automatyczny bilans"],["entity","Wybrana encja"]], disabled, true)}${this._selectField(`${path}.positive_direction`, "Wartość dodatnia oznacza", config.positive_direction || "forward", [["forward","A → B"],["reverse","B → A"]], disabled, true)}${this._numberField(`${path}.deadband`, "Strefa postoju", config.deadband ?? 1, 0, 1000000, .1, disabled, true)}</div>
+        <div class="two-grid">${this._selectField(`${path}.route`, "Przebieg", config.route || "auto", [["auto","Automatycznie omijaj dymki"],["curve","Łuk omijający dymki"],["direct","Prosta, jeśli jest wolne miejsce"],["orthogonal","Kąty proste"]], disabled, true)}${this._selectField(`${path}.direction_source`, "Źródło kierunku", config.direction_source || "automatic", [["automatic","Automatyczny bilans"],["entity","Wybrana encja"]], disabled, true)}${this._selectField(`${path}.positive_direction`, "Wartość dodatnia oznacza", config.positive_direction || "forward", [["forward","A → B"],["reverse","B → A"]], disabled, true)}${this._numberField(`${path}.deadband`, "Strefa postoju", config.deadband ?? 1, 0, 1000000, .1, disabled, true)}</div>
         <div>${this._entityField(`${path}.entity_id`, "Encja kierunku", config.entity_id, "Opcjonalna encja ze znakiem.", disabled, "any")}</div>
         <div class="two-grid">${this._field(`${path}.attribute`, "Atrybut", config.attribute, "Opcjonalnie", disabled)}${this._numberField(`${path}.multiplier`, "Mnożnik", config.multiplier ?? 1, -1000000, 1000000, .001, disabled, true)}</div>
         <div class="two-grid">${this._colorField(`${path}.forward_color`, "Kolor A → B", config.forward_color || "#52ff62", disabled)}${this._colorField(`${path}.reverse_color`, "Kolor B → A", config.reverse_color || "#b95cff", disabled)}${this._colorField(`${path}.idle_color`, "Kolor postoju", config.idle_color || "#49616b", disabled)}${this._colorField(`${path}.unavailable_color`, "Kolor braku danych", config.unavailable_color || "#ff4d6d", disabled)}${this._numberField(`${path}.thickness`, "Grubość", config.thickness || 4, 1, 14, 1, disabled, true)}${this._numberField(`${path}.animation_speed`, "Czas animacji (s)", config.animation_speed || 1.2, .2, 8, .1, disabled, true)}</div>
@@ -1526,20 +1542,198 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return { state: value > 0 ? "forward" : "reverse", value: Number(reading.value) };
   }
 
-  _sceneConnectionPath(connection, byKey) {
-    const from = byKey[connection.from], to = byKey[connection.to];
-    if (!from || !to) return "";
-    const x1 = Number(from.x) * 10, y1 = Number(from.y) * 6;
-    const x2 = Number(to.x) * 10, y2 = Number(to.y) * 6;
-    if (connection.route === "direct") return `M ${x1} ${y1} L ${x2} ${y2}`;
-    if (connection.route === "orthogonal") {
-      if (Math.abs(x2 - x1) >= Math.abs(y2 - y1)) { const mx = (x1 + x2) / 2; return `M ${x1} ${y1} L ${mx} ${y1} L ${mx} ${y2} L ${x2} ${y2}`; }
-      const my = (y1 + y2) / 2; return `M ${x1} ${y1} L ${x1} ${my} L ${x2} ${my} L ${x2} ${y2}`;
+  _sceneNodeRect(node, scene, padding = 0) {
+    const canvasHeight = Math.max(320, Math.min(1200, Number(scene?.canvas_height || 600)));
+    const width = Math.max(40, Number(node?.width || 132));
+    const height = Math.max(30, Number(node?.height || 82)) * 600 / canvasHeight;
+    const cx = Number(node?.x || 0) * 10, cy = Number(node?.y || 0) * 6;
+    return { left: cx - width / 2 - padding, right: cx + width / 2 + padding, top: cy - height / 2 - padding, bottom: cy + height / 2 + padding, cx, cy, width, height };
+  }
+
+  _scenePortSide(node, peer) {
+    const dx = Number(peer.x) - Number(node.x), dy = (Number(peer.y) - Number(node.y)) * .6;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
+    return dy >= 0 ? "bottom" : "top";
+  }
+
+  _sceneConnectionPorts(connections, byKey, scene, clearance, spacing) {
+    const assignments = {}, groups = new Map();
+    connections.forEach(connection => ["from", "to"].forEach(endpoint => {
+      const node = byKey[connection[endpoint]], peer = byKey[connection[endpoint === "from" ? "to" : "from"]];
+      if (!node || !peer) return;
+      const side = this._scenePortSide(node, peer), groupKey = `${node.key}:${side}`;
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey).push({ connection, endpoint, node, peer, side });
+    }));
+    groups.forEach(entries => {
+      const horizontalSide = ["top", "bottom"].includes(entries[0].side);
+      entries.sort((a, b) => horizontalSide ? Number(a.peer.x) - Number(b.peer.x) : Number(a.peer.y) - Number(b.peer.y) || a.connection.key.localeCompare(b.connection.key));
+      entries.forEach((entry, index) => {
+        const rect = this._sceneNodeRect(entry.node, scene, 0);
+        const count = entries.length;
+        const span = (horizontalSide ? rect.width : rect.height) * .68;
+        const offset = count <= 1 ? 0 : -span / 2 + span * index / (count - 1);
+        let port, gate, grid;
+        if (entry.side === "left" || entry.side === "right") {
+          const direction = entry.side === "right" ? 1 : -1;
+          const radius = entry.node.key === "home" ? rect.width / 2 * Math.sqrt(Math.max(0, 1 - Math.pow(offset / Math.max(1, rect.height / 2), 2))) : rect.width / 2;
+          port = { x: rect.cx + direction * radius, y: rect.cy + offset };
+          gate = { x: direction > 0 ? rect.right + clearance : rect.left - clearance, y: port.y };
+          grid = { x: Math.max(0, Math.min(1000, direction > 0 ? Math.ceil(gate.x / spacing) * spacing : Math.floor(gate.x / spacing) * spacing)), y: Math.max(0, Math.min(600, Math.round(gate.y / spacing) * spacing)) };
+        } else {
+          const direction = entry.side === "bottom" ? 1 : -1;
+          const radius = entry.node.key === "home" ? rect.height / 2 * Math.sqrt(Math.max(0, 1 - Math.pow(offset / Math.max(1, rect.width / 2), 2))) : rect.height / 2;
+          port = { x: rect.cx + offset, y: rect.cy + direction * radius };
+          gate = { x: port.x, y: direction > 0 ? rect.bottom + clearance : rect.top - clearance };
+          grid = { x: Math.max(0, Math.min(1000, Math.round(gate.x / spacing) * spacing)), y: Math.max(0, Math.min(600, direction > 0 ? Math.ceil(gate.y / spacing) * spacing : Math.floor(gate.y / spacing) * spacing)) };
+        }
+        assignments[`${entry.connection.key}:${entry.endpoint}`] = { port, gate, grid, side: entry.side };
+      });
+    });
+    return assignments;
+  }
+
+  _scenePointInRect(point, rect) {
+    return point.x > rect.left && point.x < rect.right && point.y > rect.top && point.y < rect.bottom;
+  }
+
+  _sceneSegmentsIntersect(a, b, c, d) {
+    const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    const ab1 = cross(a, b, c), ab2 = cross(a, b, d), cd1 = cross(c, d, a), cd2 = cross(c, d, b);
+    return ((ab1 === 0 && ab2 === 0 && cd1 === 0 && cd2 === 0)
+      ? Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) <= Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) && Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) <= Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y))
+      : ab1 * ab2 <= 0 && cd1 * cd2 <= 0);
+  }
+
+  _sceneSegmentHitsRect(a, b, rect) {
+    if (this._scenePointInRect(a, rect) || this._scenePointInRect(b, rect)) return true;
+    const tl = { x: rect.left, y: rect.top }, tr = { x: rect.right, y: rect.top }, br = { x: rect.right, y: rect.bottom }, bl = { x: rect.left, y: rect.bottom };
+    return this._sceneSegmentsIntersect(a, b, tl, tr) || this._sceneSegmentsIntersect(a, b, tr, br) || this._sceneSegmentsIntersect(a, b, br, bl) || this._sceneSegmentsIntersect(a, b, bl, tl);
+  }
+
+  _sceneGridRoute(start, end, obstacles, usedEdges, usedPoints, spacing) {
+    const maxX = Math.ceil(1000 / spacing), maxY = Math.ceil(600 / spacing);
+    const toIndex = point => ({ x: Math.max(0, Math.min(maxX, Math.round(point.x / spacing))), y: Math.max(0, Math.min(maxY, Math.round(point.y / spacing))) });
+    const toPoint = index => ({ x: Math.min(1000, index.x * spacing), y: Math.min(600, index.y * spacing) });
+    const source = toIndex(start), target = toIndex(end), directions = [[1,0],[-1,0],[0,1],[0,-1]];
+    const edgeKey = (a, b) => `${Math.min(a.x,b.x)},${Math.min(a.y,b.y)}|${Math.max(a.x,b.x)},${Math.max(a.y,b.y)}`;
+    const pointKey = point => `${point.x},${point.y}`;
+    const stateKey = (point, direction) => `${point.x},${point.y},${direction}`;
+    const blocked = index => {
+      if ((index.x === source.x && index.y === source.y) || (index.x === target.x && index.y === target.y)) return false;
+      const point = toPoint(index);
+      return obstacles.some(rect => this._scenePointInRect(point, rect));
+    };
+    const heap = [];
+    const push = item => { heap.push(item); let i = heap.length - 1; while (i > 0) { const parent = (i - 1) >> 1; if (heap[parent].f <= item.f) break; heap[i] = heap[parent]; i = parent; } heap[i] = item; };
+    const pop = () => { const root = heap[0], tail = heap.pop(); if (heap.length && tail) { let i = 0; while (true) { let child = i * 2 + 1; if (child >= heap.length) break; if (child + 1 < heap.length && heap[child + 1].f < heap[child].f) child += 1; if (heap[child].f >= tail.f) break; heap[i] = heap[child]; i = child; } heap[i] = tail; } return root; };
+    const distance = new Map(), previous = new Map(), states = new Map();
+    const startKey = stateKey(source, 4);
+    distance.set(startKey, 0); states.set(startKey, { ...source, direction: 4 });
+    push({ f: Math.abs(target.x - source.x) + Math.abs(target.y - source.y), g: 0, ...source, direction: 4, key: startKey });
+    let finalKey = "", iterations = 0;
+    while (heap.length && iterations++ < 50000) {
+      const current = pop();
+      if (!current || current.g !== distance.get(current.key)) continue;
+      if (current.x === target.x && current.y === target.y) { finalKey = current.key; break; }
+      directions.forEach(([dx, dy], direction) => {
+        const next = { x: current.x + dx, y: current.y + dy };
+        if (next.x < 0 || next.y < 0 || next.x > maxX || next.y > maxY || blocked(next)) return;
+        const edgeUse = usedEdges.get(edgeKey(current, next)) || 0;
+        const pointUse = usedPoints.get(pointKey(next)) || 0;
+        const turn = current.direction === 4 || current.direction === direction ? 0 : .45;
+        const g = current.g + 1 + turn + edgeUse * 90 + pointUse * 18;
+        const key = stateKey(next, direction);
+        if (g >= (distance.get(key) ?? Infinity)) return;
+        distance.set(key, g); previous.set(key, current.key); states.set(key, { ...next, direction });
+        const h = Math.abs(target.x - next.x) + Math.abs(target.y - next.y);
+        push({ f: g + h, g, ...next, direction, key });
+      });
     }
-    const dx = x2 - x1, dy = y2 - y1;
-    return Math.abs(dx) >= Math.abs(dy)
-      ? `M ${x1} ${y1} C ${x1 + dx * .42} ${y1}, ${x2 - dx * .42} ${y2}, ${x2} ${y2}`
-      : `M ${x1} ${y1} C ${x1} ${y1 + dy * .42}, ${x2} ${y2 - dy * .42}, ${x2} ${y2}`;
+    if (!finalKey) return [start, end];
+    const result = [];
+    for (let key = finalKey; key; key = previous.get(key)) { const state = states.get(key); if (state) result.push(toPoint(state)); }
+    return result.reverse();
+  }
+
+  _sceneCleanPolyline(points) {
+    const unique = points.filter((point, index) => index === 0 || Math.abs(point.x - points[index - 1].x) > .1 || Math.abs(point.y - points[index - 1].y) > .1);
+    return unique.filter((point, index) => {
+      if (!index || index === unique.length - 1) return true;
+      const before = unique[index - 1], after = unique[index + 1];
+      return !((Math.abs(before.x - point.x) < .1 && Math.abs(point.x - after.x) < .1) || (Math.abs(before.y - point.y) < .1 && Math.abs(point.y - after.y) < .1));
+    });
+  }
+
+  _scenePolylinePath(points, rounded = true) {
+    const clean = this._sceneCleanPolyline(points);
+    if (!clean.length) return "";
+    if (!rounded || clean.length < 3) return `M ${clean.map(point => `${Number(point.x.toFixed(2))} ${Number(point.y.toFixed(2))}`).join(" L ")}`;
+    let path = `M ${Number(clean[0].x.toFixed(2))} ${Number(clean[0].y.toFixed(2))}`;
+    for (let index = 1; index < clean.length - 1; index++) {
+      const previous = clean[index - 1], point = clean[index], next = clean[index + 1];
+      const incoming = Math.hypot(point.x - previous.x, point.y - previous.y), outgoing = Math.hypot(next.x - point.x, next.y - point.y);
+      const radius = Math.min(14, incoming * .35, outgoing * .35);
+      const a = { x: point.x + (previous.x - point.x) * radius / incoming, y: point.y + (previous.y - point.y) * radius / incoming };
+      const b = { x: point.x + (next.x - point.x) * radius / outgoing, y: point.y + (next.y - point.y) * radius / outgoing };
+      path += ` L ${Number(a.x.toFixed(2))} ${Number(a.y.toFixed(2))} Q ${Number(point.x.toFixed(2))} ${Number(point.y.toFixed(2))} ${Number(b.x.toFixed(2))} ${Number(b.y.toFixed(2))}`;
+    }
+    const last = clean[clean.length - 1];
+    return `${path} L ${Number(last.x.toFixed(2))} ${Number(last.y.toFixed(2))}`;
+  }
+
+  _sceneRouteLabelPoint(points, obstacles, usedLabels) {
+    const clean = this._sceneCleanPolyline(points), segments = [];
+    let total = 0;
+    for (let index = 1; index < clean.length; index++) { const length = Math.hypot(clean[index].x - clean[index - 1].x, clean[index].y - clean[index - 1].y); segments.push({ a: clean[index - 1], b: clean[index], length, start: total }); total += length; }
+    const distanceToRect = (point, rect) => Math.hypot(Math.max(rect.left - point.x, 0, point.x - rect.right), Math.max(rect.top - point.y, 0, point.y - rect.bottom));
+    const candidates = segments.filter(segment => segment.length >= 25).map(segment => {
+      const point = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
+      const obstacleDistance = obstacles.length ? Math.min(...obstacles.map(rect => distanceToRect(point, rect))) : 100;
+      const overlap = usedLabels.reduce((penalty, used) => penalty + (Math.abs(used.x - point.x) < 86 && Math.abs(used.y - point.y) < 26 ? 1000 : 0), 0);
+      return { point, score: segment.length + obstacleDistance * .35 - Math.abs(segment.start + segment.length / 2 - total / 2) * .12 - overlap };
+    }).sort((a, b) => b.score - a.score);
+    const point = candidates[0]?.point || clean[Math.floor(clean.length / 2)] || { x: 500, y: 300 };
+    usedLabels.push(point);
+    return point;
+  }
+
+  _sceneConnectionRoutes(connections, byKey, scene = {}) {
+    const clearance = Math.max(8, Math.min(80, Number(scene.routing_clearance || 20)));
+    const spacing = Math.max(8, Math.min(30, Number(scene.routing_spacing || 14)));
+    const visibleNodes = Object.values(byKey).filter(node => node?.visible !== false);
+    const obstacles = visibleNodes.map(node => ({ ...this._sceneNodeRect(node, scene, clearance), key: node.key }));
+    const ports = this._sceneConnectionPorts(connections, byKey, scene, clearance, spacing);
+    const usedEdges = new Map(), usedPoints = new Map(), usedSegments = [], usedLabels = [], routes = {};
+    const edgeKey = (a, b) => `${Math.min(a.x,b.x)},${Math.min(a.y,b.y)}|${Math.max(a.x,b.x)},${Math.max(a.y,b.y)}`;
+    connections.forEach(connection => {
+      const fromPort = ports[`${connection.key}:from`], toPort = ports[`${connection.key}:to`];
+      if (!fromPort || !toPort) { routes[connection.key] = { path: "", points: [], labelPoint: { x: 500, y: 300 } }; return; }
+      const foreignObstacles = obstacles.filter(rect => ![connection.from, connection.to].includes(rect.key));
+      const directPoints = [fromPort.port, toPort.port];
+      const directBlocked = foreignObstacles.some(rect => this._sceneSegmentHitsRect(directPoints[0], directPoints[1], rect)) || usedSegments.some(([a,b]) => this._sceneSegmentsIntersect(directPoints[0], directPoints[1], a, b));
+      let gridPoints = [], points;
+      if (connection.route === "direct" && !directBlocked) points = directPoints;
+      else {
+        gridPoints = this._sceneGridRoute(fromPort.grid, toPort.grid, obstacles, usedEdges, usedPoints, spacing);
+        points = [fromPort.port, fromPort.gate, ...gridPoints, toPort.gate, toPort.port];
+      }
+      points = this._sceneCleanPolyline(points);
+      for (let index = 1; index < gridPoints.length; index++) {
+        const key = edgeKey(gridPoints[index - 1], gridPoints[index]);
+        usedEdges.set(key, (usedEdges.get(key) || 0) + 1);
+        const pointKey = `${gridPoints[index].x},${gridPoints[index].y}`;
+        usedPoints.set(pointKey, (usedPoints.get(pointKey) || 0) + 1);
+      }
+      for (let index = 1; index < points.length; index++) usedSegments.push([points[index - 1], points[index]]);
+      const labelPoint = this._sceneRouteLabelPoint(points, obstacles, usedLabels);
+      routes[connection.key] = { points, labelPoint, path: this._scenePolylinePath(points, connection.route !== "orthogonal" && connection.route !== "direct") };
+    });
+    return routes;
+  }
+
+  _sceneConnectionPath(connection, byKey, scene = {}) {
+    return this._sceneConnectionRoutes([connection], byKey, scene)[connection.key]?.path || "";
   }
 
   _sceneNodeStyle(profile, node) {
@@ -1558,16 +1752,18 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const { scene, nodes, connections, byKey } = model;
     const title = this._esc((this._config.flow || {}).title || "PRZEPŁYW ENERGII — NA ŻYWO");
     const sceneStyle = `--scene-height:${Math.max(320, Math.min(1200, Number(scene.canvas_height || 620)))}px;--scene-grid:${Math.max(5, Math.min(80, Number(scene.grid_size || 20)))}px;--scene-canvas-bg:${this._safeColor(scene.background_color, "#020b16")};--scene-frame:${this._safeColor(scene.border_color, "#20eaff")};--scene-frame-width:${Math.max(0, Math.min(8, Number(scene.border_width ?? 1)))}px;--scene-frame-radius:${Math.max(0, Math.min(80, Number(scene.border_radius ?? 16)))}px`;
-    const edgeHtml = connections.filter(item => item.visible !== false && byKey[item.from]?.visible !== false && byKey[item.to]?.visible !== false).map(connection => {
+    const visibleConnections = connections.filter(item => item.visible !== false && byKey[item.from]?.visible !== false && byKey[item.to]?.visible !== false);
+    const routes = this._sceneConnectionRoutes(visibleConnections, byKey, scene);
+    const edgeHtml = visibleConnections.map(connection => {
       const direction = this._sceneConnectionState(connection);
       const color = direction.state === "forward" ? connection.forward_color : direction.state === "reverse" ? connection.reverse_color : direction.state === "idle" ? connection.idle_color : connection.unavailable_color;
-      const path = this._sceneConnectionPath(connection, byKey);
+      const path = routes[connection.key]?.path || "";
       const attrs = this._flowElementActionAttrs(profile, connection.key);
       return `<g class="scene-connection state-${direction.state} ${editMode && this._settingsSelectedKey === connection.key ? "selected" : ""}" data-scene-connection="${this._escAttr(connection.key)}" data-auto-kind="${this._escAttr(connection.automatic?.kind || "")}" data-auto-index="${this._escAttr(connection.automatic?.index ?? "")}" style="--connection-color:${this._safeColor(color, "#49616b")};--connection-width:${Math.max(1, Math.min(14, Number(connection.thickness || 4)))};--connection-speed:${Math.max(.2, Math.min(8, Number(connection.animation_speed || 1.2)))}s" ${attrs}><path class="scene-connection-hit" d="${path}"></path><path class="scene-connection-base" d="${path}"></path><path class="scene-connection-flow" d="${path}"></path></g>`;
     }).join("");
-    const labelHtml = connections.filter(item => item.visible !== false && item.label_visible !== false && byKey[item.from]?.visible !== false && byKey[item.to]?.visible !== false).map(connection => {
-      const from = byKey[connection.from], to = byKey[connection.to];
-      const x = (Number(from.x) + Number(to.x)) / 2, y = (Number(from.y) + Number(to.y)) / 2;
+    const labelHtml = visibleConnections.filter(item => item.label_visible !== false).map(connection => {
+      const labelPoint = routes[connection.key]?.labelPoint || { x: 500, y: 300 };
+      const x = labelPoint.x / 10, y = labelPoint.y / 6;
       const reading = this._sceneConnectionReading(connection);
       return `<div class="scene-connection-label ${editMode && this._settingsSelectedKey === connection.key ? "selected" : ""}" data-scene-connection-label="${this._escAttr(connection.key)}" style="--label-x:${x}%;--label-y:${y}%;--label-offset-x:${Number(connection.label_x || 0)}px;--label-offset-y:${Number(connection.label_y || 0)}px;--label-color:${this._safeColor(connection.label_color, "#eefaff")};--label-bg:${this._safeColor(connection.label_background, "#010912")};--label-border:${this._safeColor(connection.label_border_color, "#20eaff")};--label-size:${Math.max(6, Math.min(24, Number(connection.label_size || 9)))}px;--label-weight:${connection.label_bold ? 700 : 400}"><b>${this._esc(connection.label)}</b><span>${reading.value == null ? "--" : this._kw(Math.abs(Number(reading.value)))}</span></div>`;
     }).join("");
@@ -1913,6 +2109,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _renderBubbleEditor() {
     const editor = this._bubbleEditor;
+    const viewport = this._bubbleEditorViewport;
     const item = editor?.draft;
     if (!item) return "";
     const base = "bubble_editor";
@@ -2029,6 +2226,22 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         <footer class="bubble-editor-footer"><span>${editor.isNew ? "Nowy dymek zostanie dodany dopiero po zapisaniu." : "Anulowanie nie zmieni zapisanej konfiguracji."}</span><div><button class="secondary-btn" data-action="cancel-bubble-editor"><ha-icon icon="mdi:close"></ha-icon>ANULUJ</button><button class="primary-btn" data-action="save-bubble-editor"><ha-icon icon="mdi:content-save"></ha-icon>ZAPISZ DYMEK</button></div></footer>
       </section>
     </div>`;
+  }
+
+  _restoreBubbleEditorViewport() {
+    if (!this._bubbleEditor || !this._bubbleEditorViewport) return;
+    const viewport = { ...this._bubbleEditorViewport };
+    const restore = () => {
+      const body = this.shadowRoot.querySelector?.(".bubble-editor-body");
+      if (!body) return;
+      const field = viewport.path ? [...this.shadowRoot.querySelectorAll?.("[data-path]") || []].find(element => element.dataset.path === viewport.path) : null;
+      field?.focus?.({ preventScroll: true });
+      if (field && viewport.selectionStart != null && typeof field.setSelectionRange === "function") {
+        try { field.setSelectionRange(viewport.selectionStart, viewport.selectionEnd ?? viewport.selectionStart); } catch (_) { /* Number and color inputs do not expose a text selection. */ }
+      }
+      body.scrollTop = viewport.scrollTop;
+    };
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
   }
 
   _renderEntityPicker() {
@@ -2232,6 +2445,11 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector(".entity-dialog")?.addEventListener("click", event => event.stopPropagation());
     this.shadowRoot.querySelector(".bubble-editor-dialog")?.addEventListener("click", event => event.stopPropagation());
+    this.shadowRoot.querySelector(".bubble-editor-dialog")?.addEventListener("keydown", event => {
+      if (event.key !== "Enter" || !event.target?.matches?.("input")) return;
+      event.preventDefault();
+      event.target.blur?.();
+    });
     this.shadowRoot.querySelector("[data-action='select-flow-layout-element']")?.addEventListener("change", event => {
       this._layoutSelectedElement = event.currentTarget.value;
       this._render();
@@ -2519,6 +2737,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (!this._isAdmin()) return;
     const n = (this._config.overview_bubbles || []).length + 1;
     this._bubbleEditor = { index: -1, isNew: true, draft: this._newOverviewBubble(n) };
+    this._bubbleEditorViewport = null;
     this._render();
   }
 
@@ -2527,11 +2746,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const item = this._config.overview_bubbles?.[index];
     if (!item) return;
     this._bubbleEditor = { index, isNew: false, draft: JSON.parse(JSON.stringify(item)) };
+    this._bubbleEditorViewport = null;
     this._render();
   }
 
   _cancelBubbleEditor() {
     this._bubbleEditor = null;
+    this._bubbleEditorViewport = null;
+    this._bubbleEditorViewport = null;
     this._picker = null;
     this._render();
   }
@@ -2572,6 +2794,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       if (index >= 0) items.splice(index, 1);
     } else if (previous) items[editor.index] = previous;
     this._bubbleEditor = editor;
+    this._bubbleEditorViewport = viewport;
     this._render();
   }
 
@@ -2848,6 +3071,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       border_color: "#20eaff",
       border_width: 1,
       border_radius: 16,
+      routing_clearance: 20,
+      routing_spacing: 14,
       elements: {},
       connections: {},
     };
@@ -3243,6 +3468,15 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _advanceKiosk(direction) { this._setKioskSlide(this._kioskSlide + direction); }
 
   _updateSettingsSceneGeometry(profile) {
+    this._settingsGeometryProfile = profile;
+    if (this._settingsGeometryFrame) return;
+    this._settingsGeometryFrame = requestAnimationFrame(() => {
+      this._settingsGeometryFrame = null;
+      this._applySettingsSceneGeometry(this._settingsGeometryProfile);
+    });
+  }
+
+  _applySettingsSceneGeometry(profile) {
     const model = this._flowSceneModel(profile);
     const nodes = Object.fromEntries(model.nodes.map(item => [item.key, item]));
     this.shadowRoot.querySelectorAll("[data-scene-node]").forEach(element => {
@@ -3251,16 +3485,17 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       element.style.setProperty("--scene-x", `${node.x}%`);
       element.style.setProperty("--scene-y", `${node.y}%`);
     });
-    model.connections.forEach(connection => {
-      const path = this._sceneConnectionPath(connection, nodes);
+    const visibleConnections = model.connections.filter(connection => connection.visible !== false && nodes[connection.from]?.visible !== false && nodes[connection.to]?.visible !== false);
+    const routes = this._sceneConnectionRoutes(visibleConnections, nodes, model.scene);
+    visibleConnections.forEach(connection => {
+      const route = routes[connection.key], path = route?.path || "";
       this.shadowRoot.querySelectorAll("[data-scene-connection]").forEach(element => {
         if (element.dataset.sceneConnection === connection.key) element.querySelectorAll("path").forEach(pathElement => pathElement.setAttribute("d", path));
       });
-      const from = nodes[connection.from], to = nodes[connection.to];
       const label = [...this.shadowRoot.querySelectorAll("[data-scene-connection-label]")].find(element => element.dataset.sceneConnectionLabel === connection.key);
-      if (from && to && label) {
-        label.style.setProperty("--label-x", `${(Number(from.x) + Number(to.x)) / 2}%`);
-        label.style.setProperty("--label-y", `${(Number(from.y) + Number(to.y)) / 2}%`);
+      if (route?.labelPoint && label) {
+        label.style.setProperty("--label-x", `${route.labelPoint.x / 10}%`);
+        label.style.setProperty("--label-y", `${route.labelPoint.y / 6}%`);
       }
     });
   }
