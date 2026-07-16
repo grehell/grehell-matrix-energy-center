@@ -1,5 +1,15 @@
 # Changelog
 
+## 8.0.6 — 2026-07-16
+
+- Added a kiosk-only tablet performance mode, enabled by default for the default kiosk and every named kiosk profile.
+- Mounted only the active kiosk slide, so inactive Matrix views and Lovelace iframes no longer consume rendering time or continue loading in the background.
+- Filtered Home Assistant state updates to entities used by the Matrix configuration and limited kiosk live DOM updates to once per second.
+- Deferred Recorder history requests until the Charts slide is active, reduced sparkline redraw frequency and cached flow-scene routing data.
+- Debounced kiosk connection geometry and avoided unchanged DOM writes during live updates.
+- Reduced heavy glows, filters and continuous transition work only inside performance-mode kiosk views.
+- Added a Kiosk settings switch and the temporary `performance=0` URL override; the ordinary panel, editors and native Lovelace card are unchanged.
+
 ## 8.0.5 — 2026-07-16
 
 - Moved the panel and Lovelace modules to release-specific URL paths so reverse proxies and CDNs cannot reuse a previous release under the same resource URL.

@@ -131,6 +131,7 @@ def default_configuration() -> dict[str, Any]:
             "show_consumers_panel": True,
             "show_battery_gauge": False,
             "show_self_sufficiency_gauge": False,
+            "tablet_performance_mode": True,
             "auto_fullscreen": True,
             "lovelace_views": [],
             "show_clock": True,
@@ -403,6 +404,9 @@ class MatrixEnergyStore:
                 "show_battery_gauge": bool(kiosk.get("show_battery_gauge", False)),
                 "show_self_sufficiency_gauge": bool(
                     kiosk.get("show_self_sufficiency_gauge", False)
+                ),
+                "tablet_performance_mode": bool(
+                    kiosk.get("tablet_performance_mode", True)
                 ),
                 "auto_fullscreen": bool(kiosk.get("auto_fullscreen", True)),
                 "lovelace_views": self._validate_kiosk_lovelace_views(
@@ -805,6 +809,9 @@ class MatrixEnergyStore:
                     ),
                     "show_self_sufficiency_gauge": bool(
                         item.get("show_self_sufficiency_gauge", False)
+                    ),
+                    "tablet_performance_mode": bool(
+                        item.get("tablet_performance_mode", True)
                     ),
                     "auto_fullscreen": bool(item.get("auto_fullscreen", True)),
                     "lovelace_views": self._validate_kiosk_lovelace_views(

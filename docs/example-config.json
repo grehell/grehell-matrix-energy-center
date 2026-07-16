@@ -443,6 +443,7 @@
     "show_consumers_panel": true,
     "show_battery_gauge": false,
     "show_self_sufficiency_gauge": false,
+    "tablet_performance_mode": true,
     "auto_fullscreen": true,
     "lovelace_views": [
       {
@@ -517,6 +518,7 @@
       "show_consumers_panel": true,
       "show_battery_gauge": false,
       "show_self_sufficiency_gauge": false,
+      "tablet_performance_mode": true,
       "auto_fullscreen": true,
       "lovelace_views": [],
       "show_clock": true,

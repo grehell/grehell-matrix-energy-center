@@ -225,6 +225,26 @@ assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not b
 const kioskConfigHtml = panel._renderKioskConfiguration();
 assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
 assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
+assert(kioskConfigHtml.includes("Tryb wydajny tabletu"), "tablet performance setting is missing");
+
+panel._view = "kiosk";
+panel._config.kiosk.tablet_performance_mode = true;
+panel._kioskSlide = 0;
+const performanceFlowHtml = panel._renderKiosk();
+assert(performanceFlowHtml.includes("tablet-performance"), "tablet performance class is missing");
+assert(performanceFlowHtml.includes('data-flow-scene'), "active flow slide must still be rendered");
+assert(!performanceFlowHtml.includes('src="/dashboard-home/lights"'), "inactive iframe must not load in tablet performance mode");
+panel._kioskSlide = 1;
+const performanceLovelaceHtml = panel._renderKiosk();
+assert(performanceLovelaceHtml.includes('src="/dashboard-home/lights"'), "active Lovelace slide must load in tablet performance mode");
+assert(!performanceLovelaceHtml.includes('data-flow-scene'), "inactive flow scene must not stay mounted in tablet performance mode");
+
+const homeState = { state: "100", attributes: {} };
+panel._config.mappings.home_power = "sensor.home";
+panel._relevantEntityCache = null;
+assert(!panel._hasRelevantStateChange({ "sensor.home": homeState, "sensor.other": { state: "1" } }, { "sensor.home": homeState, "sensor.other": { state: "2" } }), "unrelated HA states must not refresh the kiosk");
+assert(panel._hasRelevantStateChange({ "sensor.home": homeState }, { "sensor.home": { state: "101", attributes: {} } }), "a configured entity must refresh the kiosk");
+panel._view = "overview";
 
 const viewportBody = { scrollTop: 0 };
 let viewportFocused = false;

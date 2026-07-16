@@ -1,4 +1,15 @@
-# Status projektu v8.0.5
+# Status projektu v8.0.6
+
+## Najważniejsze zmiany v8.0.6
+
+- tryb wydajny działa wyłącznie pod adresem kiosku `?kiosk=...` i jest domyślnie włączony,
+- w drzewie strony pozostaje tylko aktywny slajd; nieaktywne diagramy, wykresy i osadzone pulpity Lovelace nie obciążają tabletu,
+- zmiany stanów encji nieużywanych w konfiguracji Matrix są pomijane,
+- aktualizacja wartości w kiosku odbywa się najwyżej raz na sekundę, a sparkline jest przerysowywany najwyżej raz na pięć sekund,
+- dane Recorder są pobierane dopiero na aktywnym slajdzie Wykresy,
+- model sceny jest buforowany, a przeliczanie geometrii linii opóźnione i łączone w jedną operację,
+- ciężkie poświaty, filtry i przejścia są uproszczone tylko w kiosku; panel główny, edytory i natywna karta Lovelace pozostają bez zmian,
+- tryb można wyłączyć dla profilu w panelu **Kiosk** albo jednorazowo parametrem `&performance=0`.
 
 ## Najważniejsze zmiany v8.0.5
 
@@ -92,7 +103,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.5
+## Świadome ograniczenia v8.0.6
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -104,7 +115,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.5`, wykonać pełny restart Home Assistant i sprawdzić w źródle strony ścieżkę `/matrix_energy_center_static_v8_0_5/`.
+1. Zainstalować wydanie `v8.0.6`, wykonać pełny restart Home Assistant i sprawdzić w źródle strony ścieżkę `/matrix_energy_center_static_v8_0_6/`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

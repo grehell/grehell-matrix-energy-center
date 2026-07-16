@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.0.5 technical preview**. Frontend modules use release-specific paths and short-lived delivery, so local and externally proxied Home Assistant addresses load the same release. Flow routes are recalculated from the real tablet canvas and complete measured bubble boxes.
+> Status: **v8.0.6 technical preview**. Kiosk profiles use a tablet performance mode by default: only the active slide is mounted, live updates are throttled and expensive visual effects are reduced. The ordinary panel, editors and native Lovelace card keep their existing behavior.
 
 ## Main features
 
@@ -33,6 +33,7 @@
 - Drag-and-drop bubble/chart ordering in the Widgets editor.
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
 - Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
+- Kiosk-only tablet performance mode with lazy slide mounting, relevant-entity state filtering, a one-second live-update ceiling, deferred Recorder queries and lighter glow/animation effects.
 - Per-screen flow editor with a fixed Matrix background and a reset command scoped only to the selected screen.
 - Per-flow-bubble width, height, frame/background/text/icon colors, icon/emoji size, custom MDI icon or pasted emoji and up to eight additional entity/attribute fields.
 - Copy a selected flow tile's complete appearance between Summary, Flows and kiosk profiles; optionally copy its size and position as well.
@@ -92,7 +93,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 8.0.5 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
+Version 8.0.6 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -220,8 +221,8 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v8.0.5 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v8.0.5 (PL)](docs/RELEASE_8_0_5_PL.md)
+- [Status wersji v8.0.6 (PL)](docs/STATUS_PL.md)
+- [Informacje o wydaniu v8.0.6 (PL)](docs/RELEASE_8_0_6_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

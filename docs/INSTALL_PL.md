@@ -207,7 +207,7 @@ Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Za
 
 ## Karta przepływów w trybie kiosk
 
-### Natywna karta Lovelace v8.0.5
+### Natywna karta Lovelace v8.0.6
 
 Po instalacji lub aktualizacji uruchom ponownie Home Assistant. Następnie:
 
@@ -244,6 +244,7 @@ W osobnym panelu **Kiosk** można ustawić konfigurację domyślną oraz osobne 
 - czas rotacji oraz ręczne przełączanie slajdów,
 - nazwane zakładki w górnym nagłówku i zmianę ekranu gestem w poziomie,
 - kolejność, skalę, przesunięcie, margines, tło i ramkę każdego osadzonego pulpitu Lovelace,
+- tryb wydajny tabletu, który utrzymuje tylko aktywny slajd, ogranicza odświeżanie i upraszcza ciężkie efekty wyłącznie w kiosku,
 - harmonogram nocny i jasność nocną.
 
 Przycisk **Otwórz kartę kiosk** przełącza panel na widok monitoringu bez głównego menu, bocznego paska, dolnego paska statusu i pasków przewijania. Nawigacja slajdów znajduje się w edytowalnym nagłówku. Przycisk **Pełny ekran** uruchamia przeglądarkowy tryb pełnoekranowy. **Wyjdź** wraca do podsumowania i opuszcza pełny ekran. Widok kiosk korzysta z tej samej konfiguracji stringów PV, urządzeń, kolorów i przepływów co główny panel.
@@ -256,9 +257,15 @@ Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
 /matrix-energy-center?kiosk=salon
 ```
 
+Tryb wydajny jest domyślnie włączony dla istniejących i nowych profili kiosku. Można go wyłączyć w ustawieniach wybranego profilu. Do jednorazowego porównania pełnych efektów bez zmiany konfiguracji dopisz do adresu `&performance=0`, na przykład:
+
+```text
+/matrix-energy-center?kiosk=salon&performance=0
+```
+
 Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
 
-## Aktualizacja do v8.0.5
+## Aktualizacja do v8.0.6
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -268,7 +275,7 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie otwórz osobny panel **Kiosk** i skonfiguruj zakładki profili.
 
-Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Od v8.0.5 panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. Dzięki temu adres lokalny i adres przez Cloudflare nie powinny już uruchamiać dwóch różnych wydań. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
+Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a każdy profil otrzymuje domyślnie włączony tryb wydajny. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. W v8.0.6 prawidłowa ścieżka zaczyna się od `/matrix_energy_center_static_v8_0_6/`. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
 
 ## Usuwanie
 
