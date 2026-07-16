@@ -1,4 +1,12 @@
-# Status projektu v8.0.4
+# Status projektu v8.0.5
+
+## Najważniejsze zmiany v8.0.5
+
+- moduły panelu i karty Lovelace są rejestrowane pod ścieżką zawierającą pełną wersję wydania, np. `/matrix_energy_center_static_v8_0_5/...`,
+- Home Assistant nie dodaje już długiego cache do plików frontendowych Matrix,
+- zachowano zgodny wstecznie adres `/matrix_energy_center_static/...`, ale również bez długiego cache,
+- ręcznie dodany zasób Lovelace nie jest wymagany, ponieważ integracja rejestruje kartę automatycznie,
+- zewnętrzny adres przez reverse proxy lub Cloudflare nie powinien już pozostawać na starej wersji po aktualizacji i restarcie Home Assistant.
 
 ## Najważniejsze zmiany v8.0.4
 
@@ -84,7 +92,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.4
+## Świadome ograniczenia v8.0.5
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -96,7 +104,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.4`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.5`, wykonać pełny restart Home Assistant i sprawdzić w źródle strony ścieżkę `/matrix_energy_center_static_v8_0_5/`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

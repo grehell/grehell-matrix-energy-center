@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.0.4 technical preview**. Flow routes are recalculated from the real tablet canvas and complete measured bubble boxes. Live edits update only the preview, so the Settings inspector and bubble dialog remain in place.
+> Status: **v8.0.5 technical preview**. Frontend modules use release-specific paths and short-lived delivery, so local and externally proxied Home Assistant addresses load the same release. Flow routes are recalculated from the real tablet canvas and complete measured bubble boxes.
 
 ## Main features
 
@@ -92,7 +92,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 8.0.4 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 8.0.5 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -220,8 +220,8 @@ Other domains will receive dedicated adapters in later versions.
 - [TAURON G13 configuration (PL)](docs/TAURON_G13_PL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Status wersji v8.0.4 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v8.0.4 (PL)](docs/RELEASE_8_0_4_PL.md)
+- [Status wersji v8.0.5 (PL)](docs/STATUS_PL.md)
+- [Informacje o wydaniu v8.0.5 (PL)](docs/RELEASE_8_0_5_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

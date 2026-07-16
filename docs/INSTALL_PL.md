@@ -207,9 +207,9 @@ Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Za
 
 ## Karta przepływów w trybie kiosk
 
-### Natywna karta Lovelace v8.0.4
+### Natywna karta Lovelace v8.0.5
 
-Po instalacji lub aktualizacji uruchom ponownie Home Assistant i wykonaj `Ctrl+F5`. Następnie:
+Po instalacji lub aktualizacji uruchom ponownie Home Assistant. Następnie:
 
 1. Otwórz docelowy pulpit i wybierz **Edytuj pulpit**.
 2. Dodaj kartę **Ręcznie**.
@@ -258,7 +258,7 @@ Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
 
 Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
 
-## Aktualizacja do v8.0.4
+## Aktualizacja do v8.0.5
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -268,7 +268,7 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie otwórz osobny panel **Kiosk** i skonfiguruj zakładki profili.
 
-Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant oraz twarde odświeżenie panelu (`Ctrl+F5`), ponieważ v8.0.4 zawiera poprawiony plik frontendowy i nowy klucz pamięci podręcznej. Linie są przeliczane po wyrenderowaniu oraz zmianie rozmiaru ekranu, a edycja pól nie przewija już prawego inspektora ani okna dymku na początek.
+Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Od v8.0.5 panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. Dzięki temu adres lokalny i adres przez Cloudflare nie powinny już uruchamiać dwóch różnych wydań. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
 
 ## Usuwanie
 

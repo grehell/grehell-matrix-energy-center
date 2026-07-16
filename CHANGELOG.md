@@ -1,5 +1,12 @@
 # Changelog
 
+## 8.0.5 — 2026-07-16
+
+- Moved the panel and Lovelace modules to release-specific URL paths so reverse proxies and CDNs cannot reuse a previous release under the same resource URL.
+- Disabled Home Assistant's long-lived cache headers for Matrix frontend files.
+- Retained the legacy static URL without long-lived caching for compatibility with older manually registered Lovelace resources.
+- Added repository checks for the versioned route, cache policy and query-string-free module registration.
+
 ## 8.0.4 — 2026-07-16
 
 - Fixed flow routing on tablets by recalculating every path from the live DOM canvas width and height after layout and after each resize.

@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.4"
+    assert manifest["version"] == "8.0.5"
 
 
 def test_hacs_manifest() -> None:
@@ -40,7 +40,15 @@ def test_native_lovelace_flow_card() -> None:
     assert "`${MATRIX_DOMAIN}/config/get`" in frontend
     assert "add_extra_js_url(hass, CARD_MODULE_URL)" in integration
     assert "remove_extra_js_url(hass, card_url)" in integration
-    assert 'module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v={VERSION}"' in integration
+    assert 'module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js"' in integration
+    assert "StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), False)" in integration
+    assert "PANEL_STATIC_LEGACY_URL" in integration
+    assert "str(frontend_dir),\n                    False," in integration
+    constants = (COMPONENT / "const.py").read_text()
+    assert 'PANEL_STATIC_LEGACY_URL = "/matrix_energy_center_static"' in constants
+    assert 'PANEL_STATIC_URL = f"{PANEL_STATIC_LEGACY_URL}_v{VERSION.replace' in constants
+    assert 'CARD_MODULE_URL = f"{PANEL_STATIC_URL}/matrix-energy-flow-card.js"' in constants
+    assert "?v=" not in constants
     assert "flow_element_styles" in frontend
     assert "flow_node_positions" in frontend
     assert "data-flow-action" in frontend

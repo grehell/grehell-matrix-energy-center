@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "matrix_energy_center"
 NAME = "Matrix Energy Center"
-VERSION = "8.0.4"
+VERSION = "8.0.5"
 
 PLATFORMS = ["sensor"]
 
@@ -18,8 +18,11 @@ STORAGE_VERSION = 1
 
 PANEL_URL_PATH = "matrix-energy-center"
 PANEL_COMPONENT = "matrix-energy-center-panel"
-PANEL_STATIC_URL = "/matrix_energy_center_static"
-CARD_MODULE_URL = f"{PANEL_STATIC_URL}/matrix-energy-flow-card.js?v={VERSION}"
+PANEL_STATIC_LEGACY_URL = "/matrix_energy_center_static"
+# Keep the release in the path, not only in a query string. Some reverse proxies
+# and CDN configurations ignore query parameters when building their cache key.
+PANEL_STATIC_URL = f"{PANEL_STATIC_LEGACY_URL}_v{VERSION.replace('.', '_')}"
+CARD_MODULE_URL = f"{PANEL_STATIC_URL}/matrix-energy-flow-card.js"
 PANEL_TITLE = "Energy Center"
 PANEL_ICON = "mdi:transmission-tower"
 

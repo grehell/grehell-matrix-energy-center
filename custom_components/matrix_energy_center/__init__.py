@@ -26,6 +26,7 @@ from .const import (
     DOMAIN,
     PANEL_COMPONENT,
     PANEL_ICON,
+    PANEL_STATIC_LEGACY_URL,
     PANEL_STATIC_URL,
     PANEL_TITLE,
     PANEL_URL_PATH,
@@ -129,7 +130,21 @@ async def _async_register_frontend(
     frontend_dir = Path(__file__).parent / "frontend"
     if not domain_data.get("static_registered"):
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), True)]
+            [
+                # The versioned route prevents a reverse proxy from serving an
+                # older release under the same URL. Cache headers stay disabled
+                # because both files are small and correctness matters more than
+                # a long-lived browser/CDN cache for this custom frontend.
+                StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), False),
+                # Preserve old/manual Lovelace resource URLs. This alias also
+                # avoids long-lived caching, so existing installations recover
+                # without removing the integration first.
+                StaticPathConfig(
+                    PANEL_STATIC_LEGACY_URL,
+                    str(frontend_dir),
+                    False,
+                ),
+            ]
         )
         domain_data["static_registered"] = True
 
@@ -144,7 +159,7 @@ async def _async_register_frontend(
         webcomponent_name=PANEL_COMPONENT,
         sidebar_title=config["general"].get("panel_title", PANEL_TITLE),
         sidebar_icon=PANEL_ICON,
-        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js?v={VERSION}",
+        module_url=f"{PANEL_STATIC_URL}/matrix-energy-center-panel.js",
         embed_iframe=False,
         require_admin=False,
         config={"domain": DOMAIN},
