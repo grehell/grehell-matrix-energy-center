@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.7.0"
+    assert manifest["version"] == "8.0.0"
 
 
 def test_hacs_manifest() -> None:
@@ -105,7 +105,7 @@ def test_frontend_features() -> None:
     assert "kiosk-lovelace-slide" in frontend
     assert "auto_fullscreen" in frontend
     assert "tap_action" in frontend
-    assert "NOWY EDYTOR V0.7" in frontend
+    assert "EDYTOR V8.0" in frontend
     assert "data-flow-scene" in frontend
     assert "scene-connection-flow" in frontend
     assert "_sceneConnectionState" in frontend
@@ -116,11 +116,16 @@ def test_frontend_features() -> None:
     assert "forward_color" in frontend
     assert "reverse_color" in frontend
     assert "unavailable_color" in frontend
+    assert "name_size" in frontend
+    assert "status_size" in frontend
+    assert "slide_headers" in frontend
+    assert "kiosk-slide-header" in frontend
+    assert "_normalizeHaViewPath" in frontend
 
 
-def test_configuration_schema_v7() -> None:
+def test_configuration_schema_v8() -> None:
     storage = (COMPONENT / "storage.py").read_text()
-    assert '"schema_version": 7' in storage
+    assert '"schema_version": 8' in storage
     assert '"status_entity"' in storage
     assert '"show_on_overview"' in storage
     assert '"show_in_flow"' in storage
@@ -158,11 +163,14 @@ def test_configuration_schema_v7() -> None:
     assert '"reverse_color"' in storage
     assert '"direction_source"' in storage
     assert '"label_background"' in storage
+    assert '"slide_headers"' in storage
+    assert '"name_size"' in storage
+    assert '"clock_size"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
     example = json.loads((ROOT / "docs" / "example-config.json").read_text())
-    assert example["schema_version"] == 7
+    assert example["schema_version"] == 8
     assert len(example["pv_strings"]) >= 2
     assert all(item["show_in_flow"] for item in example["pv_strings"][:2])
     assert example["devices"][0]["show_in_flow"] is True
@@ -197,12 +205,18 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["show_battery_gauge"] is False
     assert example["kiosk"]["show_self_sufficiency_gauge"] is False
     assert example["kiosk"]["auto_fullscreen"] is True
+    assert example["kiosk"]["show_status"] is False
+    assert "flow" in example["kiosk"]["slide_headers"]
+    assert example["kiosk"]["slide_headers"]["flow"]["show_navigation"] is True
     assert example["kiosk"]["lovelace_views"][0]["path"].startswith("/")
+    assert example["flow"]["flow_element_styles"]["home"]["name_size"] == 10
+    assert example["flow"]["flow_element_styles"]["home"]["value_size"] == 22
     assert example["overview_bubbles"][0]["border_radius"] == 16
     assert example["overview_bubbles"][0]["border_width"] == 2
     assert example["overview_bubbles"][0]["value_color"] == "#b8ff3d"
     assert example["overview_bubbles"][0]["related_entities"][0]["value_size"] == 10
     assert example["kiosk_profiles"][0]["id"] == "salon"
+    assert example["kiosk_profiles"][0]["show_status"] is False
 
 
 def test_flow_scene_runtime_rules() -> None:

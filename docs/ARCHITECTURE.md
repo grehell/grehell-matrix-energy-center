@@ -24,7 +24,7 @@ The standard Home Assistant config flow creates one installation entry. It conta
 - multi-series charts, history ranges and click actions,
 - default kiosk settings and named kiosk profiles.
 
-Configuration schema version 7 adds independent responsive `flow_scene` documents for Summary, Flows, the default kiosk and every named kiosk profile. Each scene stores canvas properties, percentage-based nodes and directional SVG-connection rules. Existing schema-v1–v6 data is deep-merged with the new defaults during load. The backend validates entity IDs, hexadecimal colors, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
+Configuration schema version 8 adds independent kiosk `slide_headers` and flow-bubble typography on top of the responsive `flow_scene` documents introduced by schema v7. Existing schema-v1–v7 data is deep-merged with the new defaults during load. The backend validates entity IDs, hexadecimal colors, text lengths, choices, dates, time values, numeric ranges and list sizes before saving.
 
 ### 3. Tariff engine
 

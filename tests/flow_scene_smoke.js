@@ -6,8 +6,9 @@ let Panel;
 const context = {
   HTMLElement: class { attachShadow() { this.shadowRoot = {}; } },
   customElements: { define: (_name, cls) => { Panel = cls; } },
-  window: { location: { search: "" } },
+  window: { location: { search: "", origin: "https://ha.example", pathname: "/matrix-energy-center" }, history: { pushState: () => {} }, dispatchEvent: () => {} },
   URLSearchParams,
+  URL,
   console,
   setInterval,
   clearInterval,
@@ -38,7 +39,7 @@ panel._config = {
   mappings: {},
   flow: { title: "TEST", show_pv_strings: true, show_devices: true, max_pv_strings: 6, max_devices: 6, flow_scene: scene(), flow_element_styles: {} },
   overview: { flow_scene: scene(), flow_element_styles: {} },
-  kiosk: { flow_scene: scene(), flow_element_styles: {} },
+  kiosk: { title: "ENERGIA", flow_scene: scene(), flow_element_styles: {}, slide_headers: {}, lovelace_views: [], builtin_bubble_ids: ["home", "pv", "grid"], rotate_flow: true, rotate_charts: false, rotate_overview: true, show_builtin_bubbles: true, show_custom_bubbles: false },
   pv_strings: [], devices: [], overview_bubbles: [], overview_charts: [], kiosk_profiles: [],
   permissions: { show_configuration_to_non_admin: false }, automation: { enabled: false },
 };
@@ -81,6 +82,7 @@ panel._config.kiosk.flow_scene.elements.home = { x: 82, y: 42, width: 150, heigh
 assert(panel._flowSceneModel(panel._config.kiosk).byKey.home.x === 82, "kiosk scene must be independent");
 
 panel._config.flow.flow_scene.connections.link_grid = { label: "IMPORT / EKSPORT", label_color: "#abcdef", forward_color: "#112233", reverse_color: "#445566" };
+panel._config.flow.flow_element_styles.home = { name_size: 14, value_size: 25, unit_size: 10, status_size: 8 };
 model = panel._flowSceneModel(panel._config.flow);
 assert(connection("link_grid").label === "IMPORT / EKSPORT", "custom connection label must be rendered");
 assert(connection("link_grid").forward_color === "#112233", "custom forward color must be retained");
@@ -90,4 +92,18 @@ assert(html.includes('data-scene-node="home"'), "home node missing from renderer
 assert(html.includes('data-scene-connection="link_grid"'), "grid connection missing from renderer");
 assert(html.includes("scene-connection-flow"), "animated direction layer missing");
 assert(html.includes("IMPORT / EKSPORT"), "custom line label missing from renderer");
+assert(html.includes("--scene-name-size:14px"), "custom node name font size missing");
+assert(html.includes("--scene-value-size:25px"), "custom node value font size missing");
+
+const sameOrigin = panel._normalizeHaViewPath("https://ha.example/dashboard-energy/home?kiosk=1#top");
+assert(sameOrigin.path === "/dashboard-energy/home?kiosk=1#top" && !sameOrigin.error, "same-origin HA URL must become a local path");
+assert(panel._normalizeHaViewPath("dashboard-energy/home").path === "/dashboard-energy/home", "path without slash must be normalized");
+assert(Boolean(panel._normalizeHaViewPath("https://other.example/dashboard").error), "foreign origin must be rejected");
+
+panel._config.kiosk.slide_headers.flow = { ...panel._defaultKioskHeader(panel._kioskHeaderDefinitions(panel._config.kiosk)[0]), title: "MÓJ PRZEPŁYW", height: 74, show_navigation: true };
+const kioskHtml = panel._renderKiosk();
+assert(kioskHtml.includes("kiosk-slide-header"), "per-slide kiosk header missing");
+assert(kioskHtml.includes("MÓJ PRZEPŁYW"), "custom flow-slide title missing");
+assert(kioskHtml.includes("kiosk-header-navigation"), "navigation must be inside the kiosk header");
+assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not be rendered");
 console.log("flow scene rules ok");

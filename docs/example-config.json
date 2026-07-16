@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "revision": 1,
   "general": {
     "installation_name": "Example Home",
@@ -294,14 +294,23 @@
     "show_devices": true,
     "show_labels": true,
     "show_values": true,
-    "show_status": true,
+    "show_status": false,
     "show_connectors": true,
     "hide_inactive_devices": false,
     "max_pv_strings": 6,
     "max_devices": 6,
     "branch_gap": 12,
     "flow_node_positions": {},
-    "flow_element_styles": {},
+    "flow_element_styles": {
+      "home": {
+        "appearance_enabled": false,
+        "name_size": 10,
+        "value_size": 22,
+        "unit_size": 8,
+        "status_size": 7,
+        "extra_fields": []
+      }
+    },
     "flow_scene": {
       "canvas_height": 620,
       "show_grid": true,
@@ -388,6 +397,30 @@
       "elements": {},
       "connections": {}
     },
+    "slide_headers": {
+      "flow": {
+        "enabled": true,
+        "eyebrow": "MATRIX ENERGY CENTER",
+        "title": "PRZEPŁYW ENERGII",
+        "description": "Example Home",
+        "icon": "mdi:transit-connection-variant",
+        "show_icon": false,
+        "height": 64,
+        "background_color": "#03182d",
+        "border_color": "#20eaff",
+        "accent_color": "#20eaff",
+        "title_color": "#eefaff",
+        "description_color": "#6e98a8",
+        "eyebrow_size": 8,
+        "title_size": 18,
+        "description_size": 8,
+        "clock_size": 17,
+        "show_clock": true,
+        "show_navigation": true,
+        "show_fullscreen": true,
+        "show_exit": true
+      }
+    },
     "flow_offset_x": 0,
     "flow_offset_y": -30,
     "flow_scale": 100,
@@ -408,7 +441,7 @@
     "show_builtin_bubbles": true,
     "show_custom_bubbles": true,
     "show_charts": true,
-    "show_status": true,
+    "show_status": false,
     "flow_height": "tall",
     "bubble_selection": "all",
     "bubble_ids": [],
@@ -452,6 +485,7 @@
         "elements": {},
         "connections": {}
       },
+      "slide_headers": {},
       "flow_offset_x": 0,
       "flow_offset_y": -30,
       "flow_scale": 100,
@@ -465,7 +499,7 @@
       "show_builtin_bubbles": true,
       "show_custom_bubbles": true,
       "show_charts": true,
-      "show_status": true,
+      "show_status": false,
       "flow_height": "tall",
       "bubble_selection": "all",
       "bubble_ids": [],

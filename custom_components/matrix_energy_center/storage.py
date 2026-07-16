@@ -45,7 +45,7 @@ def default_flow_scene(canvas_height: int = 620) -> dict[str, Any]:
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 7,
+        "schema_version": 8,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -121,6 +121,7 @@ def default_configuration() -> dict[str, Any]:
             "flow_node_positions": {},
             "flow_element_styles": {},
             "flow_scene": default_flow_scene(460),
+            "slide_headers": {},
             "flow_offset_x": 0,
             "flow_offset_y": -30,
             "flow_scale": 100,
@@ -133,7 +134,7 @@ def default_configuration() -> dict[str, Any]:
             "show_clock": True,
             "show_builtin_bubbles": True,
             "show_custom_bubbles": True,
-            "show_status": True,
+            "show_status": False,
             "flow_height": "tall",
             "show_charts": True,
             "bubble_selection": "all",
@@ -249,7 +250,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 7
+        config["schema_version"] = 8
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -383,6 +384,9 @@ class MatrixEnergyStore:
                     kiosk.get("flow_element_styles", {})
                 ),
                 "flow_scene": self._validate_flow_scene(kiosk.get("flow_scene", {}), 460),
+                "slide_headers": self._validate_kiosk_slide_headers(
+                    kiosk.get("slide_headers", {})
+                ),
                 "flow_offset_x": int(
                     self._number(kiosk.get("flow_offset_x"), 0, -400, 400)
                 ),
@@ -405,7 +409,7 @@ class MatrixEnergyStore:
                 "show_clock": bool(kiosk.get("show_clock", True)),
                 "show_builtin_bubbles": bool(kiosk.get("show_builtin_bubbles", True)),
                 "show_custom_bubbles": bool(kiosk.get("show_custom_bubbles", True)),
-                "show_status": bool(kiosk.get("show_status", True)),
+                "show_status": False,
                 "flow_height": self._choice(
                     kiosk.get("flow_height"), "tall", {"standard", "tall", "full"}
                 ),
@@ -763,6 +767,9 @@ class MatrixEnergyStore:
                         item.get("flow_element_styles", {})
                     ),
                     "flow_scene": self._validate_flow_scene(item.get("flow_scene", {}), 460),
+                    "slide_headers": self._validate_kiosk_slide_headers(
+                        item.get("slide_headers", {})
+                    ),
                     "flow_offset_x": int(
                         self._number(item.get("flow_offset_x"), 0, -400, 400)
                     ),
@@ -789,7 +796,7 @@ class MatrixEnergyStore:
                     "show_clock": bool(item.get("show_clock", True)),
                     "show_builtin_bubbles": bool(item.get("show_builtin_bubbles", True)),
                     "show_custom_bubbles": bool(item.get("show_custom_bubbles", True)),
-                    "show_status": bool(item.get("show_status", True)),
+                    "show_status": False,
                     "flow_height": self._choice(
                         item.get("flow_height"), "tall", {"standard", "tall", "full"}
                     ),
@@ -988,6 +995,15 @@ class MatrixEnergyStore:
                         "decimals": int(self._number(field.get("decimals"), 1, 0, 6)),
                         "multiplier": self._number(field.get("multiplier"), 1, -1_000_000, 1_000_000),
                         "color": self._color(field.get("color"), "#8eb5c3"),
+                        "label_size": int(
+                            self._number(field.get("label_size"), 6, 5, 24)
+                        ),
+                        "value_size": int(
+                            self._number(field.get("value_size"), 9, 6, 36)
+                        ),
+                        "unit_size": int(
+                            self._number(field.get("unit_size"), 6, 5, 24)
+                        ),
                         "enabled": bool(field.get("enabled", True)),
                     }
                 )
@@ -1008,6 +1024,10 @@ class MatrixEnergyStore:
                 "icon": self._text(value.get("icon"), "", 100),
                 "image_url": image_url,
                 "icon_size": int(self._number(value.get("icon_size"), 32, 10, 120)),
+                "name_size": int(self._number(value.get("name_size"), 9, 6, 32)),
+                "value_size": int(self._number(value.get("value_size"), 18, 8, 56)),
+                "unit_size": int(self._number(value.get("unit_size"), 7, 5, 28)),
+                "status_size": int(self._number(value.get("status_size"), 7, 5, 28)),
                 "line_color": self._color(value.get("line_color"), base_color),
                 "line_thickness": int(self._number(value.get("line_thickness"), 3, 1, 14)),
                 "extra_fields": extra_fields,
@@ -1018,6 +1038,49 @@ class MatrixEnergyStore:
                 "navigation_path": self._text(value.get("navigation_path"), "", 500),
                 "service": self._text(value.get("service"), "", 150),
                 "service_data": self._text(value.get("service_data"), "{}", 4000),
+            }
+        return result
+
+    def _validate_kiosk_slide_headers(self, raw: Any) -> dict[str, dict[str, Any]]:
+        """Validate independent visual headers for kiosk slides."""
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[str, dict[str, Any]] = {}
+        for index, (raw_key, value) in enumerate(raw.items()):
+            if index >= 24:
+                break
+            if not isinstance(value, dict):
+                continue
+            key = self._identifier(raw_key, f"slide_{index + 1}")
+            result[key] = {
+                "enabled": bool(value.get("enabled", True)),
+                "eyebrow": self._text(value.get("eyebrow"), "MATRIX ENERGY CENTER", 80),
+                "title": self._text(value.get("title"), "", 100),
+                "description": self._text(value.get("description"), "", 180),
+                "icon": self._text(value.get("icon"), "mdi:lightning-bolt", 100),
+                "show_icon": bool(value.get("show_icon", False)),
+                "height": int(self._number(value.get("height"), 64, 44, 180)),
+                "background_color": self._color(
+                    value.get("background_color"), "#03182d"
+                ),
+                "border_color": self._color(value.get("border_color"), "#20eaff"),
+                "accent_color": self._color(value.get("accent_color"), "#20eaff"),
+                "title_color": self._color(value.get("title_color"), "#eefaff"),
+                "description_color": self._color(
+                    value.get("description_color"), "#6e98a8"
+                ),
+                "eyebrow_size": int(
+                    self._number(value.get("eyebrow_size"), 8, 6, 20)
+                ),
+                "title_size": int(self._number(value.get("title_size"), 18, 9, 42)),
+                "description_size": int(
+                    self._number(value.get("description_size"), 8, 6, 24)
+                ),
+                "clock_size": int(self._number(value.get("clock_size"), 17, 9, 40)),
+                "show_clock": bool(value.get("show_clock", True)),
+                "show_navigation": bool(value.get("show_navigation", True)),
+                "show_fullscreen": bool(value.get("show_fullscreen", True)),
+                "show_exit": bool(value.get("show_exit", True)),
             }
         return result
 

@@ -1,6 +1,14 @@
-# Status projektu v0.7.0
+# Status projektu v8.0.0
 
-## Najważniejsze zmiany v0.7
+## Najważniejsze zmiany v8.0.0
+
+- kiosk nie ma już dolnego paska statusu ani dolnej nawigacji,
+- strzałki i wskaźniki slajdów są umieszczone na środku nagłówka,
+- Przepływ, Wykresy, Podsumowanie i każda strona HA mają osobny edytowalny nagłówek,
+- okno przepływu wykorzystuje pozostałą wysokość aż do dołu ekranu,
+- przewijanie i paski przewijania w natywnych slajdach kiosku są wyłączone,
+- każdy tekst w dymku przepływu ma niezależny rozmiar,
+- pełny adres strony z tego samego HA jest poprawnie normalizowany podczas zapisu,
 
 - stary edytor modalny został zastąpiony nowym panelem głównym **Ustawienia**,
 - konfiguracja encji i danych pozostaje w dotychczasowych panelach, a grafika jest edytowana osobno,
@@ -12,7 +20,7 @@
 - kierunek może wynikać z automatycznego bilansu albo wybranej encji/atrybutu wraz z mnożnikiem i strefą martwą,
 - opisy linii można przeciągać oraz ustawiać ich tekst, kolor, tło, ramkę i rozmiar,
 - reset działa tylko na aktualnie wybrany pulpit,
-- migracja do schematu v7 dodaje nowe sceny bez usuwania istniejących encji, widżetów i profili kiosku.
+- migracja do schematu v8 dodaje nowe sceny i nagłówki bez usuwania istniejących encji, widżetów i profili kiosku.
 
 ## Funkcje zachowane z v0.6
 
@@ -33,7 +41,7 @@
 - profil Galaxy Tab A9 16:9 mieści dolny rząd urządzeń nad nawigacją,
 - natywne slajdy kiosku można zmieniać przeciągnięciem ekranu w bok,
 - kiosk obsługuje automatyczną rotację widoków, ręczne sterowanie i przyciemnianie nocne,
-- konfiguracja jest automatycznie migrowana do schematu v7.
+- konfiguracja jest automatycznie migrowana do schematu v8.
 
 ## Nadal gotowe
 
@@ -48,7 +56,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v0.7.0
+## Świadome ograniczenia v8.0.0
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -60,7 +68,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v0.7.0`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.0`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

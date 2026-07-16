@@ -1,5 +1,17 @@
 # Changelog
 
+## 8.0.0 — 2026-07-16
+
+- Added independent font sizes for each flow-bubble name, main value, unit and status/description.
+- Added independent label, value and unit font sizes for every extra entity field inside a flow bubble.
+- Removed the kiosk bottom status strip and bottom slide navigation.
+- Moved slide arrows and indicators to the center of the kiosk header.
+- Added a separate editable header for Flow, Charts, Overview and every configured Home Assistant/Lovelace slide.
+- Added per-slide header text, icon, height, colors, font sizes, clock, navigation, fullscreen and exit visibility.
+- Made the kiosk flow card consume all remaining viewport height and suppressed kiosk scrollbars.
+- Fixed Home Assistant page embedding by normalizing same-origin absolute URLs and slash-less dashboard paths before saving while rejecting foreign origins.
+- Added schema-v8 migration and runtime tests for kiosk headers, URL normalization and bubble font styles.
+
 ## 0.7.0 — 2026-07-16
 
 - Replaced the old modal flow-layout editor with a dedicated top-level Settings panel.

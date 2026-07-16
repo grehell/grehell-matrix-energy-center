@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.7.0 technical preview**. The live-flow window now uses one responsive scene renderer shared by Summary, Flows, the default kiosk and every named kiosk profile. Each screen stores an independent layout. Monitoring, configuration, the native Lovelace card, Recorder-backed charts, kiosk mode and the TAURON G13 engine remain available. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v8.0.0 technical preview**. The shared live-flow renderer now includes independent bubble fonts and the kiosk uses the complete viewport without its former bottom status/navigation bars. Every kiosk slide has an independently editable header. Monitoring, configuration, the native Lovelace card, Recorder-backed charts and the TAURON G13 engine remain available.
 
 ## Main features
 
@@ -19,6 +19,7 @@
 - SVG connections that automatically follow moved nodes, with direct, curved or orthogonal routing.
 - Per-connection forward, reverse, idle and unavailable colors, direction source, sign convention, deadband, thickness and animation speed.
 - Editable and draggable connection labels with independent text, background, border, size and offset settings.
+- Independent name, value, unit and status font sizes for every flow bubble, plus separate font sizes for each additional entity field.
 - Configurable overview bubbles for any Home Assistant entity or entity attribute.
 - Per-bubble name, description, MDI icon, independent frame/background/icon/name/value/unit/description colors, frame width/radius, sizes, padding, alignment, unit, precision, multiplier, order and session sparkline.
 - A secondary value and up to eight related entities inside one bubble, each with its own label, value and unit colors, size, unit, precision and multiplier.
@@ -33,6 +34,8 @@
 - Per-flow-bubble width, height, frame/background/text/icon colors, icon size, custom MDI or image icon and up to eight additional entity/attribute fields.
 - Per-flow-object tap actions on the overview, Flow dashboard and every kiosk profile: none, more-info, generic toggle, local navigation or an arbitrary Home Assistant service with JSON data.
 - Touch-friendly horizontal kiosk swipe between Matrix slides; buttons, controls, cards and embedded Lovelace frames remain interactive.
+- Per-slide kiosk headers with configurable title, description, icon, height, colors, fonts and visible controls; navigation is centered in the header.
+- Kiosk layout without the bottom status strip or scrollbars; the flow card fills the remaining screen height.
 - Independently selectable built-in kiosk bubbles and summary panels; battery and self-sufficiency gauges are optional.
 - Up to twelve local Lovelace views can be added as kiosk slides and included in automatic rotation.
 - Native `custom:matrix-energy-flow-card` for Lovelace dashboards; no self-iframe or reserved-character URL workaround is required.
@@ -85,7 +88,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 0.7.0 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 8.0.0 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -214,7 +217,7 @@ Other domains will receive dedicated adapters in later versions.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Status wersji v0.7 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v0.7.0 (PL)](docs/RELEASE_0_7_0_PL.md)
+- [Informacje o wydaniu v8.0.0 (PL)](docs/RELEASE_8_0_0_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 
