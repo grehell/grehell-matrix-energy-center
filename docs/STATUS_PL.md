@@ -1,6 +1,20 @@
-# Status projektu v0.6.6
+# Status projektu v0.7.0
 
-## Najważniejsze zmiany względem v0.5
+## Najważniejsze zmiany v0.7
+
+- stary edytor modalny został zastąpiony nowym panelem głównym **Ustawienia**,
+- konfiguracja encji i danych pozostaje w dotychczasowych panelach, a grafika jest edytowana osobno,
+- Podsumowanie, Przepływy, kiosk domyślny i każdy nazwany kiosk zapisują własną scenę `flow_scene`,
+- edytor i docelowy pulpit korzystają z tego samego renderera,
+- wszystkie dymki diagramu można przeciągać, skalować, ukrywać, blokować i ustawiać na osobnych warstwach,
+- linie SVG automatycznie podążają za przesuniętymi dymkami i mogą być proste, łukowe albo prowadzone pod kątem prostym,
+- każda linia ma osobny kolor dla kierunku A→B, B→A, postoju i braku danych,
+- kierunek może wynikać z automatycznego bilansu albo wybranej encji/atrybutu wraz z mnożnikiem i strefą martwą,
+- opisy linii można przeciągać oraz ustawiać ich tekst, kolor, tło, ramkę i rozmiar,
+- reset działa tylko na aktualnie wybrany pulpit,
+- migracja do schematu v7 dodaje nowe sceny bez usuwania istniejących encji, widżetów i profili kiosku.
+
+## Funkcje zachowane z v0.6
 
 - natywna karta Lovelace `custom:matrix-energy-flow-card` zastępuje niedziałające osadzanie panelu przez iframe,
 - moduł karty jest rejestrowany automatycznie przez integrację,
@@ -12,15 +26,14 @@
 - dymki i wykresy obsługują szczegóły encji, nawigację i wywołanie usługi,
 - kolejność kart można zmieniać przeciąganiem,
 - można tworzyć wiele profili kiosk z własnym wyborem dymków i wykresów,
-- pozycje węzłów diagramu i górnych dymków edytuje się w ustawieniach bez przesuwania siatki,
-- osobno przesuwa się też linie, opisy wartości, magistrale i przewody urządzeń,
+- pozycje węzłów diagramu edytuje się bez przesuwania siatki,
 - wszystkie dymki przepływu mają własny rozmiar, kolory, ramkę, ikonę oraz do 8 dodatkowych pól encji,
 - każdy obiekt przepływu może otwierać szczegóły, przełączać encję, nawigować albo wywoływać usługę HA,
 - każdy pulpit i profil kiosku zachowuje własny układ,
 - profil Galaxy Tab A9 16:9 mieści dolny rząd urządzeń nad nawigacją,
 - natywne slajdy kiosku można zmieniać przeciągnięciem ekranu w bok,
 - kiosk obsługuje automatyczną rotację widoków, ręczne sterowanie i przyciemnianie nocne,
-- konfiguracja jest automatycznie migrowana do schematu v6.
+- konfiguracja jest automatycznie migrowana do schematu v7.
 
 ## Nadal gotowe
 
@@ -35,7 +48,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v0.6.6
+## Świadome ograniczenia v0.7.0
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -47,13 +60,14 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v0.6.6`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v0.7.0`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.
 5. Sprawdzić zakres sesyjny, 24 h, 7 dni i 30 dni.
-6. W ustawieniach przeciągnąć osobno dymki, linie, opisy, magistrale i przewody, zapisać i odświeżyć stronę.
-7. Zmienić rozmiar, kolory i ikonę dymku, dodać pole encji oraz sprawdzić akcje `more-info`, `toggle`, nawigację i bezpieczną usługę testową.
-8. Utworzyć dwa profile kiosk z różnymi elementami.
-9. Sprawdzić rotację, gest przeciągnięcia slajdu, porę nocną i pełny ekran.
-10. Sprawdzić panel na desktopie, tablecie i telefonie oraz przejrzeć dziennik Home Assistant i konsolę przeglądarki.
+6. W panelu **Ustawienia** przeciągnąć dymki i opisy linii, zmienić przebieg połączeń, zapisać i odświeżyć stronę.
+7. Sprawdzić cztery stany kolorów linii: przepływ A→B, B→A, postój i brak danych.
+8. Zmienić rozmiar, kolory i ikonę dymku, dodać pole encji oraz sprawdzić akcje `more-info`, `toggle`, nawigację i bezpieczną usługę testową.
+9. Utworzyć dwa profile kiosk z różnymi pozycjami dymków i kolorami linii.
+10. Sprawdzić rotację, gest przeciągnięcia slajdu, porę nocną i pełny ekran.
+11. Sprawdzić panel na desktopie, tablecie i telefonie oraz przejrzeć dziennik Home Assistant i konsolę przeglądarki.

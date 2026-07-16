@@ -109,6 +109,10 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._layoutEditorSnapshot = null;
     this._layoutSelectedElement = "home";
     this._layoutPointerState = null;
+    this._settingsTarget = "overview";
+    this._settingsSelectedKind = "node";
+    this._settingsSelectedKey = "home";
+    this._settingsPointerState = null;
     this._autoFullscreenArmed = false;
     this._dragState = null;
     this._rendered = false;
@@ -217,7 +221,6 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         </footer>`}
       </div>
       ${this._renderEntityPicker()}
-      ${this._renderBubbleLayoutEditor()}
     `;
     this._bindCommonEvents();
     this._bindViewEvents();
@@ -239,6 +242,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       ["pv", "mdi:solar-power-variant", "PV", f.pv],
       ["tariff", "mdi:calendar-clock", "CENY / G13", f.prices],
       ["devices", "mdi:power-plug-outline", "URZĄDZENIA", f.appliances],
+      ["settings", "mdi:palette-outline", "USTAWIENIA", true],
       ["configuration", "mdi:cog-outline", "KONFIGURACJA", true],
       ["diagnostics", "mdi:stethoscope", "DIAGNOSTYKA", true],
     ];
@@ -258,6 +262,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       ["pv", "mdi:white-balance-sunny", "FOTOWOLTAIKA", f.pv],
       ["tariff", "mdi:calendar-clock", "TAURON G13", f.prices],
       ["devices", "mdi:power-socket-eu", "ODBIORNIKI", f.appliances],
+      ["settings", "mdi:palette-swatch-outline", "USTAWIENIA GRAFIKI", true],
       ["configuration", "mdi:tune-variant", "KONFIGURACJA", true],
       ["diagnostics", "mdi:chart-timeline-variant-shimmer", "DIAGNOSTYKA", true],
     ];
@@ -275,6 +280,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       case "pv": return this._renderPv();
       case "tariff": return this._renderTariff();
       case "devices": return this._renderDevices();
+      case "settings": return this._renderSettings();
       case "configuration": return this._renderConfiguration();
       case "diagnostics": return this._renderDiagnostics();
       default: return this._renderOverview();
@@ -492,7 +498,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           <div class="widget-add-actions">
             <button class="primary-btn" data-action="add-overview-bubble" ${disabled}><ha-icon icon="mdi:plus-circle-outline"></ha-icon>DODAJ DYMEK</button>
             <button class="secondary-btn" data-action="add-overview-chart" ${disabled}><ha-icon icon="mdi:chart-line-variant"></ha-icon>DODAJ WYKRES</button>
-            <button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="overview" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ DIAGRAM I DYMKI</button>
+            <button class="secondary-btn" data-settings-target="overview" ${disabled}><ha-icon icon="mdi:palette-outline"></ha-icon>OTWÓRZ USTAWIENIA GRAFIKI</button>
             <button class="secondary-btn" data-action="refresh-recorder"><ha-icon icon="mdi:history"></ha-icon>ODŚWIEŻ HISTORIĘ</button>
           </div>
           ${this._renderKioskSettings(this._config.kiosk || {}, "kiosk", "DOMYŚLNA KARTA KIOSK", -1, disabled)}
@@ -569,7 +575,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       </div>
       <div class="widget-subsection"><b>DODATKOWE WIDOKI LOVELACE</b><small>Lokalne widoki Home Assistant są wyświetlane jako osobne slajdy kiosku i uczestniczą w automatycznej rotacji.</small></div>
       <div class="widget-related-list kiosk-lovelace-list">${lovelaceCards || `<div class="mini-empty">Brak dodatkowych widoków Lovelace.</div>`}<button class="secondary-btn add-related-btn" data-action="add-kiosk-lovelace-view" data-profile-index="${profileIndex}" ${lovelaceViews.length >= 12 ? "disabled" : disabled}><ha-icon icon="mdi:view-dashboard-plus-outline"></ha-icon>DODAJ WIDOK LOVELACE (${lovelaceViews.length}/12)</button></div>
-      <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><div class="kiosk-profile-head-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="kiosk:${profileIndex}" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ DIAGRAM I DYMKI</button><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div></div>
+      <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><div class="kiosk-profile-head-actions"><button class="secondary-btn" data-settings-target="kiosk:${profileIndex}" ${disabled}><ha-icon icon="mdi:palette-outline"></ha-icon>USTAWIENIA GRAFIKI</button><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div></div>
     </div>`;
   }
 
@@ -712,6 +718,164 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         </div>
       </section>
     </div>`;
+  }
+
+  _settingsContext(target = this._settingsTarget) {
+    if (target === "overview") return { target, path: "overview", label: "Podsumowanie", profile: this._config.overview || {} };
+    if (target === "flow") return { target, path: "flow", label: "Przepływy", profile: this._config.flow || {} };
+    if (target === "kiosk:-1") return { target, path: "kiosk", label: "Kiosk domyślny", profile: this._config.kiosk || {} };
+    const match = /^kiosk:(\d+)$/.exec(target || "");
+    if (!match) return null;
+    const index = Number(match[1]), profile = this._config.kiosk_profiles?.[index];
+    return profile ? { target, path: `kiosk_profiles.${index}`, label: profile.name || `Kiosk ${index + 1}`, profile } : null;
+  }
+
+  _ensureFlowScene(profile) {
+    profile.flow_scene ||= {};
+    const scene = profile.flow_scene;
+    scene.canvas_height ??= 620;
+    scene.show_grid ??= true;
+    scene.grid_size ??= 20;
+    scene.snap_to_grid ??= true;
+    scene.background_color ||= "#020b16";
+    scene.border_color ||= "#20eaff";
+    scene.border_width ??= 1;
+    scene.border_radius ??= 16;
+    scene.elements ||= {};
+    scene.connections ||= {};
+    profile.flow_element_styles ||= {};
+    return scene;
+  }
+
+  _flowSceneModel(profile) {
+    const scene = this._ensureFlowScene(profile || {});
+    const flow = { show_pv_strings: true, show_devices: true, max_pv_strings: 6, max_devices: 6, ...(this._config.flow || {}) };
+    const values = this._runtimeValues();
+    const nodes = [];
+    const addNode = (key, label, icon, defaults, details = {}) => {
+      const stored = scene.elements[key] || {};
+      nodes.push({ key, label, icon, ...details, ...defaults, ...stored, visible: stored.visible !== false, locked: stored.locked === true });
+    };
+    addNode("home", "DOM", "mdi:home-lightning-bolt-outline", { x: 50, y: 55, width: 150, height: 150, z_index: 25 }, { live: "home", unit: "kW", accent: "cyan" });
+    if (this._showModule("grid")) addNode("grid", "SIEĆ", "mdi:transmission-tower", { x: 14, y: 55, width: 132, height: 132, z_index: 20 }, { live: "gridSigned", unit: "kW", accent: "purple" });
+    if (this._showModule("pv")) addNode("pv", "PV", "mdi:solar-power", { x: 50, y: 27, width: 132, height: 132, z_index: 20 }, { live: "pv", unit: "kW", accent: "green" });
+    if (this._showModule("battery")) addNode("battery", "MAGAZYN", "mdi:battery-charging-high", { x: 86, y: 55, width: 132, height: 132, z_index: 20 }, { live: "battery", unit: "kW", accent: "lime", extra: `<span data-live="batterySoc">--</span>% SOC` });
+
+    const strings = this._showModule("pv") && flow.show_pv_strings !== false ? (this._config.pv_strings || []).map((item, index) => ({ item, index })).filter(({ item }) => item.enabled !== false && item.show_in_flow !== false).slice(0, Math.max(0, Math.min(16, Number(flow.max_pv_strings || 6)))) : [];
+    const devices = flow.show_devices !== false ? (this._config.devices || []).map((item, index) => ({ item, index })).filter(({ item }) => item.enabled !== false && item.show_in_flow === true).sort((a, b) => Number(a.item.flow_order ?? a.item.priority ?? a.index) - Number(b.item.flow_order ?? b.item.priority ?? b.index)).slice(0, Math.max(0, Math.min(24, Number(flow.max_devices || 6)))) : [];
+    const sources = [...strings.map(({ item, index }) => ({ kind: "string", item, index })), ...devices.filter(({ item }) => item.flow_direction === "source").map(({ item, index }) => ({ kind: "device", item, index }))];
+    const loads = [...(this._showModule("ev") ? [{ kind: "ev", item: {}, index: -1 }] : []), ...devices.filter(({ item }) => item.flow_direction !== "source").map(({ item, index }) => ({ kind: "device", item, index }))];
+    const spacedX = (index, count) => count <= 1 ? 50 : 12 + (76 * index / (count - 1));
+    sources.forEach((entry, order) => {
+      const { kind, item, index } = entry;
+      const key = this._flowNodeKey(`${kind}_${item.id || index + 1}`);
+      const runtime = kind === "string" ? this._pvStringRuntime(item, index) : this._deviceRuntime(item, index);
+      addNode(key, item.flow_label || item.name || `Źródło ${order + 1}`, item.flow_icon || item.icon || "mdi:solar-panel-large", { x: spacedX(order, sources.length), y: 9, width: 132, height: 82, z_index: 20 }, { value: this._kw(runtime.power), unit: "kW", status: runtime.status || item.mppt || item.area || "Źródło", accent: kind === "string" ? "green" : item.accent || "cyan", kind, index });
+    });
+    loads.forEach((entry, order) => {
+      const { kind, item, index } = entry;
+      const key = kind === "ev" ? "ev" : this._flowNodeKey(`device_${item.id || index + 1}`);
+      const runtime = kind === "ev" ? { power: values.ev, status: values.evSoc == null ? "EV" : `${this._num(values.evSoc, 0)}% SOC` } : this._deviceRuntime(item, index);
+      addNode(key, kind === "ev" ? "EV" : item.flow_label || item.name || `Odbiornik ${order + 1}`, kind === "ev" ? "mdi:car-electric" : item.icon || "mdi:flash", { x: spacedX(order, loads.length), y: 89, width: 132, height: 82, z_index: 20 }, { value: this._kw(Math.abs(Number(runtime.power || 0))), unit: "kW", status: runtime.status || runtime.cycle_state || item.area || "Odbiornik", accent: kind === "ev" ? "cyan" : item.accent || "cyan", kind, index, flow_direction: item.flow_direction || "consumer" });
+    });
+
+    const byKey = Object.fromEntries(nodes.map(node => [node.key, node]));
+    const connections = [];
+    const addConnection = (key, from, to, label, automatic, defaults = {}) => {
+      if (!byKey[from] || !byKey[to]) return;
+      const stored = scene.connections[key] || {};
+      connections.push({ key, from, to, label, automatic, route: "curve", forward_color: "#52ff62", reverse_color: "#b95cff", idle_color: "#49616b", unavailable_color: "#ff4d6d", thickness: 4, animation_speed: 1.2, deadband: 1, label_visible: true, label_color: "#eefaff", label_background: "#010912", label_border_color: "#20eaff", label_size: 9, positive_direction: "forward", direction_source: "automatic", ...defaults, ...stored, label: stored.label || label, visible: stored.visible !== false });
+    };
+    addConnection("link_grid", "grid", "home", "SIEĆ", { kind: "grid" }, { forward_color: "#b95cff", reverse_color: "#52ff62" });
+    addConnection("link_pv", "pv", "home", "PV", { kind: "pv" }, { forward_color: "#52ff62", reverse_color: "#b95cff" });
+    addConnection("link_battery", "home", "battery", "MAGAZYN", { kind: "battery" }, { forward_color: "#b8ff3d", reverse_color: "#20eaff" });
+    sources.forEach(entry => {
+      const key = this._flowNodeKey(`${entry.kind}_${entry.item.id || entry.index + 1}`);
+      addConnection(`wire_${key}`, key, byKey.pv ? "pv" : "home", entry.item.flow_label || entry.item.name || "ŹRÓDŁO", { kind: entry.kind, index: entry.index }, { forward_color: "#52ff62", reverse_color: "#b95cff" });
+    });
+    loads.forEach(entry => {
+      const key = entry.kind === "ev" ? "ev" : this._flowNodeKey(`device_${entry.item.id || entry.index + 1}`);
+      addConnection(entry.kind === "ev" ? "wire_ev" : `wire_${key}`, "home", key, entry.kind === "ev" ? "EV" : entry.item.flow_label || entry.item.name || "ODBIORNIK", { kind: entry.kind, index: entry.index }, { forward_color: "#20eaff", reverse_color: "#ffb11b" });
+    });
+    return { scene, nodes, connections, byKey };
+  }
+
+  _renderSettings() {
+    if (!this._isAdmin() && !this._config.permissions.show_configuration_to_non_admin) return `<div class="locked"><ha-icon icon="mdi:shield-lock-outline"></ha-icon><h2>Ustawienia grafiki tylko dla administratora</h2></div>`;
+    const disabled = this._isAdmin() ? "" : "disabled";
+    const context = this._settingsContext() || this._settingsContext("overview");
+    this._settingsTarget = context.target;
+    const scene = this._ensureFlowScene(context.profile);
+    const model = this._flowSceneModel(context.profile);
+    const targets = [
+      { id: "overview", label: "PODSUMOWANIE", icon: "mdi:view-dashboard-outline" },
+      { id: "flow", label: "PRZEPŁYWY", icon: "mdi:transit-connection-variant" },
+      { id: "kiosk:-1", label: "KIOSK DOMYŚLNY", icon: "mdi:monitor-dashboard" },
+      ...(this._config.kiosk_profiles || []).map((profile, index) => ({ id: `kiosk:${index}`, label: profile.name || `KIOSK ${index + 1}`, icon: "mdi:monitor-multiple" })),
+    ];
+    const selectedNode = model.nodes.find(item => item.key === this._settingsSelectedKey);
+    const selectedConnection = model.connections.find(item => item.key === this._settingsSelectedKey);
+    if (!selectedNode && !selectedConnection) { this._settingsSelectedKind = "node"; this._settingsSelectedKey = model.nodes[0]?.key || "home"; }
+    const inspector = this._renderSettingsInspector(context, model, disabled);
+    return `<section class="settings-page">
+      <header class="hero-row"><div><span class="eyebrow">NOWY EDYTOR V0.7</span><h1>Ustawienia wyglądu i układu</h1><p>Ten sam renderer jest używany w edytorze i na docelowym pulpicie.</p></div>${this._saveBar(disabled)}</header>
+      <nav class="settings-targets">${targets.map(item => `<button class="${item.id === context.target ? "active" : ""}" data-settings-target="${this._escAttr(item.id)}"><ha-icon icon="${item.icon}"></ha-icon>${this._esc(item.label)}</button>`).join("")}</nav>
+      <div class="settings-scene-toolbar">
+        ${this._numberField(`${context.path}.flow_scene.canvas_height`, "Wysokość okna", scene.canvas_height, 320, 1200, 10, disabled, true)}
+        ${this._numberField(`${context.path}.flow_scene.grid_size`, "Rozmiar siatki", scene.grid_size, 5, 80, 1, disabled, true)}
+        ${this._colorField(`${context.path}.flow_scene.background_color`, "Tło", scene.background_color, disabled)}
+        ${this._colorField(`${context.path}.flow_scene.border_color`, "Ramka", scene.border_color, disabled)}
+        ${this._numberField(`${context.path}.flow_scene.border_width`, "Grubość ramki", scene.border_width, 0, 8, 1, disabled, true)}
+        ${this._numberField(`${context.path}.flow_scene.border_radius`, "Zaokrąglenie", scene.border_radius, 0, 80, 1, disabled, true)}
+        <label class="check-row"><input type="checkbox" data-path="${context.path}.flow_scene.show_grid" data-live-rerender="1" ${scene.show_grid !== false ? "checked" : ""} ${disabled}><span><b>Pokaż siatkę</b></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${context.path}.flow_scene.snap_to_grid" ${scene.snap_to_grid !== false ? "checked" : ""} ${disabled}><span><b>Przyciągaj do siatki</b></span></label>
+        <button class="secondary-btn settings-reset" data-action="reset-settings-scene" ${disabled}><ha-icon icon="mdi:restore"></ha-icon>RESETUJ TEN UKŁAD</button>
+      </div>
+      <div class="settings-workspace">
+        <article class="panel settings-live-preview"><div class="settings-preview-label"><b>${this._esc(context.label)}</b><span>Przeciągnij dymek · linie podążają automatycznie</span></div>${this._flowDiagram(true, false, context.profile, true)}</article>
+        ${inspector}
+      </div>
+    </section>`;
+  }
+
+  _renderSettingsInspector(context, model, disabled = "") {
+    const node = model.nodes.find(item => item.key === this._settingsSelectedKey);
+    const connection = model.connections.find(item => item.key === this._settingsSelectedKey);
+    const options = `<optgroup label="Dymki">${model.nodes.map(item => `<option value="node:${this._escAttr(item.key)}" ${node?.key === item.key ? "selected" : ""}>${this._esc(item.label)}</option>`).join("")}</optgroup><optgroup label="Linie przepływu">${model.connections.map(item => `<option value="connection:${this._escAttr(item.key)}" ${connection?.key === item.key ? "selected" : ""}>${this._esc(item.label)}</option>`).join("")}</optgroup>`;
+    const key = node?.key || connection?.key || "home";
+    context.profile.flow_element_styles ||= {};
+    const style = context.profile.flow_element_styles[key] ||= {};
+    const stylePath = `${context.path}.flow_element_styles.${key}`;
+    let body = "";
+    if (node) {
+      const layout = model.scene.elements[node.key] ||= { x: node.x, y: node.y, width: node.width, height: node.height, z_index: node.z_index, visible: true, locked: false };
+      const path = `${context.path}.flow_scene.elements.${node.key}`;
+      body = `<div class="widget-subsection"><b>POŁOŻENIE I ROZMIAR</b><small>Wartości procentowe są responsywne dla różnych ekranów.</small></div>
+        <div class="two-grid">${this._numberField(`${path}.x`, "Pozycja X (%)", layout.x, 0, 100, .1, disabled, true)}${this._numberField(`${path}.y`, "Pozycja Y (%)", layout.y, 0, 100, .1, disabled, true)}${this._numberField(`${path}.width`, "Szerokość", layout.width, 40, 360, 1, disabled, true)}${this._numberField(`${path}.height`, "Wysokość", layout.height, 30, 360, 1, disabled, true)}${this._numberField(`${path}.z_index`, "Warstwa", layout.z_index, 1, 100, 1, disabled, true)}</div>
+        <div class="two-grid"><label class="check-row"><input type="checkbox" data-path="${path}.visible" data-live-rerender="1" ${layout.visible !== false ? "checked" : ""} ${disabled}><span><b>Widoczny</b></span></label><label class="check-row"><input type="checkbox" data-path="${path}.locked" ${layout.locked ? "checked" : ""} ${disabled}><span><b>Zablokuj przesuwanie</b></span></label></div>
+        <div class="widget-subsection"><b>TREŚĆ I WYGLĄD DYMKU</b></div>
+        <label class="check-row"><input type="checkbox" data-path="${stylePath}.appearance_enabled" data-live-rerender="1" ${style.appearance_enabled ? "checked" : ""} ${disabled}><span><b>Własny wygląd</b></span></label>
+        ${this._field(`${stylePath}.name`, "Własna nazwa", style.name, node.label, disabled, true)}
+        <div class="two-grid">${this._selectField(`${stylePath}.icon_type`, "Typ ikony", style.icon_type || "mdi", [["mdi","MDI"],["image","Obraz"]], disabled, true)}${this._field(`${stylePath}.icon`, "Ikona MDI", style.icon || node.icon, "mdi:home", disabled, true)}${this._field(`${stylePath}.image_url`, "Adres obrazu", style.image_url, "/local/ikony/dom.svg", disabled, true)}${this._numberField(`${stylePath}.icon_size`, "Rozmiar ikony", style.icon_size || 32, 10, 120, 1, disabled, true)}</div>
+        <div class="two-grid">${this._colorField(`${stylePath}.border_color`, "Kolor ramki", style.border_color || this._flowBaseColor(node.key), disabled)}${this._colorField(`${stylePath}.background_color`, "Kolor tła", style.background_color || "#020c18", disabled)}${this._colorField(`${stylePath}.icon_color`, "Kolor ikony", style.icon_color || this._flowBaseColor(node.key), disabled)}${this._colorField(`${stylePath}.name_color`, "Kolor nazwy", style.name_color || "#eefaff", disabled)}${this._colorField(`${stylePath}.value_color`, "Kolor wartości", style.value_color || this._flowBaseColor(node.key), disabled)}${this._colorField(`${stylePath}.unit_color`, "Kolor jednostki", style.unit_color || "#94b5c0", disabled)}${this._numberField(`${stylePath}.border_width`, "Grubość ramki", style.border_width || 1, 1, 8, 1, disabled, true)}${this._numberField(`${stylePath}.border_radius`, "Zaokrąglenie", style.border_radius ?? 18, 0, 100, 1, disabled, true)}</div>`;
+    } else if (connection) {
+      const config = model.scene.connections[connection.key] ||= { ...connection };
+      const path = `${context.path}.flow_scene.connections.${connection.key}`;
+      body = `<div class="widget-subsection"><b>REGUŁY KIERUNKU I KOLORÓW</b><small>A→B, B→A, postój i brak danych mają osobne style.</small></div>
+        <label class="check-row"><input type="checkbox" data-path="${path}.visible" data-live-rerender="1" ${config.visible !== false ? "checked" : ""} ${disabled}><span><b>Linia widoczna</b></span></label>
+        ${this._field(`${path}.label`, "Opis linii", config.label || connection.label, "Np. SIEĆ → DOM", disabled, true)}
+        <div class="two-grid">${this._selectField(`${path}.route`, "Przebieg", config.route || "curve", [["curve","Łuk"],["direct","Prosta"],["orthogonal","Kąty proste"]], disabled, true)}${this._selectField(`${path}.direction_source`, "Źródło kierunku", config.direction_source || "automatic", [["automatic","Automatyczny bilans"],["entity","Wybrana encja"]], disabled, true)}${this._selectField(`${path}.positive_direction`, "Wartość dodatnia oznacza", config.positive_direction || "forward", [["forward","A → B"],["reverse","B → A"]], disabled, true)}${this._numberField(`${path}.deadband`, "Strefa postoju", config.deadband ?? 1, 0, 1000000, .1, disabled, true)}</div>
+        <div>${this._entityField(`${path}.entity_id`, "Encja kierunku", config.entity_id, "Opcjonalna encja ze znakiem.", disabled, "any")}</div>
+        <div class="two-grid">${this._field(`${path}.attribute`, "Atrybut", config.attribute, "Opcjonalnie", disabled)}${this._numberField(`${path}.multiplier`, "Mnożnik", config.multiplier ?? 1, -1000000, 1000000, .001, disabled, true)}</div>
+        <div class="two-grid">${this._colorField(`${path}.forward_color`, "Kolor A → B", config.forward_color || "#52ff62", disabled)}${this._colorField(`${path}.reverse_color`, "Kolor B → A", config.reverse_color || "#b95cff", disabled)}${this._colorField(`${path}.idle_color`, "Kolor postoju", config.idle_color || "#49616b", disabled)}${this._colorField(`${path}.unavailable_color`, "Kolor braku danych", config.unavailable_color || "#ff4d6d", disabled)}${this._numberField(`${path}.thickness`, "Grubość", config.thickness || 4, 1, 14, 1, disabled, true)}${this._numberField(`${path}.animation_speed`, "Czas animacji (s)", config.animation_speed || 1.2, .2, 8, .1, disabled, true)}</div>
+        <div class="two-grid"><label class="check-row"><input type="checkbox" data-path="${path}.label_visible" data-live-rerender="1" ${config.label_visible !== false ? "checked" : ""} ${disabled}><span><b>Pokaż opis linii</b></span></label>${this._numberField(`${path}.label_x`, "Przesunięcie opisu X", config.label_x || 0, -400, 400, 1, disabled, true)}${this._numberField(`${path}.label_y`, "Przesunięcie opisu Y", config.label_y || 0, -400, 400, 1, disabled, true)}${this._colorField(`${path}.label_color`, "Kolor tekstu opisu", config.label_color || "#eefaff", disabled)}${this._colorField(`${path}.label_background`, "Tło opisu", config.label_background || "#010912", disabled)}${this._colorField(`${path}.label_border_color`, "Ramka opisu", config.label_border_color || "#20eaff", disabled)}${this._numberField(`${path}.label_size`, "Rozmiar tekstu", config.label_size || 9, 6, 24, 1, disabled, true)}</div>`;
+    }
+    if (node) {
+      const fields = Array.isArray(style.extra_fields) ? style.extra_fields : [];
+      body += `<div class="widget-subsection"><b>DODATKOWE POLA W DYMKU</b><small>Do 8 dowolnych encji lub atrybutów.</small></div><div class="layout-extra-fields">${fields.map((field, index) => `<article class="layout-extra-field"><div class="widget-related-head"><b>POLE ${index + 1}</b><button class="danger-link" data-action="remove-settings-extra-field" data-index="${index}"><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>${this._field(`${stylePath}.extra_fields.${index}.name`, "Nazwa", field.name, `Pole ${index + 1}`, disabled)}<div>${this._entityField(`${stylePath}.extra_fields.${index}.entity_id`, "Encja", field.entity_id, "Dowolna encja HA.", disabled, "any")}</div><div class="two-grid">${this._field(`${stylePath}.extra_fields.${index}.attribute`, "Atrybut", field.attribute, "Opcjonalnie", disabled)}${this._field(`${stylePath}.extra_fields.${index}.unit`, "Jednostka", field.unit, "Z encji", disabled)}${this._numberField(`${stylePath}.extra_fields.${index}.decimals`, "Precyzja", field.decimals ?? 1, 0, 6, 1, disabled)}${this._numberField(`${stylePath}.extra_fields.${index}.multiplier`, "Mnożnik", field.multiplier ?? 1, -1000000, 1000000, .001, disabled)}${this._colorField(`${stylePath}.extra_fields.${index}.color`, "Kolor", field.color || "#8eb5c3", disabled)}</div></article>`).join("") || `<div class="mini-empty">Brak dodatkowych pól.</div>`}<button class="secondary-btn" data-action="add-settings-extra-field" ${fields.length >= 8 ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon>DODAJ POLE (${fields.length}/8)</button></div>`;
+    }
+    const interaction = `<div class="widget-subsection"><b>INTERAKCJA</b></div>${this._selectField(`${stylePath}.tap_action`, "Akcja dotknięcia", style.tap_action || "none", [["none","Brak"],["more_info","Szczegóły encji"],["toggle","Przełącz"],["navigate","Nawigacja"],["service","Usługa HA"]], disabled, true)}<div>${this._entityField(`${stylePath}.action_entity_id`, "Encja akcji", style.action_entity_id, "Encja szczegółów, toggle lub usługi.", disabled, "any")}</div>${this._field(`${stylePath}.navigation_path`, "Ścieżka", style.navigation_path, "/lovelace/energia", disabled)}${this._field(`${stylePath}.service`, "Usługa", style.service, "light.toggle", disabled)}${this._textarea(`${stylePath}.service_data`, "Dane JSON", style.service_data || "{}", "{}", disabled)}`;
+    return `<aside class="settings-inspector"><div class="panel-title"><span>EDYCJA OBIEKTU</span><ha-icon icon="mdi:tune-variant"></ha-icon></div><label class="field"><span>Wybrany obiekt</span><select data-settings-object>${options}</select></label>${body}${interaction}</aside>`;
   }
 
   _renderKiosk() {
@@ -908,7 +1072,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
             <label class="check-row"><input type="checkbox" data-path="flow.show_connectors" data-live-rerender="1" ${flow.show_connectors !== false ? "checked" : ""} ${disabled}><span><b>Linie przepływu</b><small>Pokaż magistrale i animowane połączenia.</small></span></label>
             <label class="check-row"><input type="checkbox" data-path="flow.hide_inactive_devices" data-live-rerender="1" ${flow.hide_inactive_devices ? "checked" : ""} ${disabled}><span><b>Ukrywaj nieaktywne</b><small>Nie pokazuj urządzeń pobierających mniej niż próg pracy.</small></span></label>
           </div>
-          <div class="widget-add-actions"><button class="secondary-btn" data-action="open-bubble-layout-editor" data-layout-target="flow" ${disabled}><ha-icon icon="mdi:tune-variant"></ha-icon>EDYTUJ CAŁY DIAGRAM</button></div>
+          <div class="widget-add-actions"><button class="secondary-btn" data-settings-target="flow" ${disabled}><ha-icon icon="mdi:palette-outline"></ha-icon>OTWÓRZ USTAWIENIA GRAFIKI</button></div>
         </article>
         <article class="panel flow-config-preview">
           <div class="preview-badge"><ha-icon icon="mdi:eye-outline"></ha-icon>PODGLĄD NA ŻYWO</div>
@@ -1231,7 +1395,102 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return action === "none" ? "" : `data-flow-action-element="${this._escAttr(this._flowNodeKey(key))}" tabindex="0" role="button"`;
   }
 
-  _flowDiagram(large = false, preview = false, layoutProfile = null) {
+  _sceneConnectionReading(connection, values = this._runtimeValues()) {
+    const config = connection || {};
+    if (config.direction_source === "entity") {
+      const state = config.entity_id ? this._hass?.states?.[config.entity_id] : null;
+      let raw = state?.state;
+      if (config.attribute) raw = String(config.attribute).split(".").reduce((value, part) => value == null ? undefined : value[part], state?.attributes);
+      const number = Number(raw), multiplier = Number(config.multiplier ?? 1);
+      return { value: Number.isFinite(number) ? number * (Number.isFinite(multiplier) ? multiplier : 1) : null, available: Boolean(state) && !["unknown", "unavailable"].includes(String(state.state).toLowerCase()) };
+    }
+    const automatic = config.automatic || {};
+    const mappings = this._config?.mappings || {}, runtime = this._runtime || {};
+    if (automatic.kind === "grid") {
+      const available = [mappings.grid_power, mappings.grid_import_power, mappings.grid_export_power].some(entity => this._readPower(entity) != null) || [runtime.grid_power, runtime.grid_import_power, runtime.grid_export_power].some(value => value != null);
+      return { value: Number(values.gridImport || 0) - Number(values.gridExport || 0), available };
+    }
+    if (automatic.kind === "pv") return { value: values.pv, available: values.pv != null };
+    if (automatic.kind === "battery") {
+      const available = [mappings.battery_power, mappings.battery_charge_power, mappings.battery_discharge_power].some(entity => this._readPower(entity) != null) || [runtime.battery_power, runtime.battery_charge_power, runtime.battery_discharge_power].some(value => value != null);
+      return { value: Number(values.batteryCharge || 0) - Number(values.batteryDischarge || 0), available };
+    }
+    if (automatic.kind === "ev") {
+      const available = this._readPower(mappings.ev_power) != null || runtime.ev_power != null;
+      return { value: values.ev, available };
+    }
+    if (automatic.kind === "string") { const runtime = this._pvStringRuntime(this._config.pv_strings?.[automatic.index] || {}, automatic.index); return { value: runtime.power, available: runtime.power != null }; }
+    if (automatic.kind === "device") { const runtime = this._deviceRuntime(this._config.devices?.[automatic.index] || {}, automatic.index); return { value: runtime.power, available: runtime.power != null }; }
+    return { value: 0, available: true };
+  }
+
+  _sceneConnectionState(connection, values = this._runtimeValues()) {
+    const reading = this._sceneConnectionReading(connection, values);
+    if (!reading.available || reading.value == null || !Number.isFinite(Number(reading.value))) return { state: "unavailable", value: null };
+    const deadband = Math.max(0, Number(connection.deadband ?? 1));
+    let value = Number(reading.value);
+    if (connection.positive_direction === "reverse") value *= -1;
+    if (Math.abs(value) <= deadband) return { state: "idle", value: Number(reading.value) };
+    return { state: value > 0 ? "forward" : "reverse", value: Number(reading.value) };
+  }
+
+  _sceneConnectionPath(connection, byKey) {
+    const from = byKey[connection.from], to = byKey[connection.to];
+    if (!from || !to) return "";
+    const x1 = Number(from.x) * 10, y1 = Number(from.y) * 6;
+    const x2 = Number(to.x) * 10, y2 = Number(to.y) * 6;
+    if (connection.route === "direct") return `M ${x1} ${y1} L ${x2} ${y2}`;
+    if (connection.route === "orthogonal") {
+      if (Math.abs(x2 - x1) >= Math.abs(y2 - y1)) { const mx = (x1 + x2) / 2; return `M ${x1} ${y1} L ${mx} ${y1} L ${mx} ${y2} L ${x2} ${y2}`; }
+      const my = (y1 + y2) / 2; return `M ${x1} ${y1} L ${x1} ${my} L ${x2} ${my} L ${x2} ${y2}`;
+    }
+    const dx = x2 - x1, dy = y2 - y1;
+    return Math.abs(dx) >= Math.abs(dy)
+      ? `M ${x1} ${y1} C ${x1 + dx * .42} ${y1}, ${x2 - dx * .42} ${y2}, ${x2} ${y2}`
+      : `M ${x1} ${y1} C ${x1} ${y1 + dy * .42}, ${x2} ${y2 - dy * .42}, ${x2} ${y2}`;
+  }
+
+  _sceneNodeStyle(profile, node) {
+    const style = this._flowElementSettings(profile, node.key);
+    const parts = [`--scene-x:${Number(node.x)}%`, `--scene-y:${Number(node.y)}%`, `--scene-w:${Number(node.width)}px`, `--scene-h:${Number(node.height)}px`, `--scene-z:${Number(node.z_index || 20)}`];
+    if (style.appearance_enabled) {
+      const base = this._flowBaseColor(node.key);
+      parts.push(`--scene-border:${this._safeColor(style.border_color, base)}`, `--scene-bg:${this._safeColor(style.background_color, "#020c18")}`, `--scene-icon:${this._safeColor(style.icon_color, base)}`, `--scene-name:${this._safeColor(style.name_color, "#eefaff")}`, `--scene-value:${this._safeColor(style.value_color, base)}`, `--scene-unit:${this._safeColor(style.unit_color, "#94b5c0")}`, `--scene-border-width:${Math.max(1, Math.min(8, Number(style.border_width || 1)))}px`, `--scene-radius:${Math.max(0, Math.min(100, Number(style.border_radius ?? 18)))}px`, `--scene-icon-size:${Math.max(10, Math.min(120, Number(style.icon_size || 32)))}px`);
+    }
+    return parts.join(";");
+  }
+
+  _flowDiagram(large = false, preview = false, layoutProfile = null, editMode = false) {
+    const profile = layoutProfile || this._config.flow || {};
+    const model = this._flowSceneModel(profile);
+    const { scene, nodes, connections, byKey } = model;
+    const title = this._esc((this._config.flow || {}).title || "PRZEPŁYW ENERGII — NA ŻYWO");
+    const sceneStyle = `--scene-height:${Math.max(320, Math.min(1200, Number(scene.canvas_height || 620)))}px;--scene-grid:${Math.max(5, Math.min(80, Number(scene.grid_size || 20)))}px;--scene-canvas-bg:${this._safeColor(scene.background_color, "#020b16")};--scene-frame:${this._safeColor(scene.border_color, "#20eaff")};--scene-frame-width:${Math.max(0, Math.min(8, Number(scene.border_width ?? 1)))}px;--scene-frame-radius:${Math.max(0, Math.min(80, Number(scene.border_radius ?? 16)))}px`;
+    const edgeHtml = connections.filter(item => item.visible !== false && byKey[item.from]?.visible !== false && byKey[item.to]?.visible !== false).map(connection => {
+      const direction = this._sceneConnectionState(connection);
+      const color = direction.state === "forward" ? connection.forward_color : direction.state === "reverse" ? connection.reverse_color : direction.state === "idle" ? connection.idle_color : connection.unavailable_color;
+      const path = this._sceneConnectionPath(connection, byKey);
+      const attrs = this._flowElementActionAttrs(profile, connection.key);
+      return `<g class="scene-connection state-${direction.state} ${editMode && this._settingsSelectedKey === connection.key ? "selected" : ""}" data-scene-connection="${this._escAttr(connection.key)}" data-auto-kind="${this._escAttr(connection.automatic?.kind || "")}" data-auto-index="${this._escAttr(connection.automatic?.index ?? "")}" style="--connection-color:${this._safeColor(color, "#49616b")};--connection-width:${Math.max(1, Math.min(14, Number(connection.thickness || 4)))};--connection-speed:${Math.max(.2, Math.min(8, Number(connection.animation_speed || 1.2)))}s" ${attrs}><path class="scene-connection-hit" d="${path}"></path><path class="scene-connection-base" d="${path}"></path><path class="scene-connection-flow" d="${path}"></path></g>`;
+    }).join("");
+    const labelHtml = connections.filter(item => item.visible !== false && item.label_visible !== false && byKey[item.from]?.visible !== false && byKey[item.to]?.visible !== false).map(connection => {
+      const from = byKey[connection.from], to = byKey[connection.to];
+      const x = (Number(from.x) + Number(to.x)) / 2, y = (Number(from.y) + Number(to.y)) / 2;
+      const reading = this._sceneConnectionReading(connection);
+      return `<div class="scene-connection-label ${editMode && this._settingsSelectedKey === connection.key ? "selected" : ""}" data-scene-connection-label="${this._escAttr(connection.key)}" style="--label-x:${x}%;--label-y:${y}%;--label-offset-x:${Number(connection.label_x || 0)}px;--label-offset-y:${Number(connection.label_y || 0)}px;--label-color:${this._safeColor(connection.label_color, "#eefaff")};--label-bg:${this._safeColor(connection.label_background, "#010912")};--label-border:${this._safeColor(connection.label_border_color, "#20eaff")};--label-size:${Math.max(6, Math.min(24, Number(connection.label_size || 9)))}px"><b>${this._esc(connection.label)}</b><span>${reading.value == null ? "--" : this._kw(Math.abs(Number(reading.value)))}</span></div>`;
+    }).join("");
+    const nodeHtml = nodes.filter(node => node.visible !== false).map(node => {
+      const isCore = ["home", "grid", "pv", "battery"].includes(node.key);
+      let value = node.value != null ? node.value : `<span data-live="${this._escAttr(node.live || "")}">--</span>`;
+      if (node.kind === "string") value = `<span data-flow-string-power="${node.index}">${this._esc(node.value)}</span>`;
+      if (node.kind === "device") value = `<span data-flow-device-flow-power="${node.index}">${this._esc(node.value)}</span>`;
+      const status = node.status ? `<small class="scene-node-status">${this._esc(node.status)}</small>` : node.extra ? `<small class="scene-node-status">${node.extra}</small>` : "";
+      return `<div class="scene-node accent-${this._escAttr(node.accent || "cyan")} ${isCore ? "core" : "extra"} ${node.key === "home" ? "home" : ""} ${editMode ? "editable" : ""} ${editMode && this._settingsSelectedKey === node.key ? "selected" : ""}" data-scene-node="${this._escAttr(node.key)}" data-flow-layout-element="${this._escAttr(node.key)}" data-scene-locked="${node.locked ? "1" : "0"}" style="${this._sceneNodeStyle(profile, node)}" ${this._flowElementActionAttrs(profile, node.key)}>${this._flowElementIcon(profile, node.key, node.icon)}<b>${this._esc(this._flowElementName(profile, node.key, node.label))}</b><div class="scene-node-value"><strong>${value}</strong><span>${this._esc(node.unit || "")}</span></div>${status}${this._flowElementExtraFields(profile, node.key)}${editMode ? `<span class="scene-resize-handle" data-scene-resize="${this._escAttr(node.key)}"><ha-icon icon="mdi:resize-bottom-right"></ha-icon></span>` : ""}</div>`;
+    }).join("");
+    return `<div class="panel-title flow-title"><span>${title}</span><small>${editMode ? "EDYCJA NA ŻYWO" : "WARTOŚCI RZECZYWISTE"}</small></div><div class="flow-scene ${scene.show_grid === false ? "no-grid" : ""} ${editMode ? "editing" : ""}" data-flow-scene style="${sceneStyle}"><svg class="flow-scene-connections" viewBox="0 0 1000 600" preserveAspectRatio="none">${edgeHtml}</svg>${labelHtml}${nodeHtml}</div>`;
+  }
+
+  _flowDiagramLegacy(large = false, preview = false, layoutProfile = null) {
     const density = this._config.appearance?.flow_density || "comfortable";
     const flow = {
       title: "PRZEPŁYW ENERGII — NA ŻYWO", layout: "automatic", node_style: "rounded",
@@ -1715,6 +1974,19 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
 
   _bindViewEvents() {
+    this.shadowRoot.querySelectorAll("[data-settings-target]").forEach(button => button.addEventListener("click", () => {
+      this._settingsTarget = button.dataset.settingsTarget;
+      this._view = "settings";
+      this._settingsSelectedKind = "node";
+      this._settingsSelectedKey = "home";
+      this._render();
+    }));
+    this.shadowRoot.querySelector("[data-settings-object]")?.addEventListener("change", event => {
+      const [kind, key] = String(event.currentTarget.value || "node:home").split(":", 2);
+      this._settingsSelectedKind = kind;
+      this._settingsSelectedKey = key;
+      this._render();
+    });
     this.shadowRoot.querySelector(".entity-dialog")?.addEventListener("click", event => event.stopPropagation());
     this.shadowRoot.querySelector("[data-action='select-flow-layout-element']")?.addEventListener("change", event => {
       this._layoutSelectedElement = event.currentTarget.value;
@@ -1754,6 +2026,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "save-bubble-layout-editor") await this._saveBubbleLayoutEditor();
         if (action === "add-flow-extra-field") this._addFlowExtraField();
         if (action === "remove-flow-extra-field") this._removeFlowExtraField(Number(el.dataset.index));
+        if (action === "add-settings-extra-field") this._addSettingsExtraField();
+        if (action === "remove-settings-extra-field") this._removeSettingsExtraField(Number(el.dataset.index));
+        if (action === "reset-settings-scene") this._resetSettingsScene();
         if (action === "kiosk-prev") this._advanceKiosk(-1);
         if (action === "kiosk-next") this._advanceKiosk(1);
         if (action === "kiosk-slide") this._setKioskSlide(Number(el.dataset.slideIndex));
@@ -1843,6 +2118,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     });
     this._bindWidgetDragDrop();
     this._bindKioskLayoutEditor();
+    this._bindSettingsSceneEditor();
     this._bindKioskSwipe();
   }
 
@@ -2017,7 +2293,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     items.push({
       id: `ekran_${n}`, name: `Ekran ${n}`, description: "", title: "PRZEPŁYW ENERGII",
       display_preset: "tablet_16_9", compact_header: true, max_bubbles: 6, chart_columns: 2,
-      builtin_bubble_ids: ["home", "pv", "grid"], bubble_layout: "free", bubble_stage_height: 96, bubble_positions: {}, flow_node_positions: {}, flow_element_styles: {},
+      builtin_bubble_ids: ["home", "pv", "grid"], bubble_layout: "free", bubble_stage_height: 96, bubble_positions: {}, flow_node_positions: {}, flow_element_styles: {}, flow_scene: { canvas_height: 620, show_grid: true, grid_size: 20, snap_to_grid: true, background_color: "#020b16", border_color: "#20eaff", border_width: 1, border_radius: 16, elements: {}, connections: {} },
       flow_offset_x: 0, flow_offset_y: -30, flow_scale: 100, show_price_panel: true, show_consumers_panel: true,
       show_battery_gauge: false, show_self_sufficiency_gauge: false, auto_fullscreen: true, lovelace_views: [],
       show_clock: true, show_builtin_bubbles: true, show_custom_bubbles: true, show_charts: true,
@@ -2117,6 +2393,51 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._render();
   }
 
+  _addSettingsExtraField() {
+    if (!this._isAdmin() || this._view !== "settings") return;
+    const profile = this._settingsContext()?.profile;
+    if (!profile || !this._settingsSelectedKey) return;
+    profile.flow_element_styles ||= {};
+    const style = profile.flow_element_styles[this._settingsSelectedKey] ||= {};
+    const fields = style.extra_fields ||= [];
+    if (fields.length >= 8) return;
+    const number = fields.length + 1;
+    fields.push({ id: this._id("field"), name: `Pole ${number}`, entity_id: "", attribute: "", unit: "", decimals: 1, multiplier: 1, color: "#8eb5c3", enabled: true });
+    this._render();
+  }
+
+  _removeSettingsExtraField(index) {
+    if (!this._isAdmin() || this._view !== "settings") return;
+    const fields = this._settingsContext()?.profile?.flow_element_styles?.[this._settingsSelectedKey]?.extra_fields;
+    if (!Array.isArray(fields) || !Number.isInteger(index)) return;
+    fields.splice(index, 1);
+    this._render();
+  }
+
+  _resetSettingsScene() {
+    if (!this._isAdmin() || this._view !== "settings") return;
+    const context = this._settingsContext();
+    if (!context?.profile) return;
+    const canvasHeight = context.target === "flow" ? 620 : context.target === "overview" ? 520 : 460;
+    context.profile.flow_scene = {
+      canvas_height: canvasHeight,
+      show_grid: true,
+      grid_size: 20,
+      snap_to_grid: true,
+      background_color: "#020b16",
+      border_color: "#20eaff",
+      border_width: 1,
+      border_radius: 16,
+      elements: {},
+      connections: {},
+    };
+    context.profile.flow_element_styles = {};
+    this._settingsSelectedKind = "node";
+    this._settingsSelectedKey = "home";
+    this._message = `Zresetowano grafikę: ${context.label}. Zapisz ustawienia.`;
+    this._render();
+  }
+
   async _saveBubbleLayoutEditor() {
     if (!this._isAdmin() || !this._layoutEditorContext()) return;
     this._layoutEditorTarget = null;
@@ -2131,7 +2452,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   }
 
   async _executeFlowElementAction(key) {
-    if (this._view === "configuration") return;
+    if (["configuration", "settings"].includes(this._view)) return;
     const style = this._activeFlowElementProfile()?.flow_element_styles?.[this._flowNodeKey(key)] || {};
     const action = style.tap_action || "none";
     const entityId = String(style.action_entity_id || "").trim();
@@ -2477,6 +2798,143 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _advanceKiosk(direction) { this._setKioskSlide(this._kioskSlide + direction); }
 
+  _updateSettingsSceneGeometry(profile) {
+    const model = this._flowSceneModel(profile);
+    const nodes = Object.fromEntries(model.nodes.map(item => [item.key, item]));
+    this.shadowRoot.querySelectorAll("[data-scene-node]").forEach(element => {
+      const node = nodes[element.dataset.sceneNode];
+      if (!node) return;
+      element.style.setProperty("--scene-x", `${node.x}%`);
+      element.style.setProperty("--scene-y", `${node.y}%`);
+    });
+    model.connections.forEach(connection => {
+      const path = this._sceneConnectionPath(connection, nodes);
+      this.shadowRoot.querySelectorAll("[data-scene-connection]").forEach(element => {
+        if (element.dataset.sceneConnection === connection.key) element.querySelectorAll("path").forEach(pathElement => pathElement.setAttribute("d", path));
+      });
+      const from = nodes[connection.from], to = nodes[connection.to];
+      const label = [...this.shadowRoot.querySelectorAll("[data-scene-connection-label]")].find(element => element.dataset.sceneConnectionLabel === connection.key);
+      if (from && to && label) {
+        label.style.setProperty("--label-x", `${(Number(from.x) + Number(to.x)) / 2}%`);
+        label.style.setProperty("--label-y", `${(Number(from.y) + Number(to.y)) / 2}%`);
+      }
+    });
+  }
+
+  _bindSettingsSceneEditor() {
+    if (this._view !== "settings" || !this._isAdmin()) return;
+    const context = this._settingsContext(), sceneElement = this.shadowRoot.querySelector("[data-flow-scene]");
+    if (!context || !sceneElement) return;
+    const scene = this._ensureFlowScene(context.profile);
+    this.shadowRoot.querySelectorAll("[data-scene-connection]").forEach(connection => connection.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._settingsSelectedKind = "connection";
+      this._settingsSelectedKey = connection.dataset.sceneConnection;
+      this._render();
+    }));
+    this.shadowRoot.querySelectorAll("[data-scene-connection-label]").forEach(label => label.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const key = label.dataset.sceneConnectionLabel;
+      const connection = this._flowSceneModel(context.profile).connections.find(item => item.key === key);
+      if (!connection) return;
+      this._settingsSelectedKind = "connection";
+      this._settingsSelectedKey = key;
+      const config = scene.connections[key] ||= { ...connection };
+      const pointerId = event.pointerId, startX = event.clientX, startY = event.clientY;
+      const offsetX = Number(config.label_x || 0), offsetY = Number(config.label_y || 0);
+      let moved = false;
+      label.setPointerCapture?.(pointerId);
+      const move = pointerEvent => {
+        if (pointerEvent.pointerId !== pointerId) return;
+        const dx = pointerEvent.clientX - startX, dy = pointerEvent.clientY - startY;
+        moved ||= Math.abs(dx) > 2 || Math.abs(dy) > 2;
+        config.label_x = Math.round(Math.max(-400, Math.min(400, offsetX + dx)));
+        config.label_y = Math.round(Math.max(-400, Math.min(400, offsetY + dy)));
+        label.style.setProperty("--label-offset-x", `${config.label_x}px`);
+        label.style.setProperty("--label-offset-y", `${config.label_y}px`);
+      };
+      const end = pointerEvent => {
+        if (pointerEvent.pointerId != null && pointerEvent.pointerId !== pointerId) return;
+        label.removeEventListener("pointermove", move);
+        label.removeEventListener("pointerup", end);
+        label.removeEventListener("pointercancel", end);
+        this._message = moved ? "Położenie opisu linii zmienione — zapisz ustawienia." : "Wybrano linię przepływu.";
+        this._render();
+      };
+      label.addEventListener("pointermove", move, { passive: false });
+      label.addEventListener("pointerup", end);
+      label.addEventListener("pointercancel", end);
+    }));
+    this.shadowRoot.querySelectorAll("[data-scene-resize]").forEach(handle => handle.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      event.preventDefault(); event.stopPropagation();
+      const key = handle.dataset.sceneResize, modelNode = this._flowSceneModel(context.profile).nodes.find(item => item.key === key);
+      if (!modelNode || modelNode.locked) return;
+      const layout = scene.elements[key] ||= { x: modelNode.x, y: modelNode.y, width: modelNode.width, height: modelNode.height, z_index: modelNode.z_index, visible: true, locked: false };
+      const startX = event.clientX, startY = event.clientY, startWidth = Number(layout.width), startHeight = Number(layout.height), pointerId = event.pointerId;
+      const node = handle.closest("[data-scene-node]");
+      handle.setPointerCapture?.(pointerId);
+      const move = pointerEvent => {
+        if (pointerEvent.pointerId !== pointerId) return;
+        layout.width = Math.round(Math.max(40, Math.min(360, startWidth + pointerEvent.clientX - startX)));
+        layout.height = Math.round(Math.max(30, Math.min(360, startHeight + pointerEvent.clientY - startY)));
+        node?.style.setProperty("--scene-w", `${layout.width}px`); node?.style.setProperty("--scene-h", `${layout.height}px`);
+      };
+      const end = pointerEvent => {
+        if (pointerEvent.pointerId != null && pointerEvent.pointerId !== pointerId) return;
+        handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", end); handle.removeEventListener("pointercancel", end);
+        this._message = "Rozmiar dymku zmieniony — zapisz ustawienia."; this._render();
+      };
+      handle.addEventListener("pointermove", move, { passive: false }); handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
+    }));
+    this.shadowRoot.querySelectorAll("[data-scene-node]").forEach(nodeElement => nodeElement.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      if (event.target.closest?.("[data-scene-resize]")) return;
+      const key = nodeElement.dataset.sceneNode;
+      const modelNode = this._flowSceneModel(context.profile).nodes.find(item => item.key === key);
+      if (!modelNode) return;
+      this._settingsSelectedKind = "node";
+      this._settingsSelectedKey = key;
+      if (modelNode.locked) { this._render(); return; }
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = sceneElement.getBoundingClientRect();
+      const layout = scene.elements[key] ||= { x: modelNode.x, y: modelNode.y, width: modelNode.width, height: modelNode.height, z_index: modelNode.z_index, visible: true, locked: false };
+      const pointer = { id: event.pointerId, startX: event.clientX, startY: event.clientY, x: Number(layout.x), y: Number(layout.y), moved: false };
+      this._settingsPointerState = pointer;
+      nodeElement.setPointerCapture?.(event.pointerId);
+      const move = pointerEvent => {
+        if (pointerEvent.pointerId !== pointer.id) return;
+        const dx = pointerEvent.clientX - pointer.startX, dy = pointerEvent.clientY - pointer.startY;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) pointer.moved = true;
+        let x = Math.max(0, Math.min(100, pointer.x + dx / rect.width * 100));
+        let y = Math.max(0, Math.min(100, pointer.y + dy / rect.height * 100));
+        if (scene.snap_to_grid !== false) {
+          const stepX = Math.max(.1, Number(scene.grid_size || 20) / rect.width * 100), stepY = Math.max(.1, Number(scene.grid_size || 20) / rect.height * 100);
+          x = Math.round(x / stepX) * stepX;
+          y = Math.round(y / stepY) * stepY;
+        }
+        layout.x = Number(x.toFixed(2)); layout.y = Number(y.toFixed(2));
+        this._updateSettingsSceneGeometry(context.profile);
+      };
+      const end = pointerEvent => {
+        if (pointerEvent.pointerId != null && pointerEvent.pointerId !== pointer.id) return;
+        nodeElement.removeEventListener("pointermove", move);
+        nodeElement.removeEventListener("pointerup", end);
+        nodeElement.removeEventListener("pointercancel", end);
+        this._settingsPointerState = null;
+        this._message = "Układ zmieniony — zapisz ustawienia.";
+        this._render();
+      };
+      nodeElement.addEventListener("pointermove", move, { passive: false });
+      nodeElement.addEventListener("pointerup", end);
+      nodeElement.addEventListener("pointercancel", end);
+    }));
+  }
+
   _bindKioskSwipe() {
     if (this._view !== "kiosk" || this._layoutEditorTarget) return;
     const container = this.shadowRoot.querySelector(".kiosk-slides");
@@ -2638,6 +3096,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     setFlowDirection("battery", v.batteryDischarge > v.batteryCharge, Math.max(v.batteryCharge || 0, v.batteryDischarge || 0) > 1);
     setFlowDirection("pv", false, (v.pv || 0) > 1);
     setFlowDirection("ev", false, (v.ev || 0) > 1);
+    this._updateSceneConnections(v);
     this.shadowRoot.querySelectorAll("[data-gauge]").forEach(el => { const val = Number(v[el.dataset.gauge] ?? 0); el.style.setProperty("--value", Math.max(0, Math.min(100, val))); });
     this.shadowRoot.querySelectorAll("[data-gauge-status]").forEach(el => { const val = v[el.dataset.gaugeStatus]; el.textContent = val == null ? "Brak danych" : val < 20 ? "Niski poziom" : val < 80 ? "Poziom roboczy" : "Wysoki poziom"; });
     this._updateDevicePowers();
@@ -2649,6 +3108,31 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const footerEntities = this.shadowRoot.querySelector("[data-footer-entities]"); if (footerEntities) footerEntities.textContent = `Encje HA: ${count}`;
     const footerDevices = this.shadowRoot.querySelector("[data-footer-devices]"); if (footerDevices) footerDevices.textContent = `Urządzenia: ${this._config.devices.length}`;
     const footerStrings = this.shadowRoot.querySelector("[data-footer-strings]"); if (footerStrings) footerStrings.textContent = `Stringi PV: ${this._config.pv_strings.length}`;
+  }
+
+  _renderedFlowProfile() {
+    if (this._view === "settings") return this._settingsContext()?.profile || this._config.overview || {};
+    if (this._view === "kiosk") return this._activeKioskProfile();
+    if (this._view === "overview") return this._config.overview || {};
+    return this._config.flow || {};
+  }
+
+  _updateSceneConnections(values = this._runtimeValues()) {
+    if (!this.shadowRoot?.querySelector("[data-flow-scene]")) return;
+    const model = this._flowSceneModel(this._renderedFlowProfile());
+    const connections = Object.fromEntries(model.connections.map(item => [item.key, item]));
+    this.shadowRoot.querySelectorAll("[data-scene-connection]").forEach(element => {
+      const connection = connections[element.dataset.sceneConnection];
+      if (!connection) return;
+      const direction = this._sceneConnectionState(connection, values);
+      element.classList.remove("state-forward", "state-reverse", "state-idle", "state-unavailable");
+      element.classList.add(`state-${direction.state}`);
+      const color = direction.state === "forward" ? connection.forward_color : direction.state === "reverse" ? connection.reverse_color : direction.state === "idle" ? connection.idle_color : connection.unavailable_color;
+      element.style.setProperty("--connection-color", this._safeColor(color, "#49616b"));
+      const labelHost = [...this.shadowRoot.querySelectorAll("[data-scene-connection-label]")].find(item => item.dataset.sceneConnectionLabel === connection.key);
+      const label = labelHost?.querySelector("span");
+      if (label) label.textContent = direction.value == null ? "--" : this._kw(Math.abs(Number(direction.value)));
+    });
   }
 
   _pvStringRuntime(item, index) {
@@ -3059,7 +3543,18 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .widget-checks.four-checks{grid-template-columns:repeat(4,minmax(0,1fr))}.reset-layout-btn{height:39px;justify-content:center}.builtin-kiosk-selection{padding-bottom:4px}.kiosk-bubble-slot{position:relative;min-width:0}.kiosk-bubble-slot>.metric-card{width:100%;margin:0}.kiosk-bubble-stage.layout-grid{display:grid}.kiosk-bubble-stage.layout-free{display:block!important;position:relative;z-index:20;height:var(--kiosk-bubble-stage-height,96px);min-height:var(--kiosk-bubble-stage-height,96px);margin-bottom:0;overflow:visible;pointer-events:none;background:transparent}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot{position:absolute;z-index:21;left:var(--kiosk-x,0);top:var(--kiosk-y,0);width:var(--kiosk-w,16%);height:82px;pointer-events:auto}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot>.metric-card{height:100%;min-height:100%}.layout-drag-handle,.layout-resize-handle{display:none;position:absolute;z-index:40;align-items:center;justify-content:center;border:1px solid var(--orange);background:rgba(24,14,0,.94);color:var(--orange);box-shadow:0 0 12px rgba(255,177,27,.25);touch-action:none;user-select:none}.layout-drag-handle ha-icon,.layout-resize-handle ha-icon{width:15px;height:15px}.bubble-layout-handle{top:3px;right:3px;width:25px;height:25px;border-radius:7px}.layout-resize-handle{right:3px;bottom:3px;width:25px;height:25px;border-radius:7px}.flow-layout-handle{top:7px;left:50%;transform:translateX(-50%);padding:5px 9px;border-radius:999px;font-size:8px;gap:5px}.layout-editing .layout-drag-handle,.layout-editing .layout-resize-handle{display:flex}.layout-editing .kiosk-bubble-slot{outline:1px dashed rgba(255,177,27,.75);outline-offset:2px}.layout-editing .kiosk-bubble-slot>.metric-card{cursor:grab;touch-action:none;user-select:none}.layout-editing .kiosk-bubble-slot>.metric-card:active{cursor:grabbing}.layout-editing .kiosk-flow-card{outline:1px dashed rgba(255,177,27,.75);outline-offset:-4px}.layout-edit-btn.active{border-color:var(--orange);color:var(--orange)}.kiosk-flow-card{position:relative;z-index:1}.kiosk-flow-card .flow-canvas-v4{transform:translate(var(--flow-offset-x,0),var(--flow-offset-y,0)) scale(var(--flow-scale,1));transform-origin:center center;transition:transform .15s ease}.layout-editing .kiosk-flow-card .flow-canvas-v4{transition:none}
     .flow-grid-v4 [data-flow-layout-element]{transform:translate(var(--flow-node-x,0),var(--flow-node-y,0))}.flow-branch{z-index:9}.flow-layout-editing .flow-branch-bus{z-index:20}.flow-layout-editing [data-flow-layout-element]{pointer-events:auto;touch-action:none;user-select:none;cursor:grab;outline:2px dashed rgba(255,177,27,.86);outline-offset:3px}.flow-layout-editing [data-flow-layout-element]:active{cursor:grabbing}.flow-layout-editing .flow-link[data-flow-layout-element],.flow-layout-editing .branch-wire[data-flow-layout-element],.flow-layout-editing .branch-bus-line[data-flow-layout-element]{outline-color:rgba(32,234,255,.9);z-index:8}.flow-layout-editing .flow-link>[data-flow-layout-element]{outline-color:rgba(82,255,98,.95);z-index:12}.flow-layout-editing .branch-bus-line[data-flow-layout-element]{pointer-events:auto;min-height:14px}.flow-layout-editing .flow-extra-node[data-flow-layout-element]{z-index:15}
     .layout-editor-backdrop{position:fixed;inset:0;z-index:12000;background:rgba(0,4,10,.9);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px}.layout-editor-dialog{width:min(1480px,98vw);height:min(920px,96vh);border:1px solid rgba(32,234,255,.65);border-radius:20px;background:#020b16;box-shadow:0 0 70px rgba(0,190,255,.25);display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden}.layout-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 16px;border-bottom:1px solid rgba(32,234,255,.2)}.layout-editor-toolbar h2{margin:3px 0;font-size:19px}.layout-editor-toolbar small{color:#6e98a8}.layout-editor-toolbar>div:last-child{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.layout-editor-help{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(255,177,27,.24);background:rgba(255,177,27,.06);color:#d9b86f;font-size:9px}.layout-editor-help ha-icon{color:var(--orange)}.layout-editor-canvas{position:relative;min-height:0;margin:10px;border:1px solid rgba(32,234,255,.35);border-radius:14px;overflow:hidden;background:linear-gradient(rgba(0,220,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,.04) 1px,transparent 1px),#020b16;background-size:28px 28px}.layout-editor-fixed-background{position:absolute;inset:0;z-index:1;pointer-events:none}.layout-editor-fixed-background .flow-title{display:none}.layout-editor-fixed-background .flow-canvas-v4{position:absolute;inset:0;width:100%;height:100%!important;min-height:0!important;margin:0;padding:10px;border:0;background:transparent;overflow:visible}.layout-editor-fixed-background .flow-grid-v4{height:100%!important}.layout-editor-canvas>.kiosk-bubble-stage.layout-free{position:absolute;inset:0;z-index:20;width:100%;height:100%;min-height:100%;margin:0}.layout-editor-canvas>.empty{position:relative;z-index:25;pointer-events:none}
-    /* v0.6.6 — independent appearance, fields and actions for every flow object */
+    /* v0.7 — one responsive renderer shared by dashboards and the Settings editor */
+    .flow-scene{position:relative;width:calc(100% - 20px);height:var(--scene-height,620px);min-height:320px;margin:0 10px 10px;overflow:visible;border:var(--scene-frame-width,1px) solid var(--scene-frame,var(--cyan));border-radius:var(--scene-frame-radius,16px);background-color:var(--scene-canvas-bg,#020b16);background-image:linear-gradient(rgba(0,220,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,.055) 1px,transparent 1px),radial-gradient(circle at 50% 50%,rgba(0,155,220,.12),transparent 55%);background-size:var(--scene-grid,20px) var(--scene-grid,20px),var(--scene-grid,20px) var(--scene-grid,20px),auto}.flow-scene.no-grid{background-image:radial-gradient(circle at 50% 50%,rgba(0,155,220,.12),transparent 55%)}
+    .flow-scene-connections{position:absolute;inset:0;width:100%;height:100%;z-index:4;overflow:visible}.scene-connection path{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}.scene-connection-hit{stroke:transparent;stroke-width:22;pointer-events:stroke}.scene-connection-base{stroke:var(--connection-color);stroke-width:var(--connection-width);opacity:.28;filter:drop-shadow(0 0 5px var(--connection-color))}.scene-connection-flow{stroke:var(--connection-color);stroke-width:calc(var(--connection-width)*.72);stroke-dasharray:3 16;filter:drop-shadow(0 0 7px var(--connection-color));animation:scene-flow-forward var(--connection-speed,1.2s) linear infinite}.scene-connection.state-reverse .scene-connection-flow{animation-name:scene-flow-reverse}.scene-connection.state-idle .scene-connection-flow,.scene-connection.state-unavailable .scene-connection-flow{animation:none;opacity:.15}.scene-connection.state-unavailable .scene-connection-base{stroke-dasharray:5 8;opacity:.55}@keyframes scene-flow-forward{to{stroke-dashoffset:-38}}@keyframes scene-flow-reverse{to{stroke-dashoffset:38}}
+    .scene-connection-label{position:absolute;left:var(--label-x);top:var(--label-y);z-index:12;transform:translate(calc(-50% + var(--label-offset-x,0px)),calc(-50% + var(--label-offset-y,0px)));display:flex;align-items:center;gap:5px;min-width:58px;padding:4px 7px;border:1px solid color-mix(in srgb,var(--label-border,#20eaff) 65%,transparent);border-radius:999px;background:color-mix(in srgb,var(--label-bg,#010912) 94%,transparent);box-shadow:0 0 10px rgba(0,0,0,.55);font-size:var(--label-size,9px);color:var(--label-color,#eefaff);pointer-events:none}.scene-connection-label b{font-size:max(6px,calc(var(--label-size,9px) - 2px));color:color-mix(in srgb,var(--label-color,#eefaff) 72%,#557886)}.scene-connection-label span{font:var(--label-size,9px) monospace;color:var(--label-color,#eefaff)}
+    .scene-node{--accent:var(--cyan);position:absolute;left:var(--scene-x);top:var(--scene-y);z-index:var(--scene-z,20);width:var(--scene-w,132px);height:var(--scene-h,110px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;border:var(--scene-border-width,1px) solid var(--scene-border,var(--accent));border-radius:var(--scene-radius,18px);background:var(--scene-bg,radial-gradient(circle at 25% 10%,color-mix(in srgb,var(--accent) 13%,transparent),rgba(2,12,24,.97)));box-shadow:0 0 22px color-mix(in srgb,var(--accent) 16%,transparent),inset 0 0 20px rgba(0,120,180,.05);color:#eefaff;text-align:center;overflow:visible}.scene-node.home{border-width:var(--scene-border-width,2px);border-radius:var(--scene-radius,50%)}.scene-node>ha-icon,.scene-node>.flow-node-custom-image{width:var(--scene-icon-size,30px);height:var(--scene-icon-size,30px);color:var(--scene-icon,var(--accent));flex:0 0 auto}.scene-node>b{max-width:100%;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--scene-name,#eefaff);font-size:9px}.scene-node-value{display:flex;align-items:baseline;gap:4px}.scene-node-value strong{color:var(--scene-value,var(--accent));font:18px monospace}.scene-node-value span{color:var(--scene-unit,#94b5c0);font-size:7px}.scene-node-status{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--scene-unit,#688d9a);font-size:7px}.scene-node.extra{justify-content:center}.scene-node .flow-node-extra-fields{position:relative;width:100%}
+    .flow-scene.editing .scene-node.editable{cursor:grab;touch-action:none;user-select:none;outline:1px dashed rgba(255,177,27,.55);outline-offset:3px}.flow-scene.editing .scene-node.editable:active{cursor:grabbing}.flow-scene.editing .scene-node.selected{outline:3px solid var(--orange);outline-offset:5px;box-shadow:0 0 28px rgba(255,177,27,.42)}.scene-resize-handle{position:absolute;right:-8px;bottom:-8px;width:25px;height:25px;display:grid;place-items:center;border:1px solid var(--orange);border-radius:7px;background:#1b1002;color:var(--orange);cursor:nwse-resize;touch-action:none}.scene-resize-handle ha-icon{width:15px;height:15px}.flow-scene.editing .scene-connection{cursor:pointer}.flow-scene.editing .scene-connection-label{pointer-events:auto;cursor:pointer}.flow-scene.editing .scene-connection.selected .scene-connection-base{opacity:.85;filter:drop-shadow(0 0 10px var(--orange))}.flow-scene.editing .scene-connection.selected .scene-connection-hit{stroke:rgba(255,177,27,.08)}.flow-scene.editing .scene-connection-label.selected{border-color:var(--orange);box-shadow:0 0 14px rgba(255,177,27,.35)}
+    .settings-page{display:grid;gap:10px}.settings-targets{display:flex;gap:7px;overflow-x:auto;padding:8px;border:1px solid rgba(32,234,255,.25);border-radius:12px;background:rgba(2,15,29,.92)}.settings-targets button{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:9px 12px;border:1px solid rgba(32,234,255,.18);border-radius:8px;background:rgba(0,65,95,.1);color:#88afbd;font-size:9px}.settings-targets button.active{border-color:var(--cyan);background:rgba(0,180,225,.15);color:white;box-shadow:0 0 13px rgba(32,234,255,.18)}.settings-targets ha-icon{width:18px;height:18px;color:var(--cyan)}
+    .settings-scene-toolbar{display:grid;grid-template-columns:repeat(8,minmax(105px,1fr));gap:8px;padding:9px 12px;border:1px solid rgba(32,234,255,.18);border-radius:12px;background:rgba(2,14,27,.92)}.settings-scene-toolbar .field{margin:0}.settings-scene-toolbar .check-row{padding:8px 2px}.settings-scene-toolbar .settings-reset{align-self:center;justify-content:center;min-height:39px}.settings-workspace{display:grid;grid-template-columns:minmax(620px,1fr) minmax(350px,430px);gap:10px;min-height:680px}.settings-live-preview{min-width:0;overflow:visible;padding-bottom:8px}.settings-preview-label{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;border-bottom:1px solid rgba(32,234,255,.14);color:#83aab9;font-size:8px}.settings-preview-label b{color:var(--cyan);font-size:10px}.settings-inspector{min-height:0;max-height:calc(100vh - 235px);overflow:auto;padding:9px 12px 18px;border:1px solid rgba(32,234,255,.3);border-radius:12px;background:rgba(2,13,27,.97)}.settings-inspector>.panel-title{position:sticky;top:-9px;z-index:5;margin:0 -12px 5px;background:#03101e;border-bottom:1px solid rgba(32,234,255,.2)}
+    @media(max-width:1250px){.settings-scene-toolbar{grid-template-columns:repeat(4,minmax(110px,1fr))}.settings-workspace{grid-template-columns:minmax(500px,1fr) 360px}}
+    @media(max-width:900px){.settings-workspace{grid-template-columns:1fr;min-height:0}.settings-inspector{max-height:none}.settings-scene-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.flow-scene{height:min(var(--scene-height,620px),70vh)}}
+
+    /* v0.6.6 compatibility styles retained for migrated widgets */
     .flow-panel,.large-flow,.kiosk-flow-card{overflow:visible}.display-tablet_16_9 .kiosk-slides,.display-tablet_16_9 .kiosk-slide{overflow:visible}
     .flow-canvas-v4{overflow:visible}
     .flow-node[data-flow-layout-element],.flow-extra-node[data-flow-layout-element]{border-color:var(--flow-custom-border);border-width:var(--flow-custom-border-width);border-radius:var(--flow-custom-radius);background:var(--flow-custom-bg)}

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 — 2026-07-16
+
+- Replaced the old modal flow-layout editor with a dedicated top-level Settings panel.
+- Added one responsive absolute-node/SVG-connection renderer shared by the editor and the Summary, Flows and kiosk Matrix dashboards.
+- Added independent `flow_scene` storage for Summary, Flows, the default kiosk and every named kiosk profile, with automatic schema-v7 migration.
+- Made every core, PV-string, EV and additional-device bubble draggable, resizable, hideable, lockable and layer-aware while keeping the background grid fixed.
+- Made every connection follow its endpoint bubbles automatically with direct, curved and orthogonal routing.
+- Added per-connection forward, reverse, idle and unavailable colors, direction entity/attribute, positive-sign convention, deadband, thickness and animation speed.
+- Added editable and draggable connection labels with independent text, offsets, foreground, background, border and font size.
+- Kept per-object Home Assistant actions and per-bubble custom icons, colors and up to eight additional entity fields.
+- Added a per-screen scene reset and runtime JavaScript tests for direction, unavailable state, path geometry and profile independence.
+
 ## 0.6.6 — 2026-07-16
 
 - Extended the central layout editor to every energy-flow object: core and additional nodes, connector lines, connector labels, source/load buses and individual device wires.

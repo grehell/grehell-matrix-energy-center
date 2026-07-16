@@ -26,10 +26,26 @@ from .tariff import (
 )
 
 
+def default_flow_scene(canvas_height: int = 620) -> dict[str, Any]:
+    """Return a clean responsive flow-scene configuration."""
+    return {
+        "canvas_height": canvas_height,
+        "show_grid": True,
+        "grid_size": 20,
+        "snap_to_grid": True,
+        "background_color": "#020b16",
+        "border_color": "#20eaff",
+        "border_width": 1,
+        "border_radius": 16,
+        "elements": {},
+        "connections": {},
+    }
+
+
 def default_configuration() -> dict[str, Any]:
     """Return a new default configuration document."""
     return {
-        "schema_version": 6,
+        "schema_version": 7,
         "revision": 0,
         "general": {
             "installation_name": DEFAULT_INSTALLATION_NAME,
@@ -77,6 +93,7 @@ def default_configuration() -> dict[str, Any]:
             "branch_gap": 12,
             "flow_node_positions": {},
             "flow_element_styles": {},
+            "flow_scene": default_flow_scene(620),
         },
         "overview": {
             "show_builtin_bubbles": True,
@@ -89,6 +106,7 @@ def default_configuration() -> dict[str, Any]:
             "bubble_positions": {},
             "flow_node_positions": {},
             "flow_element_styles": {},
+            "flow_scene": default_flow_scene(520),
         },
         "kiosk": {
             "title": "PRZEPŁYW ENERGII",
@@ -102,6 +120,7 @@ def default_configuration() -> dict[str, Any]:
             "bubble_positions": {},
             "flow_node_positions": {},
             "flow_element_styles": {},
+            "flow_scene": default_flow_scene(460),
             "flow_offset_x": 0,
             "flow_offset_y": -30,
             "flow_scale": 100,
@@ -230,7 +249,7 @@ class MatrixEnergyStore:
             raise ValueError("Configuration must be an object")
 
         config = default_configuration()
-        config["schema_version"] = 6
+        config["schema_version"] = 7
         config["revision"] = int(raw.get("revision", 0))
 
         general = raw.get("general", {})
@@ -292,6 +311,7 @@ class MatrixEnergyStore:
                 "flow_element_styles": self._validate_flow_element_styles(
                     flow.get("flow_element_styles", {})
                 ),
+                "flow_scene": self._validate_flow_scene(flow.get("flow_scene", {}), 620),
             }
         )
 
@@ -322,6 +342,7 @@ class MatrixEnergyStore:
                 "flow_element_styles": self._validate_flow_element_styles(
                     overview.get("flow_element_styles", {})
                 ),
+                "flow_scene": self._validate_flow_scene(overview.get("flow_scene", {}), 520),
             }
         )
 
@@ -361,6 +382,7 @@ class MatrixEnergyStore:
                 "flow_element_styles": self._validate_flow_element_styles(
                     kiosk.get("flow_element_styles", {})
                 ),
+                "flow_scene": self._validate_flow_scene(kiosk.get("flow_scene", {}), 460),
                 "flow_offset_x": int(
                     self._number(kiosk.get("flow_offset_x"), 0, -400, 400)
                 ),
@@ -740,6 +762,7 @@ class MatrixEnergyStore:
                     "flow_element_styles": self._validate_flow_element_styles(
                         item.get("flow_element_styles", {})
                     ),
+                    "flow_scene": self._validate_flow_scene(item.get("flow_scene", {}), 460),
                     "flow_offset_x": int(
                         self._number(item.get("flow_offset_x"), 0, -400, 400)
                     ),
@@ -812,6 +835,96 @@ class MatrixEnergyStore:
                 "width": round(self._number(value.get("width"), 16, 8, 60), 2),
             }
         return result
+
+    def _validate_flow_scene(self, raw: Any, default_height: int = 620) -> dict[str, Any]:
+        """Validate the responsive v0.7 flow canvas and directional connections."""
+        if not isinstance(raw, dict):
+            raw = {}
+        elements_raw = raw.get("elements", {})
+        if not isinstance(elements_raw, dict):
+            elements_raw = {}
+        elements: dict[str, dict[str, Any]] = {}
+        for index, (raw_key, value) in enumerate(elements_raw.items()):
+            if index >= 192:
+                break
+            if not isinstance(value, dict):
+                continue
+            key = self._identifier(raw_key, f"element_{index + 1}")
+            elements[key] = {
+                "x": round(self._number(value.get("x"), 50, 0, 100), 2),
+                "y": round(self._number(value.get("y"), 50, 0, 100), 2),
+                "width": int(self._number(value.get("width"), 132, 40, 360)),
+                "height": int(self._number(value.get("height"), 110, 30, 360)),
+                "z_index": int(self._number(value.get("z_index"), 20, 1, 100)),
+                "visible": bool(value.get("visible", True)),
+                "locked": bool(value.get("locked", False)),
+            }
+
+        connections_raw = raw.get("connections", {})
+        if not isinstance(connections_raw, dict):
+            connections_raw = {}
+        connections: dict[str, dict[str, Any]] = {}
+        for index, (raw_key, value) in enumerate(connections_raw.items()):
+            if index >= 192:
+                break
+            if not isinstance(value, dict):
+                continue
+            key = self._identifier(raw_key, f"connection_{index + 1}")
+            connections[key] = {
+                "visible": bool(value.get("visible", True)),
+                "label": self._text(value.get("label"), "", 80),
+                "route": self._choice(
+                    value.get("route"), "curve", {"direct", "orthogonal", "curve"}
+                ),
+                "forward_color": self._color(value.get("forward_color"), "#52ff62"),
+                "reverse_color": self._color(value.get("reverse_color"), "#b95cff"),
+                "idle_color": self._color(value.get("idle_color"), "#49616b"),
+                "unavailable_color": self._color(
+                    value.get("unavailable_color"), "#ff4d6d"
+                ),
+                "thickness": int(self._number(value.get("thickness"), 4, 1, 14)),
+                "animation_speed": self._number(
+                    value.get("animation_speed"), 1.2, 0.2, 8
+                ),
+                "direction_source": self._choice(
+                    value.get("direction_source"), "automatic", {"automatic", "entity"}
+                ),
+                "entity_id": self._entity_id(value.get("entity_id", "")),
+                "attribute": self._text(value.get("attribute"), "", 100),
+                "multiplier": self._number(
+                    value.get("multiplier"), 1, -1_000_000, 1_000_000
+                ),
+                "positive_direction": self._choice(
+                    value.get("positive_direction"), "forward", {"forward", "reverse"}
+                ),
+                "deadband": self._number(value.get("deadband"), 1, 0, 1_000_000),
+                "label_visible": bool(value.get("label_visible", True)),
+                "label_x": int(self._number(value.get("label_x"), 0, -400, 400)),
+                "label_y": int(self._number(value.get("label_y"), 0, -400, 400)),
+                "label_color": self._color(value.get("label_color"), "#eefaff"),
+                "label_background": self._color(
+                    value.get("label_background"), "#010912"
+                ),
+                "label_border_color": self._color(
+                    value.get("label_border_color"), "#20eaff"
+                ),
+                "label_size": int(self._number(value.get("label_size"), 9, 6, 24)),
+            }
+
+        return {
+            "canvas_height": int(
+                self._number(raw.get("canvas_height"), default_height, 320, 1200)
+            ),
+            "show_grid": bool(raw.get("show_grid", True)),
+            "grid_size": int(self._number(raw.get("grid_size"), 20, 5, 80)),
+            "snap_to_grid": bool(raw.get("snap_to_grid", True)),
+            "background_color": self._color(raw.get("background_color"), "#020b16"),
+            "border_color": self._color(raw.get("border_color"), "#20eaff"),
+            "border_width": int(self._number(raw.get("border_width"), 1, 0, 8)),
+            "border_radius": int(self._number(raw.get("border_radius"), 16, 0, 80)),
+            "elements": elements,
+            "connections": connections,
+        }
 
     def _validate_flow_node_positions(self, raw: Any) -> dict[str, dict[str, float]]:
         """Validate per-dashboard offsets for individual flow diagram nodes."""

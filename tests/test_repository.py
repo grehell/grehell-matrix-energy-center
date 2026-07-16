@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "custom_components" / "matrix_energy_center"
@@ -13,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.6"
+    assert manifest["version"] == "0.7.0"
 
 
 def test_hacs_manifest() -> None:
@@ -45,7 +49,7 @@ def test_native_lovelace_flow_card() -> None:
     assert "flow-extra-fields" in frontend
 
 
-def test_frontend_v06_features() -> None:
+def test_frontend_features() -> None:
     frontend = (COMPONENT / "frontend" / "matrix-energy-center-panel.js").read_text()
     assert "WYSZUKIWARKA ENCJI HOME ASSISTANT" in frontend
     assert "data-live-rerender" in frontend
@@ -101,11 +105,22 @@ def test_frontend_v06_features() -> None:
     assert "kiosk-lovelace-slide" in frontend
     assert "auto_fullscreen" in frontend
     assert "tap_action" in frontend
+    assert "NOWY EDYTOR V0.7" in frontend
+    assert "data-flow-scene" in frontend
+    assert "scene-connection-flow" in frontend
+    assert "_sceneConnectionState" in frontend
+    assert "_bindSettingsSceneEditor" in frontend
+    assert "data-settings-target" in frontend
+    assert "reset-settings-scene" in frontend
+    assert "label_background" in frontend
+    assert "forward_color" in frontend
+    assert "reverse_color" in frontend
+    assert "unavailable_color" in frontend
 
 
-def test_configuration_schema_v6() -> None:
+def test_configuration_schema_v7() -> None:
     storage = (COMPONENT / "storage.py").read_text()
-    assert '"schema_version": 6' in storage
+    assert '"schema_version": 7' in storage
     assert '"status_entity"' in storage
     assert '"show_on_overview"' in storage
     assert '"show_in_flow"' in storage
@@ -138,11 +153,16 @@ def test_configuration_schema_v6() -> None:
     assert '"show_self_sufficiency_gauge": False' in storage
     assert '"lovelace_views": []' in storage
     assert '"auto_fullscreen": True' in storage
+    assert '"flow_scene"' in storage
+    assert '"forward_color"' in storage
+    assert '"reverse_color"' in storage
+    assert '"direction_source"' in storage
+    assert '"label_background"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
     example = json.loads((ROOT / "docs" / "example-config.json").read_text())
-    assert example["schema_version"] == 6
+    assert example["schema_version"] == 7
     assert len(example["pv_strings"]) >= 2
     assert all(item["show_in_flow"] for item in example["pv_strings"][:2])
     assert example["devices"][0]["show_in_flow"] is True
@@ -151,6 +171,10 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert "flow_element_styles" in example["overview"]
     assert "flow_element_styles" in example["kiosk"]
     assert "flow_element_styles" in example["kiosk_profiles"][0]
+    assert "flow_scene" in example["flow"]
+    assert "flow_scene" in example["overview"]
+    assert "flow_scene" in example["kiosk"]
+    assert "flow_scene" in example["kiosk_profiles"][0]
     assert example["flow"]["show_pv_strings"] is True
     assert example["flow"]["show_devices"] is True
     assert example["flow"]["flow_node_positions"] == {}
@@ -179,3 +203,17 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["overview_bubbles"][0]["value_color"] == "#b8ff3d"
     assert example["overview_bubbles"][0]["related_entities"][0]["value_size"] == 10
     assert example["kiosk_profiles"][0]["id"] == "salon"
+
+
+def test_flow_scene_runtime_rules() -> None:
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is unavailable")
+    result = subprocess.run(
+        [node, "tests/flow_scene_smoke.js"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "flow scene rules ok" in result.stdout

@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "revision": 1,
   "general": {
     "installation_name": "Example Home",
@@ -301,7 +301,44 @@
     "max_devices": 6,
     "branch_gap": 12,
     "flow_node_positions": {},
-    "flow_element_styles": {}
+    "flow_element_styles": {},
+    "flow_scene": {
+      "canvas_height": 620,
+      "show_grid": true,
+      "grid_size": 20,
+      "snap_to_grid": true,
+      "background_color": "#020b16",
+      "border_color": "#20eaff",
+      "border_width": 1,
+      "border_radius": 16,
+      "elements": {},
+      "connections": {
+        "link_grid": {
+          "visible": true,
+          "label": "SIEĆ",
+          "route": "curve",
+          "forward_color": "#b95cff",
+          "reverse_color": "#52ff62",
+          "idle_color": "#49616b",
+          "unavailable_color": "#ff4d6d",
+          "thickness": 4,
+          "animation_speed": 1.2,
+          "direction_source": "automatic",
+          "entity_id": "",
+          "attribute": "",
+          "multiplier": 1,
+          "positive_direction": "forward",
+          "deadband": 1,
+          "label_visible": true,
+          "label_x": 0,
+          "label_y": 0,
+          "label_color": "#eefaff",
+          "label_background": "#010912",
+          "label_border_color": "#20eaff",
+          "label_size": 9
+        }
+      }
+    }
   },
   "overview": {
     "show_builtin_bubbles": true,
@@ -313,7 +350,19 @@
     "bubble_stage_height": 104,
     "bubble_positions": {},
     "flow_node_positions": {},
-    "flow_element_styles": {}
+    "flow_element_styles": {},
+    "flow_scene": {
+      "canvas_height": 520,
+      "show_grid": true,
+      "grid_size": 20,
+      "snap_to_grid": true,
+      "background_color": "#020b16",
+      "border_color": "#20eaff",
+      "border_width": 1,
+      "border_radius": 16,
+      "elements": {},
+      "connections": {}
+    }
   },
   "kiosk": {
     "title": "PRZEPŁYW ENERGII",
@@ -327,6 +376,18 @@
     "bubble_positions": {},
     "flow_node_positions": {},
     "flow_element_styles": {},
+    "flow_scene": {
+      "canvas_height": 460,
+      "show_grid": true,
+      "grid_size": 20,
+      "snap_to_grid": true,
+      "background_color": "#020b16",
+      "border_color": "#20eaff",
+      "border_width": 1,
+      "border_radius": 16,
+      "elements": {},
+      "connections": {}
+    },
     "flow_offset_x": 0,
     "flow_offset_y": -30,
     "flow_scale": 100,
@@ -379,6 +440,18 @@
       "bubble_positions": {},
       "flow_node_positions": {},
       "flow_element_styles": {},
+      "flow_scene": {
+        "canvas_height": 460,
+        "show_grid": true,
+        "grid_size": 20,
+        "snap_to_grid": true,
+        "background_color": "#020b16",
+        "border_color": "#20eaff",
+        "border_width": 1,
+        "border_radius": 16,
+        "elements": {},
+        "connections": {}
+      },
       "flow_offset_x": 0,
       "flow_offset_y": -30,
       "flow_scale": 100,
