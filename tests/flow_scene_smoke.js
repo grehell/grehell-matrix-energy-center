@@ -81,8 +81,8 @@ assert(panel._flowSceneModel(panel._config.flow).byKey.home.x === 65, "flow scen
 panel._config.kiosk.flow_scene.elements.home = { x: 82, y: 42, width: 150, height: 150, z_index: 20, visible: true, locked: false };
 assert(panel._flowSceneModel(panel._config.kiosk).byKey.home.x === 82, "kiosk scene must be independent");
 
-panel._config.flow.flow_scene.connections.link_grid = { label: "IMPORT / EKSPORT", label_color: "#abcdef", forward_color: "#112233", reverse_color: "#445566" };
-panel._config.flow.flow_element_styles.home = { name_size: 14, value_size: 25, unit_size: 10, status_size: 8 };
+panel._config.flow.flow_scene.connections.link_grid = { label: "IMPORT / EKSPORT", label_color: "#abcdef", forward_color: "#112233", reverse_color: "#445566", label_bold: true };
+panel._config.flow.flow_element_styles.home = { name_size: 14, value_size: 25, unit_size: 10, status_size: 8, name_bold: false, value_bold: true, unit_bold: true, status_bold: false, extra_fields: [{ id: "extra", name: "DZIŚ", entity_id: "sensor.extra", label_bold: true, value_bold: false, unit_bold: true }] };
 model = panel._flowSceneModel(panel._config.flow);
 assert(connection("link_grid").label === "IMPORT / EKSPORT", "custom connection label must be rendered");
 assert(connection("link_grid").forward_color === "#112233", "custom forward color must be retained");
@@ -94,6 +94,11 @@ assert(html.includes("scene-connection-flow"), "animated direction layer missing
 assert(html.includes("IMPORT / EKSPORT"), "custom line label missing from renderer");
 assert(html.includes("--scene-name-size:14px"), "custom node name font size missing");
 assert(html.includes("--scene-value-size:25px"), "custom node value font size missing");
+assert(html.includes("--scene-name-weight:400"), "custom node name bold setting missing");
+assert(html.includes("--scene-unit-weight:700"), "custom node unit bold setting missing");
+assert(html.includes("--flow-field-label-weight:700"), "extra-field label bold setting missing");
+assert(html.includes("--flow-field-value-weight:400"), "extra-field value bold setting missing");
+assert(html.includes("--label-weight:700"), "connection-label bold setting missing");
 
 const sameOrigin = panel._normalizeHaViewPath("https://ha.example/dashboard-energy/home?kiosk=1#top");
 assert(sameOrigin.path === "/dashboard-energy/home?kiosk=1#top" && !sameOrigin.error, "same-origin HA URL must become a local path");
@@ -101,9 +106,19 @@ assert(panel._normalizeHaViewPath("dashboard-energy/home").path === "/dashboard-
 assert(Boolean(panel._normalizeHaViewPath("https://other.example/dashboard").error), "foreign origin must be rejected");
 
 panel._config.kiosk.slide_headers.flow = { ...panel._defaultKioskHeader(panel._kioskHeaderDefinitions(panel._config.kiosk)[0]), title: "MÓJ PRZEPŁYW", height: 74, show_navigation: true };
+panel._config.kiosk.lovelace_views = [{ id: "lights", name: "OŚWIETLENIE", path: "/dashboard-home/lights", enabled: true, scale: 110, offset_x: 12, offset_y: -8, padding: 4, border_radius: 18, background_color: "#010203", border_color: "#abcdef" }];
 const kioskHtml = panel._renderKiosk();
 assert(kioskHtml.includes("kiosk-slide-header"), "per-slide kiosk header missing");
 assert(kioskHtml.includes("MÓJ PRZEPŁYW"), "custom flow-slide title missing");
 assert(kioskHtml.includes("kiosk-header-navigation"), "navigation must be inside the kiosk header");
+assert(kioskHtml.includes("kiosk-tab-button"), "named kiosk tabs must be rendered in the top header");
+assert(kioskHtml.includes("OŚWIETLENIE"), "Lovelace dashboard must become a named kiosk tab");
+assert(kioskHtml.includes('src="/dashboard-home/lights"'), "Lovelace dashboard must be embedded as a kiosk slide");
+assert(kioskHtml.includes("--kiosk-view-scale:1.1"), "per-tab scale must be rendered");
+assert(kioskHtml.includes("--kiosk-view-x:12px"), "per-tab X offset must be rendered");
+assert(kioskHtml.includes("--kiosk-header-title-weight:700"), "kiosk-header bold setting must be rendered");
 assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not be rendered");
+const kioskConfigHtml = panel._renderKioskConfiguration();
+assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
+assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
 console.log("flow scene rules ok");

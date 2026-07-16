@@ -1,6 +1,6 @@
-# Status projektu v8.0.0
+# Status projektu v8.0.1
 
-## Najważniejsze zmiany v8.0.0
+## Najważniejsze zmiany v8.0.1
 
 - kiosk nie ma już dolnego paska statusu ani dolnej nawigacji,
 - strzałki i wskaźniki slajdów są umieszczone na środku nagłówka,
@@ -9,6 +9,10 @@
 - przewijanie i paski przewijania w natywnych slajdach kiosku są wyłączone,
 - każdy tekst w dymku przepływu ma niezależny rozmiar,
 - pełny adres strony z tego samego HA jest poprawnie normalizowany podczas zapisu,
+- konfiguracja profili i dodatkowych pulpitów znajduje się w osobnym panelu **Kiosk**,
+- dodatkowe pulpity są nazwanymi zakładkami w górnym nagłówku i obsługują gest także wewnątrz osadzonego widoku HA,
+- każda zakładka Lovelace ma własną skalę, przesunięcie, margines, tło i ramkę,
+- teksty dymków, dodatkowych pól, linii i nagłówków mają osobne przełączniki pogrubienia,
 
 - stary edytor modalny został zastąpiony nowym panelem głównym **Ustawienia**,
 - konfiguracja encji i danych pozostaje w dotychczasowych panelach, a grafika jest edytowana osobno,
@@ -56,7 +60,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.0
+## Świadome ograniczenia v8.0.1
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -68,7 +72,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.0`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.1`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

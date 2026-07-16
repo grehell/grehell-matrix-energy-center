@@ -1,5 +1,13 @@
 # Changelog
 
+## 8.0.1 — 2026-07-16
+
+- Replaced the ambiguous Kiosk preview navigation item with a dedicated Kiosk configuration panel; the actual kiosk now opens only from a profile button or `?kiosk=...` URL.
+- Added named top-header tabs for every native and Lovelace kiosk screen, plus ordering controls for additional Lovelace tabs.
+- Added same-origin swipe detection inside embedded Home Assistant dashboards.
+- Added per-Lovelace-tab scale, X/Y offset, padding, background, border and radius settings.
+- Added independent bold controls for flow-bubble text, extra fields, connection labels and every kiosk-header text group.
+
 ## 8.0.0 — 2026-07-16
 
 - Added independent font sizes for each flow-bubble name, main value, unit and status/description.

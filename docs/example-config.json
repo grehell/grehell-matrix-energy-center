@@ -308,6 +308,10 @@
         "value_size": 22,
         "unit_size": 8,
         "status_size": 7,
+        "name_bold": true,
+        "value_bold": true,
+        "unit_bold": false,
+        "status_bold": false,
         "extra_fields": []
       }
     },
@@ -344,7 +348,8 @@
           "label_color": "#eefaff",
           "label_background": "#010912",
           "label_border_color": "#20eaff",
-          "label_size": 9
+          "label_size": 9,
+          "label_bold": false
         }
       }
     }
@@ -415,6 +420,10 @@
         "title_size": 18,
         "description_size": 8,
         "clock_size": 17,
+        "eyebrow_bold": true,
+        "title_bold": true,
+        "description_bold": false,
+        "clock_bold": true,
         "show_clock": true,
         "show_navigation": true,
         "show_fullscreen": true,
@@ -434,7 +443,14 @@
         "id": "deye",
         "name": "Deye kiosk",
         "path": "/dashboard-jsbd/deye-kiosk",
-        "enabled": false
+        "enabled": false,
+        "scale": 100,
+        "offset_x": 0,
+        "offset_y": 0,
+        "padding": 0,
+        "border_radius": 12,
+        "background_color": "#010914",
+        "border_color": "#20eaff"
       }
     ],
     "show_clock": true,

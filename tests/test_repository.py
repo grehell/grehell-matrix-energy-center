@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.0"
+    assert manifest["version"] == "8.0.1"
 
 
 def test_hacs_manifest() -> None:
@@ -63,7 +63,7 @@ def test_frontend_features() -> None:
     assert "data-overview-bubble-value" in frontend
     assert "data-custom-chart" in frontend
     assert "graph-area" in frontend
-    assert "KARTA KIOSK" in frontend
+    assert "KONFIGURACJA KIOSKU" in frontend
     assert "toggle-fullscreen" in frontend
     assert 'get("kiosk")' in frontend
     assert "POWIĄZANE SERIE NA JEDNYM WYKRESIE" in frontend
@@ -121,6 +121,13 @@ def test_frontend_features() -> None:
     assert "slide_headers" in frontend
     assert "kiosk-slide-header" in frontend
     assert "_normalizeHaViewPath" in frontend
+    assert "_renderKioskConfiguration" in frontend
+    assert "DODAJ ZAKŁADKĘ DO TEGO KIOSKU" in frontend
+    assert "kiosk-tab-button" in frontend
+    assert "_bindKioskIframeSwipe" in frontend
+    assert "move-kiosk-lovelace-view" in frontend
+    assert "name_bold" in frontend
+    assert "clock_bold" in frontend
 
 
 def test_configuration_schema_v8() -> None:
@@ -166,6 +173,10 @@ def test_configuration_schema_v8() -> None:
     assert '"slide_headers"' in storage
     assert '"name_size"' in storage
     assert '"clock_size"' in storage
+    assert '"name_bold"' in storage
+    assert '"clock_bold"' in storage
+    assert '"scale"' in storage
+    assert '"offset_x"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
@@ -211,6 +222,9 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["lovelace_views"][0]["path"].startswith("/")
     assert example["flow"]["flow_element_styles"]["home"]["name_size"] == 10
     assert example["flow"]["flow_element_styles"]["home"]["value_size"] == 22
+    assert example["flow"]["flow_element_styles"]["home"]["name_bold"] is True
+    assert example["kiosk"]["lovelace_views"][0]["scale"] == 100
+    assert example["kiosk"]["lovelace_views"][0]["border_radius"] == 12
     assert example["overview_bubbles"][0]["border_radius"] == 16
     assert example["overview_bubbles"][0]["border_width"] == 2
     assert example["overview_bubbles"][0]["value_color"] == "#b8ff3d"

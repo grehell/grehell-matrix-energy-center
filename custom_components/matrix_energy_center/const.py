@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "matrix_energy_center"
 NAME = "Matrix Energy Center"
-VERSION = "8.0.0"
+VERSION = "8.0.1"
 
 PLATFORMS = ["sensor"]
 

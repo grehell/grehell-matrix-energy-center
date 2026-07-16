@@ -916,6 +916,7 @@ class MatrixEnergyStore:
                     value.get("label_border_color"), "#20eaff"
                 ),
                 "label_size": int(self._number(value.get("label_size"), 9, 6, 24)),
+                "label_bold": bool(value.get("label_bold", False)),
             }
 
         return {
@@ -1004,6 +1005,9 @@ class MatrixEnergyStore:
                         "unit_size": int(
                             self._number(field.get("unit_size"), 6, 5, 24)
                         ),
+                        "label_bold": bool(field.get("label_bold", False)),
+                        "value_bold": bool(field.get("value_bold", True)),
+                        "unit_bold": bool(field.get("unit_bold", False)),
                         "enabled": bool(field.get("enabled", True)),
                     }
                 )
@@ -1028,6 +1032,10 @@ class MatrixEnergyStore:
                 "value_size": int(self._number(value.get("value_size"), 18, 8, 56)),
                 "unit_size": int(self._number(value.get("unit_size"), 7, 5, 28)),
                 "status_size": int(self._number(value.get("status_size"), 7, 5, 28)),
+                "name_bold": bool(value.get("name_bold", True)),
+                "value_bold": bool(value.get("value_bold", True)),
+                "unit_bold": bool(value.get("unit_bold", False)),
+                "status_bold": bool(value.get("status_bold", False)),
                 "line_color": self._color(value.get("line_color"), base_color),
                 "line_thickness": int(self._number(value.get("line_thickness"), 3, 1, 14)),
                 "extra_fields": extra_fields,
@@ -1077,6 +1085,10 @@ class MatrixEnergyStore:
                     self._number(value.get("description_size"), 8, 6, 24)
                 ),
                 "clock_size": int(self._number(value.get("clock_size"), 17, 9, 40)),
+                "eyebrow_bold": bool(value.get("eyebrow_bold", True)),
+                "title_bold": bool(value.get("title_bold", True)),
+                "description_bold": bool(value.get("description_bold", False)),
+                "clock_bold": bool(value.get("clock_bold", True)),
                 "show_clock": bool(value.get("show_clock", True)),
                 "show_navigation": bool(value.get("show_navigation", True)),
                 "show_fullscreen": bool(value.get("show_fullscreen", True)),
@@ -1108,6 +1120,23 @@ class MatrixEnergyStore:
                     ),
                     "path": path,
                     "enabled": bool(item.get("enabled", True)),
+                    "scale": int(self._number(item.get("scale"), 100, 50, 150)),
+                    "offset_x": int(
+                        self._number(item.get("offset_x"), 0, -500, 500)
+                    ),
+                    "offset_y": int(
+                        self._number(item.get("offset_y"), 0, -500, 500)
+                    ),
+                    "padding": int(self._number(item.get("padding"), 0, 0, 80)),
+                    "border_radius": int(
+                        self._number(item.get("border_radius"), 12, 0, 60)
+                    ),
+                    "background_color": self._color(
+                        item.get("background_color"), "#010914"
+                    ),
+                    "border_color": self._color(
+                        item.get("border_color"), "#20eaff"
+                    ),
                 }
             )
         return result
