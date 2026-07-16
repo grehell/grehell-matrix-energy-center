@@ -1,0 +1,51 @@
+{
+  "title": "Matrix Energy Center",
+  "config": {
+    "flow_title": "Matrix Energy Center",
+    "step": {
+      "user": {
+        "title": "Utwórz centrum energii",
+        "description": "Tworzy lokalny panel energii w stylu Matrix. Szczegółowe mapowanie encji, stringi PV i odbiorniki skonfigurujesz później bezpośrednio w panelu.",
+        "data": {
+          "installation_name": "Nazwa instalacji",
+          "panel_title": "Nazwa w pasku bocznym",
+          "currency": "Waluta"
+        },
+        "data_description": {
+          "installation_name": "Przyjazna nazwa monitorowanego domu lub obiektu.",
+          "panel_title": "Nazwa wyświetlana w pasku bocznym Home Assistant.",
+          "currency": "Kod waluty używany przy cenach energii, np. PLN lub EUR."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Matrix Energy Center jest już skonfigurowany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje techniczne",
+        "description": "Zmiany powodują przeładowanie integracji.",
+        "data": {
+          "refresh_interval": "Interwał odświeżania sensorów",
+          "name": "Techniczna nazwa wpisu"
+        },
+        "data_description": {
+          "refresh_interval": "Co ile sekund odświeżać znormalizowane sensory Matrix Energy Center.",
+          "name": "Opcjonalna wewnętrzna nazwa wpisu konfiguracji."
+        }
+      }
+    }
+  },
+  "services": {
+    "reload_configuration": {
+      "name": "Przeładuj konfigurację",
+      "description": "Przeładowuje Matrix Energy Center i jego znormalizowane sensory."
+    },
+    "reset_configuration": {
+      "name": "Wyzeruj konfigurację",
+      "description": "Usuwa wszystkie mapowania, stringi PV, odbiorniki i ustawienia lokalne."
+    }
+  }
+}

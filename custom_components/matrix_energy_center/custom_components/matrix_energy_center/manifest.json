@@ -1,0 +1,18 @@
+{
+  "domain": "matrix_energy_center",
+  "name": "Matrix Energy Center",
+  "codeowners": [
+    "@grehell"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/grehell/grehell-matrix-energy-center",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/grehell/grehell-matrix-energy-center/issues",
+  "version": "8.0.3"
+}
