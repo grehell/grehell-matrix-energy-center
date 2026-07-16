@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v0.6.3 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
+> Status: **v0.6.4 technical preview**. Monitoring, configuration, the multi-branch flow window, native Lovelace flow card, advanced overview widgets, Recorder-backed charts, multi-profile kiosk mode, the TAURON G13 tariff engine and generic control buttons are implemented. Automatic control of inverters, batteries and EV chargers remains intentionally disabled until vendor adapters and safety tests are added.
 
 ## Main features
 
@@ -23,6 +23,9 @@
 - Drag-and-drop bubble/chart ordering in the Widgets editor.
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
 - Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
+- Touch layout editing in kiosk mode: drag and resize bubbles, move/scale the complete flow diagram and save positions per screen profile.
+- Independently selectable built-in kiosk bubbles and summary panels; battery and self-sufficiency gauges are optional.
+- Up to twelve local Lovelace views can be added as kiosk slides and included in automatic rotation.
 - Native `custom:matrix-energy-flow-card` for Lovelace dashboards; no self-iframe or reserved-character URL workaround is required.
 - Generic source mapping; no user entity IDs are hardcoded.
 - Normalized Home Assistant sensors in W, kWh, %, currency/kWh and currency/hour.
@@ -73,7 +76,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 0.6.3 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 0.6.4 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -201,7 +204,7 @@ Other domains will receive dedicated adapters in later versions.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Status wersji v0.6 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v0.6.3 (PL)](docs/RELEASE_0_6_3_PL.md)
+- [Informacje o wydaniu v0.6.4 (PL)](docs/RELEASE_0_6_4_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

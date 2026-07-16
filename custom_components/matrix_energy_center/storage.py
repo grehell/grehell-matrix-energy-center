@@ -89,6 +89,19 @@ def default_configuration() -> dict[str, Any]:
             "compact_header": True,
             "max_bubbles": 6,
             "chart_columns": 2,
+            "builtin_bubble_ids": ["home", "pv", "grid"],
+            "bubble_layout": "free",
+            "bubble_stage_height": 96,
+            "bubble_positions": {},
+            "flow_offset_x": 0,
+            "flow_offset_y": -30,
+            "flow_scale": 100,
+            "show_price_panel": True,
+            "show_consumers_panel": True,
+            "show_battery_gauge": False,
+            "show_self_sufficiency_gauge": False,
+            "auto_fullscreen": True,
+            "lovelace_views": [],
             "show_clock": True,
             "show_builtin_bubbles": True,
             "show_custom_bubbles": True,
@@ -296,6 +309,41 @@ class MatrixEnergyStore:
                 "compact_header": bool(kiosk.get("compact_header", True)),
                 "max_bubbles": int(self._number(kiosk.get("max_bubbles"), 6, 1, 16)),
                 "chart_columns": int(self._number(kiosk.get("chart_columns"), 2, 1, 4)),
+                "builtin_bubble_ids": [
+                    item
+                    for item in self._identifier_list(
+                        kiosk.get("builtin_bubble_ids", ["home", "pv", "grid"]), 6
+                    )
+                    if item in {"home", "pv", "grid", "battery", "ev", "price"}
+                ],
+                "bubble_layout": self._choice(
+                    kiosk.get("bubble_layout"), "free", {"grid", "free"}
+                ),
+                "bubble_stage_height": int(
+                    self._number(kiosk.get("bubble_stage_height"), 96, 76, 400)
+                ),
+                "bubble_positions": self._validate_bubble_positions(
+                    kiosk.get("bubble_positions", {})
+                ),
+                "flow_offset_x": int(
+                    self._number(kiosk.get("flow_offset_x"), 0, -400, 400)
+                ),
+                "flow_offset_y": int(
+                    self._number(kiosk.get("flow_offset_y"), -30, -400, 400)
+                ),
+                "flow_scale": int(
+                    self._number(kiosk.get("flow_scale"), 100, 60, 140)
+                ),
+                "show_price_panel": bool(kiosk.get("show_price_panel", True)),
+                "show_consumers_panel": bool(kiosk.get("show_consumers_panel", True)),
+                "show_battery_gauge": bool(kiosk.get("show_battery_gauge", False)),
+                "show_self_sufficiency_gauge": bool(
+                    kiosk.get("show_self_sufficiency_gauge", False)
+                ),
+                "auto_fullscreen": bool(kiosk.get("auto_fullscreen", True)),
+                "lovelace_views": self._validate_kiosk_lovelace_views(
+                    kiosk.get("lovelace_views", [])
+                ),
                 "show_clock": bool(kiosk.get("show_clock", True)),
                 "show_builtin_bubbles": bool(kiosk.get("show_builtin_bubbles", True)),
                 "show_custom_bubbles": bool(kiosk.get("show_custom_bubbles", True)),
@@ -633,6 +681,46 @@ class MatrixEnergyStore:
                     "chart_columns": int(
                         self._number(item.get("chart_columns"), 2, 1, 4)
                     ),
+                    "builtin_bubble_ids": [
+                        bubble_id
+                        for bubble_id in self._identifier_list(
+                            item.get("builtin_bubble_ids", ["home", "pv", "grid"]), 6
+                        )
+                        if bubble_id
+                        in {"home", "pv", "grid", "battery", "ev", "price"}
+                    ],
+                    "bubble_layout": self._choice(
+                        item.get("bubble_layout"), "free", {"grid", "free"}
+                    ),
+                    "bubble_stage_height": int(
+                        self._number(item.get("bubble_stage_height"), 96, 76, 400)
+                    ),
+                    "bubble_positions": self._validate_bubble_positions(
+                        item.get("bubble_positions", {})
+                    ),
+                    "flow_offset_x": int(
+                        self._number(item.get("flow_offset_x"), 0, -400, 400)
+                    ),
+                    "flow_offset_y": int(
+                        self._number(item.get("flow_offset_y"), -30, -400, 400)
+                    ),
+                    "flow_scale": int(
+                        self._number(item.get("flow_scale"), 100, 60, 140)
+                    ),
+                    "show_price_panel": bool(item.get("show_price_panel", True)),
+                    "show_consumers_panel": bool(
+                        item.get("show_consumers_panel", True)
+                    ),
+                    "show_battery_gauge": bool(
+                        item.get("show_battery_gauge", False)
+                    ),
+                    "show_self_sufficiency_gauge": bool(
+                        item.get("show_self_sufficiency_gauge", False)
+                    ),
+                    "auto_fullscreen": bool(item.get("auto_fullscreen", True)),
+                    "lovelace_views": self._validate_kiosk_lovelace_views(
+                        item.get("lovelace_views", [])
+                    ),
                     "show_clock": bool(item.get("show_clock", True)),
                     "show_builtin_bubbles": bool(item.get("show_builtin_bubbles", True)),
                     "show_custom_bubbles": bool(item.get("show_custom_bubbles", True)),
@@ -662,6 +750,50 @@ class MatrixEnergyStore:
                     "night_brightness": int(
                         self._number(item.get("night_brightness"), 30, 5, 100)
                     ),
+                    "enabled": bool(item.get("enabled", True)),
+                }
+            )
+        return result
+
+    def _validate_bubble_positions(self, raw: Any) -> dict[str, dict[str, float]]:
+        """Validate free-layout bubble positions stored per kiosk profile."""
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[str, dict[str, float]] = {}
+        for index, (raw_key, value) in enumerate(raw.items()):
+            if index >= 64 or not isinstance(value, dict):
+                break
+            key = self._identifier(raw_key, f"bubble_{index + 1}")
+            result[key] = {
+                "x": round(self._number(value.get("x"), 0, 0, 92), 2),
+                "y": round(self._number(value.get("y"), 0, 0, 360), 2),
+                "width": round(self._number(value.get("width"), 16, 8, 60), 2),
+            }
+        return result
+
+    def _validate_kiosk_lovelace_views(self, raw: Any) -> list[dict[str, Any]]:
+        """Validate same-origin Lovelace views embedded as kiosk slides."""
+        if not isinstance(raw, list):
+            return []
+        result: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, item in enumerate(raw[:12]):
+            if not isinstance(item, dict):
+                continue
+            item_id = self._identifier(item.get("id"), f"lovelace_{index + 1}")
+            if item_id in seen:
+                item_id = f"{item_id}_{index + 1}"
+            seen.add(item_id)
+            path = self._text(item.get("path"), "", 500)
+            if path and (not path.startswith("/") or "://" in path):
+                path = ""
+            result.append(
+                {
+                    "id": item_id,
+                    "name": self._text(
+                        item.get("name"), f"Lovelace {index + 1}", 80
+                    ),
+                    "path": path,
                     "enabled": bool(item.get("enabled", True)),
                 }
             )

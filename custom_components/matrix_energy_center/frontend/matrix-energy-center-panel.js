@@ -105,6 +105,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._historyLoadedAt = {};
     this._historyLoading = new Set();
     this._kioskSlide = 0;
+    this._kioskLayoutEdit = false;
+    this._kioskPointerState = null;
+    this._autoFullscreenArmed = false;
     this._dragState = null;
     this._rendered = false;
     this._picker = null;
@@ -500,6 +503,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const profileId = isDefault ? "1" : profile.id || `kiosk_${profileIndex + 1}`;
     const bubbleIds = new Set(profile.bubble_ids || []);
     const chartIds = new Set(profile.chart_ids || []);
+    const builtinBubbleIds = new Set(profile.builtin_bubble_ids || ["home", "pv", "grid"]);
+    const builtinChoices = [
+      ["home", "mdi:home-lightning-bolt", "Dom"], ["pv", "mdi:solar-power", "PV"],
+      ["grid", "mdi:transmission-tower", "Sieć"], ["battery", "mdi:battery-high", "Magazyn"],
+      ["ev", "mdi:car-electric", "EV"], ["price", "mdi:tag-outline", "Cena"],
+    ].map(([id, icon, label]) => `<label class="selection-chip"><input type="checkbox" data-action="toggle-kiosk-builtin" data-profile-index="${profileIndex}" data-item-id="${id}" ${builtinBubbleIds.has(id) ? "checked" : ""} ${disabled}><ha-icon icon="${icon}"></ha-icon><span>${label}</span></label>`).join("");
+    const lovelaceViews = Array.isArray(profile.lovelace_views) ? profile.lovelace_views : [];
+    const lovelaceCards = lovelaceViews.map((item, index) => `<article class="widget-related-card kiosk-lovelace-editor"><div class="widget-related-head"><b>WIDOK LOVELACE ${index + 1}</b><button class="danger-link" data-action="remove-kiosk-lovelace-view" data-profile-index="${profileIndex}" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div><div class="three-grid">${this._field(`${path}.lovelace_views.${index}.name`, "Nazwa slajdu", item.name, "Np. Oświetlenie", disabled)}${this._field(`${path}.lovelace_views.${index}.path`, "Lokalna ścieżka Lovelace", item.path, "/dashboard-jsbd/deye-kiosk", disabled)}<label class="check-row"><input type="checkbox" data-path="${path}.lovelace_views.${index}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""} ${disabled}><span><b>Widok aktywny</b><small>Pokaż jako slajd kiosku.</small></span></label></div></article>`).join("");
     const bubbleChoices = (this._config.overview_bubbles || []).map(item => `<label class="selection-chip"><input type="checkbox" data-action="toggle-kiosk-selection" data-profile-index="${profileIndex}" data-kind="bubble" data-item-id="${this._escAttr(item.id)}" ${bubbleIds.has(item.id) ? "checked" : ""} ${disabled}><ha-icon icon="${this._escAttr(item.icon || "mdi:information-outline")}"></ha-icon><span>${this._esc(item.name)}</span></label>`).join("");
     const chartChoices = (this._config.overview_charts || []).map(item => `<label class="selection-chip"><input type="checkbox" data-action="toggle-kiosk-selection" data-profile-index="${profileIndex}" data-kind="chart" data-item-id="${this._escAttr(item.id)}" ${chartIds.has(item.id) ? "checked" : ""} ${disabled}><ha-icon icon="${this._escAttr(item.icon || "mdi:chart-line")}"></ha-icon><span>${this._esc(item.name)}</span></label>`).join("");
     return `<div class="kiosk-settings ${isDefault ? "default-kiosk-settings" : "panel kiosk-profile-card"}">
@@ -507,14 +518,26 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       ${isDefault ? "" : `<div class="three-grid">${this._field(`${path}.id`, "Identyfikator URL", profile.id, "salon", disabled)}${this._field(`${path}.name`, "Nazwa profilu", profile.name, "Ekran w salonie", disabled)}${this._field(`${path}.description`, "Opis", profile.description, "Tablet 10 cali", disabled)}</div>`}
       <div class="three-grid">${this._field(`${path}.title`, "Tytuł karty", profile.title || "PRZEPŁYW ENERGII", "PRZEPŁYW ENERGII", disabled)}${this._selectField(`${path}.display_preset`, "Format ekranu", profile.display_preset || "tablet_16_9", [["tablet_16_9","Samsung Galaxy Tab A9 · poziomo 16:9"],["auto","Automatyczny"],["desktop","Duży ekran / desktop"]], disabled, true)}${this._selectField(`${path}.flow_height`, "Wysokość diagramu", profile.flow_height || "tall", [["standard","Standardowa"],["tall","Wysoka"],["full","Pełna wysokość"]], disabled, true)}</div>
       <div class="three-grid">${this._numberField(`${path}.max_bubbles`, "Maksymalna liczba dymków", profile.max_bubbles || 6, 1, 16, 1, disabled, true)}${this._numberField(`${path}.chart_columns`, "Kolumny wykresów", profile.chart_columns || 2, 1, 4, 1, disabled, true)}${this._numberField(`${path}.rotation_seconds`, "Zmiana slajdu co (s)", profile.rotation_seconds || 20, 5, 3600, 1, disabled)}</div>
+      <div class="four-grid">${this._selectField(`${path}.bubble_layout`, "Układ dymków", profile.bubble_layout || "free", [["free","Swobodny · przeciąganie"],["grid","Automatyczna siatka"]], disabled, true)}${this._numberField(`${path}.bubble_stage_height`, "Wysokość obszaru dymków (px)", profile.bubble_stage_height || 96, 76, 400, 1, disabled, true)}${this._numberField(`${path}.flow_offset_y`, "Diagram góra/dół (px)", profile.flow_offset_y ?? -30, -400, 400, 1, disabled, true)}${this._numberField(`${path}.flow_scale`, "Skala diagramu (%)", profile.flow_scale || 100, 60, 140, 1, disabled, true)}</div>
+      <div class="two-grid">${this._numberField(`${path}.flow_offset_x`, "Diagram lewo/prawo (px)", profile.flow_offset_x || 0, -400, 400, 1, disabled, true)}<div class="field"><span>Pozycje zapisane w profilu</span><button class="secondary-btn reset-layout-btn" data-action="reset-kiosk-layout" data-profile-index="${profileIndex}" ${disabled}><ha-icon icon="mdi:restore"></ha-icon>RESETUJ POŁOŻENIE</button></div></div>
       <div class="widget-checks three-checks">
         <label class="check-row"><input type="checkbox" data-path="${path}.compact_header" data-live-rerender="1" ${profile.compact_header !== false ? "checked" : ""} ${disabled}><span><b>Kompaktowy nagłówek</b><small>Więcej miejsca na diagram na tablecie.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.auto_fullscreen" data-live-rerender="1" ${profile.auto_fullscreen !== false ? "checked" : ""} ${disabled}><span><b>Automatyczny pełny ekran</b><small>Fullscreen przy pierwszym dotknięciu; Fully Kiosk może uruchomić go od razu.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_clock" data-live-rerender="1" ${profile.show_clock !== false ? "checked" : ""} ${disabled}><span><b>Zegar</b><small>Data i czas.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_builtin_bubbles" data-live-rerender="1" ${profile.show_builtin_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Standardowe dymki</b><small>Dom, PV, sieć, magazyn i EV.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_custom_bubbles" data-live-rerender="1" ${profile.show_custom_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Własne dymki</b><small>Wybrane poniżej.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_charts" data-live-rerender="1" ${profile.show_charts !== false ? "checked" : ""} ${disabled}><span><b>Wykresy</b><small>Osobny slajd wykresów.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_status" data-live-rerender="1" ${profile.show_status !== false ? "checked" : ""} ${disabled}><span><b>Pasek statusu</b><small>Stan integracji i gałęzi.</small></span></label>
         ${isDefault ? "" : `<label class="check-row"><input type="checkbox" data-path="${path}.enabled" data-live-rerender="1" ${profile.enabled !== false ? "checked" : ""} ${disabled}><span><b>Profil aktywny</b><small>Dostępny pod własnym URL.</small></span></label>`}
+      </div>
+      <div class="widget-subsection"><b>STANDARDOWE DYMKI</b><small>Każdy standardowy dymek można włączyć lub wyłączyć osobno. Magazyn jest domyślnie wyłączony.</small></div>
+      <div class="selection-chips builtin-kiosk-selection">${builtinChoices}</div>
+      <div class="widget-subsection"><b>PANELE PODSUMOWANIA</b><small>Magazyn energii i samowystarczalność nie są już wymuszane.</small></div>
+      <div class="widget-checks four-checks">
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_price_panel" data-live-rerender="1" ${profile.show_price_panel !== false ? "checked" : ""} ${disabled}><span><b>Ceny energii</b><small>Panel zakupu i sprzedaży.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_consumers_panel" data-live-rerender="1" ${profile.show_consumers_panel !== false ? "checked" : ""} ${disabled}><span><b>Najwięksi odbiorcy</b><small>Lista odbiorników.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_battery_gauge" data-live-rerender="1" ${profile.show_battery_gauge ? "checked" : ""} ${disabled}><span><b>Magazyn energii</b><small>Okrągły wskaźnik SOC.</small></span></label>
+        <label class="check-row"><input type="checkbox" data-path="${path}.show_self_sufficiency_gauge" data-live-rerender="1" ${profile.show_self_sufficiency_gauge ? "checked" : ""} ${disabled}><span><b>Samowystarczalność</b><small>Okrągły wskaźnik procentowy.</small></span></label>
       </div>
       <div class="kiosk-selection-grid">
         <div><div class="widget-subsection"><b>WYBÓR DYMKÓW</b><small>Puste zaznaczenie w trybie „wybrane” ukrywa wszystkie własne dymki.</small></div>${this._selectField(`${path}.bubble_selection`, "Zakres dymków", profile.bubble_selection || "all", [["all","Wszystkie"],["selected","Tylko zaznaczone"]], disabled, true)}<div class="selection-chips">${bubbleChoices || `<small>Najpierw dodaj własne dymki.</small>`}</div></div>
@@ -534,6 +557,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         ${this._field(`${path}.night_end`, "Koniec", profile.night_end || "06:00", "06:00", disabled)}
         ${this._numberField(`${path}.night_brightness`, "Jasność nocna (%)", profile.night_brightness || 30, 5, 100, 1, disabled)}
       </div>
+      <div class="widget-subsection"><b>DODATKOWE WIDOKI LOVELACE</b><small>Lokalne widoki Home Assistant są wyświetlane jako osobne slajdy kiosku i uczestniczą w automatycznej rotacji.</small></div>
+      <div class="widget-related-list kiosk-lovelace-list">${lovelaceCards || `<div class="mini-empty">Brak dodatkowych widoków Lovelace.</div>`}<button class="secondary-btn add-related-btn" data-action="add-kiosk-lovelace-view" data-profile-index="${profileIndex}" ${lovelaceViews.length >= 12 ? "disabled" : disabled}><ha-icon icon="mdi:view-dashboard-plus-outline"></ha-icon>DODAJ WIDOK LOVELACE (${lovelaceViews.length}/12)</button></div>
       <div class="kiosk-profile-footer"><code>/matrix-energy-center?kiosk=${this._esc(profileId)}</code><button class="secondary-btn" data-action="open-kiosk-profile" data-profile-id="${this._escAttr(profileId)}"><ha-icon icon="mdi:monitor-eye"></ha-icon>OTWÓRZ PROFIL</button></div>
     </div>`;
   }
@@ -541,21 +566,22 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _renderKiosk() {
     const kiosk = this._activeKioskProfile();
     const overview = this._config.overview || {};
+    const builtinIds = new Set(kiosk.builtin_bubble_ids || ["home", "pv", "grid"]);
     const builtin = kiosk.show_builtin_bubbles === false ? [] : [
-      this._metric("home", "mdi:home-lightning-bolt", "DOM", "cyan"),
-      this._showModule("pv") ? this._metric("pv", "mdi:solar-power", "PRODUKCJA PV", "green") : "",
-      this._showModule("grid") ? this._metric("grid", "mdi:transmission-tower", "SIEĆ", "purple") : "",
-      this._showModule("battery") ? this._metric("batterySoc", "mdi:battery-high", "MAGAZYN", "lime", "%") : "",
-      this._showModule("ev") ? this._metric("ev", "mdi:car-electric", "ŁADOWANIE EV", "cyan") : "",
-      this._showModule("prices") ? this._metric("price", "mdi:tag-outline", "CENA ZAKUPU", "orange", this._config.general.currency + "/kWh") : "",
-    ].filter(Boolean);
+      { key: "builtin_home", id: "home", html: this._metric("home", "mdi:home-lightning-bolt", "DOM", "cyan") },
+      { key: "builtin_pv", id: "pv", html: this._showModule("pv") ? this._metric("pv", "mdi:solar-power", "PRODUKCJA PV", "green") : "" },
+      { key: "builtin_grid", id: "grid", html: this._showModule("grid") ? this._metric("grid", "mdi:transmission-tower", "SIEĆ", "purple") : "" },
+      { key: "builtin_battery", id: "battery", html: this._showModule("battery") ? this._metric("batterySoc", "mdi:battery-high", "MAGAZYN", "lime", "%") : "" },
+      { key: "builtin_ev", id: "ev", html: this._showModule("ev") ? this._metric("ev", "mdi:car-electric", "ŁADOWANIE EV", "cyan") : "" },
+      { key: "builtin_price", id: "price", html: this._showModule("prices") ? this._metric("price", "mdi:tag-outline", "CENA ZAKUPU", "orange", this._config.general.currency + "/kWh") : "" },
+    ].filter(item => item.html && builtinIds.has(item.id));
     const customItems = this._selectedKioskItems("bubble", kiosk);
     const chartItems = this._selectedKioskItems("chart", kiosk);
     const custom = kiosk.show_custom_bubbles === false ? [] : customItems
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => item.enabled !== false)
       .sort((a, b) => Number(a.item.order || 0) - Number(b.item.order || 0))
-      .map(({ item }) => this._overviewBubble(item, (this._config.overview_bubbles || []).indexOf(item)));
+      .map(({ item }) => ({ key: `bubble_${item.id || "custom"}`, html: this._overviewBubble(item, (this._config.overview_bubbles || []).indexOf(item)) }));
     const charts = kiosk.show_charts === false ? "" : chartItems
       .filter(item => item.enabled !== false)
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
@@ -564,26 +590,53 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const maxBubbles = Math.max(1, Math.min(16, Number(kiosk.max_bubbles || 6)));
     const chartColumns = Math.max(1, Math.min(4, Number(kiosk.chart_columns || overview.chart_columns || 2)));
     const displayPreset = ["auto", "tablet_16_9", "desktop"].includes(kiosk.display_preset) ? kiosk.display_preset : "tablet_16_9";
-    const metrics = [...builtin, ...custom].slice(0, maxBubbles).join("");
+    const bubbleLayout = kiosk.bubble_layout === "grid" ? "grid" : "free";
+    const metricItems = [...builtin, ...custom].slice(0, maxBubbles);
+    const metrics = metricItems.map((item, index) => this._kioskBubbleSlot(item, index, metricItems.length, kiosk)).join("");
+    const bubbleStageHeight = Math.max(76, Math.min(400, Number(kiosk.bubble_stage_height || 96)));
+    const summaryPanels = [];
+    if (kiosk.show_price_panel !== false) summaryPanels.push(`<article class="panel price-panel"><div class="panel-title"><span>CENY ENERGII</span><ha-icon icon="mdi:cash-clock"></ha-icon></div><div class="price-values"><div><small>ZAKUP</small><strong data-live="price">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div><div><small>SPRZEDAŻ</small><strong data-live="priceSell">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div></div><div class="spark-wrap"><svg viewBox="0 0 400 130" preserveAspectRatio="none"><path class="gridline" d="M0 25H400 M0 65H400 M0 105H400"></path><path data-spark="price" class="spark purple" d=""></path></svg></div></article>`);
+    if (kiosk.show_consumers_panel !== false) summaryPanels.push(`<article class="panel consumers-panel"><div class="panel-title"><span>NAJWIĘKSZE ODBIORNIKI</span><ha-icon icon="mdi:chart-bar"></ha-icon></div><div class="consumer-list" data-consumer-list></div></article>`);
+    if (kiosk.show_battery_gauge === true) summaryPanels.push(this._gaugePanel("batterySoc", "MAGAZYN ENERGII", "mdi:battery-charging-high"));
+    if (kiosk.show_self_sufficiency_gauge === true) summaryPanels.push(this._gaugePanel("selfSufficiency", "SAMOWYSTARCZALNOŚĆ", "mdi:home-percent"));
     const strings = (this._config.pv_strings || []).filter(item => item.enabled !== false && item.show_in_flow !== false).length;
     const devices = (this._config.devices || []).filter(item => item.enabled !== false && item.show_in_flow === true).length;
     const slides = [];
-    if (kiosk.rotate_flow !== false) slides.push({ id: "flow", label: "PRZEPŁYW", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics bubble-size-${this._escAttr(overview.bubble_size || "medium")}">${metrics}</div>` : ""}<article class="panel kiosk-flow-card">${this._flowDiagram(true)}</article>` });
+    if (kiosk.rotate_flow !== false) slides.push({ id: "flow", label: "PRZEPŁYW", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics kiosk-bubble-stage layout-${bubbleLayout} bubble-size-${this._escAttr(overview.bubble_size || "medium")}" style="--kiosk-bubble-stage-height:${bubbleStageHeight}px">${metrics}</div>` : ""}<article class="panel kiosk-flow-card">${this._flowDiagram(true)}<span class="layout-drag-handle flow-layout-handle" data-layout-drag="flow"><ha-icon icon="mdi:cursor-move"></ha-icon>PRZESUŃ DIAGRAM</span></article>` });
     if (kiosk.rotate_charts !== false && charts) slides.push({ id: "charts", label: "WYKRESY", html: `<div class="custom-chart-grid kiosk-chart-grid" style="--chart-columns:${chartColumns}">${charts}</div>` });
-    if (kiosk.rotate_overview !== false) slides.push({ id: "overview", label: "PODSUMOWANIE", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics bubble-size-${this._escAttr(overview.bubble_size || "medium")}">${metrics}</div>` : ""}<div class="kiosk-summary-grid"><article class="panel price-panel"><div class="panel-title"><span>CENY ENERGII</span><ha-icon icon="mdi:cash-clock"></ha-icon></div><div class="price-values"><div><small>ZAKUP</small><strong data-live="price">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div><div><small>SPRZEDAŻ</small><strong data-live="priceSell">--</strong><span>${this._esc(this._config.general.currency)}/kWh</span></div></div><div class="spark-wrap"><svg viewBox="0 0 400 130" preserveAspectRatio="none"><path class="gridline" d="M0 25H400 M0 65H400 M0 105H400"></path><path data-spark="price" class="spark purple" d=""></path></svg></div></article><article class="panel consumers-panel"><div class="panel-title"><span>NAJWIĘKSZE ODBIORNIKI</span><ha-icon icon="mdi:chart-bar"></ha-icon></div><div class="consumer-list" data-consumer-list></div></article>${this._gaugePanel("batterySoc", "MAGAZYN ENERGII", "mdi:battery-charging-high")}${this._gaugePanel("selfSufficiency", "SAMOWYSTARCZALNOŚĆ", "mdi:home-percent")}</div>` });
+    (kiosk.lovelace_views || []).filter(item => item.enabled !== false && String(item.path || "").startsWith("/") && !String(item.path).includes("://")).forEach((item, index) => {
+      slides.push({ id: `lovelace_${item.id || index}`, label: item.name || `LOVELACE ${index + 1}`, html: `<article class="panel kiosk-lovelace-slide"><iframe src="${this._escAttr(item.path)}" title="${this._escAttr(item.name || `Lovelace ${index + 1}`)}" loading="eager" allow="fullscreen"></iframe></article>` });
+    });
+    if (kiosk.rotate_overview !== false) slides.push({ id: "overview", label: "PODSUMOWANIE", html: `${metrics ? `<div class="metrics-grid dynamic kiosk-metrics kiosk-bubble-stage layout-${bubbleLayout} bubble-size-${this._escAttr(overview.bubble_size || "medium")}" style="--kiosk-bubble-stage-height:${bubbleStageHeight}px">${metrics}</div>` : ""}${summaryPanels.length ? `<div class="kiosk-summary-grid" style="--summary-columns:${summaryPanels.length}">${summaryPanels.join("")}</div>` : this._emptyState("mdi:view-dashboard-outline", "Brak paneli podsumowania", "Włącz wybrane panele w konfiguracji profilu kiosk.")}` });
     if (!slides.length) slides.push({ id: "flow", label: "PRZEPŁYW", html: `<article class="panel kiosk-flow-card">${this._flowDiagram(true)}</article>` });
     this._kioskSlide = Math.min(this._kioskSlide, slides.length - 1);
     const slideHtml = slides.map((slide, index) => `<section class="kiosk-slide ${index === this._kioskSlide ? "active" : ""}" data-kiosk-slide="${index}" data-slide-id="${slide.id}">${slide.html}</section>`).join("");
     const navigation = slides.length > 1 ? `<div class="kiosk-slide-nav"><button data-action="kiosk-prev"><ha-icon icon="mdi:chevron-left"></ha-icon></button><div>${slides.map((slide, index) => `<button class="kiosk-dot ${index === this._kioskSlide ? "active" : ""}" data-action="kiosk-slide" data-slide-index="${index}" title="${slide.label}"></button>`).join("")}</div><button data-action="kiosk-next"><ha-icon icon="mdi:chevron-right"></ha-icon></button></div>` : "";
-    return `<section class="kiosk-view display-${this._escAttr(displayPreset)} flow-height-${this._escAttr(kiosk.flow_height || "tall")} ${kiosk.compact_header === false ? "" : "compact-kiosk-header"}" style="--kiosk-bubble-columns:${Math.min(6, maxBubbles)};--kiosk-chart-columns:${chartColumns}">
+    const flowOffsetX = Math.max(-400, Math.min(400, Number(kiosk.flow_offset_x || 0)));
+    const flowOffsetY = Math.max(-400, Math.min(400, Number(kiosk.flow_offset_y ?? -30)));
+    const flowScale = Math.max(60, Math.min(140, Number(kiosk.flow_scale || 100))) / 100;
+    return `<section class="kiosk-view display-${this._escAttr(displayPreset)} flow-height-${this._escAttr(kiosk.flow_height || "tall")} ${kiosk.compact_header === false ? "" : "compact-kiosk-header"} ${this._kioskLayoutEdit ? "layout-editing" : ""}" style="--kiosk-bubble-columns:${Math.min(6, maxBubbles)};--kiosk-chart-columns:${chartColumns};--flow-offset-x:${flowOffsetX}px;--flow-offset-y:${flowOffsetY}px;--flow-scale:${flowScale}">
       <header class="kiosk-header">
         <div><span class="eyebrow">MATRIX ENERGY CENTER${kiosk.name ? ` · ${this._esc(kiosk.name)}` : ""}</span><h1>${this._esc(kiosk.title || "PRZEPŁYW ENERGII")}</h1><small>${this._esc(this._config.general.installation_name || "Energy Center")}</small></div>
-        <div class="kiosk-header-tools">${kiosk.show_clock === false ? "" : `<div class="kiosk-clock"><b data-kiosk-clock>--:--:--</b><span data-kiosk-date>--</span></div>`}<button class="secondary-btn" data-action="toggle-fullscreen"><ha-icon icon="mdi:fullscreen"></ha-icon>PEŁNY EKRAN</button><button class="secondary-btn" data-view="overview"><ha-icon icon="mdi:close"></ha-icon>WYJDŹ</button></div>
+        <div class="kiosk-header-tools">${kiosk.show_clock === false ? "" : `<div class="kiosk-clock"><b data-kiosk-clock>--:--:--</b><span data-kiosk-date>--</span></div>`}${this._isAdmin() ? `<button class="secondary-btn layout-edit-btn ${this._kioskLayoutEdit ? "active" : ""}" data-action="toggle-kiosk-layout-edit"><ha-icon icon="mdi:cursor-move"></ha-icon>${this._kioskLayoutEdit ? "ZAKOŃCZ EDYCJĘ" : "EDYTUJ UKŁAD"}</button>${this._kioskLayoutEdit ? `<button class="primary-btn" data-action="save-kiosk-layout"><ha-icon icon="mdi:content-save"></ha-icon>ZAPISZ UKŁAD</button>` : ""}` : ""}<button class="secondary-btn" data-action="toggle-fullscreen"><ha-icon icon="mdi:fullscreen"></ha-icon>PEŁNY EKRAN</button><button class="secondary-btn" data-view="overview"><ha-icon icon="mdi:close"></ha-icon>WYJDŹ</button></div>
       </header>
       <div class="kiosk-slides">${slideHtml}</div>
       ${navigation}
       ${kiosk.show_status === false ? "" : `<footer class="kiosk-status"><span><i class="dot ok"></i> SYSTEM ONLINE</span><span>STRINGI PV <b>${strings}</b></span><span>DODATKOWE GAŁĘZIE <b>${devices}</b></span><span>STREFA <b data-live="tariffZone">--</b></span><span>REWIZJA <b>${this._esc(this._config.revision ?? 0)}</b></span></footer>`}
     </section>`;
+  }
+
+  _kioskBubbleSlot(item, index, count, kiosk) {
+    const key = String(item.key || `bubble_${index + 1}`).replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase();
+    const columns = Math.max(1, Math.min(6, count));
+    const fallbackWidth = Math.max(8, (100 / columns) - 0.7);
+    const fallbackX = (index % columns) * (100 / columns);
+    const fallbackY = Math.floor(index / columns) * 88;
+    const stored = kiosk.bubble_positions?.[key] || {};
+    const width = Math.max(8, Math.min(60, Number(stored.width ?? fallbackWidth)));
+    const x = Math.max(0, Math.min(100 - width, Number(stored.x ?? fallbackX)));
+    const y = Math.max(0, Math.min(360, Number(stored.y ?? fallbackY)));
+    return `<div class="kiosk-bubble-slot" data-kiosk-item="${this._escAttr(key)}" style="--kiosk-x:${x}%;--kiosk-y:${y}px;--kiosk-w:${width}%">${item.html}<span class="layout-drag-handle bubble-layout-handle" data-layout-drag="bubble"><ha-icon icon="mdi:cursor-move"></ha-icon></span><span class="layout-resize-handle" data-layout-resize="bubble"><ha-icon icon="mdi:resize-bottom-right"></ha-icon></span></div>`;
   }
 
   _activeKioskProfile() {
@@ -1445,10 +1498,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "add-kiosk-profile") this._addKioskProfile();
         if (action === "remove-kiosk-profile") this._removeKioskProfile(Number(el.dataset.index));
         if (action === "toggle-kiosk-selection") this._toggleKioskSelection(Number(el.dataset.profileIndex), el.dataset.kind, el.dataset.itemId, el.checked);
+        if (action === "toggle-kiosk-builtin") this._toggleKioskBuiltin(Number(el.dataset.profileIndex), el.dataset.itemId, el.checked);
+        if (action === "reset-kiosk-layout") this._resetKioskLayout(Number(el.dataset.profileIndex));
+        if (action === "add-kiosk-lovelace-view") this._addKioskLovelaceView(Number(el.dataset.profileIndex));
+        if (action === "remove-kiosk-lovelace-view") this._removeKioskLovelaceView(Number(el.dataset.profileIndex), Number(el.dataset.index));
         if (action === "open-kiosk-profile") this._openKioskProfile(el.dataset.profileId);
         if (action === "kiosk-prev") this._advanceKiosk(-1);
         if (action === "kiosk-next") this._advanceKiosk(1);
         if (action === "kiosk-slide") this._setKioskSlide(Number(el.dataset.slideIndex));
+        if (action === "toggle-kiosk-layout-edit") { this._kioskLayoutEdit = !this._kioskLayoutEdit; this._render(); }
+        if (action === "save-kiosk-layout") { this._kioskLayoutEdit = false; await this._saveConfig(); }
         if (action === "export-config") this._exportConfig();
         if (action === "control-device") await this._controlDevice(Number(el.dataset.index));
         if (action === "test-entity") await this._testEntity(el.dataset.entity);
@@ -1515,6 +1574,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-widget-action]").forEach(el => {
       const execute = event => {
         if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+        if (this._kioskLayoutEdit && el.closest("[data-kiosk-item]")) return;
         event.preventDefault();
         this._executeWidgetAction(el.dataset.widgetAction, Number(el.dataset.widgetIndex));
       };
@@ -1522,6 +1582,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       el.addEventListener("keydown", execute);
     });
     this._bindWidgetDragDrop();
+    this._bindKioskLayoutEditor();
   }
 
 
@@ -1695,6 +1756,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     items.push({
       id: `ekran_${n}`, name: `Ekran ${n}`, description: "", title: "PRZEPŁYW ENERGII",
       display_preset: "tablet_16_9", compact_header: true, max_bubbles: 6, chart_columns: 2,
+      builtin_bubble_ids: ["home", "pv", "grid"], bubble_layout: "free", bubble_stage_height: 96, bubble_positions: {},
+      flow_offset_x: 0, flow_offset_y: -30, flow_scale: 100, show_price_panel: true, show_consumers_panel: true,
+      show_battery_gauge: false, show_self_sufficiency_gauge: false, auto_fullscreen: true, lovelace_views: [],
       show_clock: true, show_builtin_bubbles: true, show_custom_bubbles: true, show_charts: true,
       show_status: true, flow_height: "tall", bubble_selection: "all", bubble_ids: [],
       chart_selection: "all", chart_ids: [], rotation_enabled: false, rotation_seconds: 20,
@@ -1721,7 +1785,48 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   _openKioskProfile(profileId) {
     this._kioskProfileId = profileId || "1";
     this._kioskSlide = 0;
+    this._kioskLayoutEdit = false;
     this._view = "kiosk";
+    this._render();
+  }
+
+  _toggleKioskBuiltin(profileIndex, itemId, checked) {
+    if (!this._isAdmin()) return;
+    const profile = profileIndex < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[profileIndex];
+    if (!profile || !["home", "pv", "grid", "battery", "ev", "price"].includes(itemId)) return;
+    const ids = new Set(profile.builtin_bubble_ids || ["home", "pv", "grid"]);
+    if (checked) ids.add(itemId); else ids.delete(itemId);
+    profile.builtin_bubble_ids = [...ids];
+  }
+
+  _resetKioskLayout(profileIndex) {
+    if (!this._isAdmin()) return;
+    const profile = profileIndex < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[profileIndex];
+    if (!profile) return;
+    profile.bubble_positions = {};
+    profile.flow_offset_x = 0;
+    profile.flow_offset_y = -30;
+    profile.flow_scale = 100;
+    this._message = "Zresetowano położenie dymków i diagramu. Zapisz zmiany.";
+    this._render();
+  }
+
+  _addKioskLovelaceView(profileIndex) {
+    if (!this._isAdmin()) return;
+    const profile = profileIndex < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[profileIndex];
+    if (!profile) return;
+    const items = profile.lovelace_views ||= [];
+    if (items.length >= 12) return;
+    const n = items.length + 1;
+    items.push({ id: this._id("lovelace"), name: `Lovelace ${n}`, path: "", enabled: true });
+    this._render();
+  }
+
+  _removeKioskLovelaceView(profileIndex, index) {
+    if (!this._isAdmin()) return;
+    const profile = profileIndex < 0 ? this._config.kiosk : this._config.kiosk_profiles?.[profileIndex];
+    if (!profile || !Number.isInteger(index)) return;
+    (profile.lovelace_views || []).splice(index, 1);
     this._render();
   }
 
@@ -1753,6 +1858,71 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         this._render();
       });
     });
+  }
+
+  _bindKioskLayoutEditor() {
+    if (!this._isAdmin() || !this._kioskLayoutEdit || this._view !== "kiosk") return;
+    const profile = this._activeKioskProfile();
+    profile.bubble_positions ||= {};
+    const begin = (event, mode) => {
+      const handle = event.currentTarget;
+      const slot = handle.closest("[data-kiosk-item]");
+      const stage = handle.closest(".kiosk-bubble-stage");
+      const view = handle.closest(".kiosk-view");
+      if ((mode === "move" || mode === "resize") && (!slot || !stage || !stage.classList.contains("layout-free"))) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const stageRect = stage?.getBoundingClientRect();
+      const slotRect = slot?.getBoundingClientRect();
+      const key = slot?.dataset.kioskItem;
+      const position = key ? (profile.bubble_positions[key] ||= {}) : null;
+      const startXPercent = stageRect && slotRect ? ((slotRect.left - stageRect.left) / stageRect.width) * 100 : 0;
+      const startY = stageRect && slotRect ? slotRect.top - stageRect.top : 0;
+      const startWidth = stageRect && slotRect ? (slotRect.width / stageRect.width) * 100 : 16;
+      this._kioskPointerState = { mode, startClientX: event.clientX, startClientY: event.clientY, stageRect, slot, view, key, position, startXPercent, startY, startWidth, flowX: Number(profile.flow_offset_x || 0), flowY: Number(profile.flow_offset_y ?? -30) };
+      const move = pointerEvent => {
+        const state = this._kioskPointerState;
+        if (!state) return;
+        pointerEvent.preventDefault();
+        const dx = pointerEvent.clientX - state.startClientX;
+        const dy = pointerEvent.clientY - state.startClientY;
+        if (state.mode === "flow") {
+          profile.flow_offset_x = Math.round(Math.max(-400, Math.min(400, state.flowX + dx)));
+          profile.flow_offset_y = Math.round(Math.max(-400, Math.min(400, state.flowY + dy)));
+          state.view?.style.setProperty("--flow-offset-x", `${profile.flow_offset_x}px`);
+          state.view?.style.setProperty("--flow-offset-y", `${profile.flow_offset_y}px`);
+          return;
+        }
+        if (!state.stageRect || !state.position) return;
+        if (state.mode === "move") {
+          const width = Number(state.position.width ?? state.startWidth);
+          const x = Math.max(0, Math.min(100 - width, state.startXPercent + (dx / state.stageRect.width) * 100));
+          const maximumY = Math.max(0, state.stageRect.height - state.slot.offsetHeight);
+          const y = Math.max(0, Math.min(maximumY, state.startY + dy));
+          Object.assign(state.position, { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), width: Number(width.toFixed(2)) });
+          state.slot.style.setProperty("--kiosk-x", `${x}%`);
+          state.slot.style.setProperty("--kiosk-y", `${y}px`);
+        } else if (state.mode === "resize") {
+          const currentX = Number(state.position.x ?? state.startXPercent);
+          const width = Math.max(8, Math.min(60, 100 - currentX, state.startWidth + (dx / state.stageRect.width) * 100));
+          Object.assign(state.position, { x: Number(currentX.toFixed(2)), y: Number(Number(state.position.y ?? state.startY).toFixed(2)), width: Number(width.toFixed(2)) });
+          state.slot.style.setProperty("--kiosk-w", `${width}%`);
+        }
+      };
+      const end = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        this._kioskPointerState = null;
+        this._message = "Układ zmieniony. Kliknij ZAPISZ UKŁAD.";
+      };
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", end, { once: true });
+      window.addEventListener("pointercancel", end, { once: true });
+    };
+    this.shadowRoot.querySelectorAll("[data-layout-drag='bubble']").forEach(handle => handle.addEventListener("pointerdown", event => begin(event, "move")));
+    this.shadowRoot.querySelectorAll("[data-layout-resize='bubble']").forEach(handle => handle.addEventListener("pointerdown", event => begin(event, "resize")));
+    this.shadowRoot.querySelectorAll("[data-layout-drag='flow']").forEach(handle => handle.addEventListener("pointerdown", event => begin(event, "flow")));
   }
 
   async _executeWidgetAction(kind, index) {
@@ -1879,10 +2049,25 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (this._view !== "kiosk") return;
     const profile = this._activeKioskProfile();
     this._applyKioskNightMode(profile);
+    this._armKioskFullscreen(profile);
     const count = this.shadowRoot.querySelectorAll("[data-kiosk-slide]").length;
-    if (profile.rotation_enabled && count > 1) {
+    if (!this._kioskLayoutEdit && profile.rotation_enabled && count > 1) {
       this._kioskRotationTimer = setInterval(() => this._advanceKiosk(1), Math.max(5, Number(profile.rotation_seconds || 20)) * 1000);
     }
+  }
+
+  _armKioskFullscreen(profile = this._activeKioskProfile()) {
+    if (profile?.auto_fullscreen === false || document.fullscreenElement || this._autoFullscreenArmed || !this.shadowRoot) return;
+    this._autoFullscreenArmed = true;
+    const activate = async () => {
+      this.shadowRoot?.removeEventListener("pointerdown", activate, true);
+      this.shadowRoot?.removeEventListener("keydown", activate, true);
+      this._autoFullscreenArmed = false;
+      if (document.fullscreenElement || this._view !== "kiosk") return;
+      try { await this.requestFullscreen(); } catch (_) { /* Browser or kiosk app controls fullscreen policy. */ }
+    };
+    this.shadowRoot.addEventListener("pointerdown", activate, { once: true, capture: true });
+    this.shadowRoot.addEventListener("keydown", activate, { once: true, capture: true });
   }
 
   _setKioskSlide(index) {
@@ -2422,9 +2607,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .chart-series-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px;padding:6px 8px;border:1px solid rgba(32,234,255,.1);background:rgba(0,35,55,.18)}.chart-series-legend>div{--series-color:var(--cyan);display:flex;align-items:baseline;gap:4px;min-width:0;font-size:8px}.chart-series-legend i{width:12px;height:3px;border-radius:2px;background:var(--series-color);box-shadow:0 0 5px var(--series-color)}.chart-series-legend span{color:#8cadb9;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chart-series-legend b{font:10px monospace;color:var(--series-color)}.chart-series-legend small{color:#658895;font-size:7px}.custom-chart-path{stroke:var(--series-color,var(--chart-color))!important;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--series-color,var(--chart-color)) 65%,transparent))}.graph-area .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 12%,transparent)!important}.graph-bar .custom-chart-path{fill:color-mix(in srgb,var(--series-color,var(--chart-color)) 62%,transparent)!important}
     .widget-subsection{margin-top:12px;padding:9px 10px;border-left:3px solid var(--cyan);background:linear-gradient(90deg,rgba(0,180,230,.09),transparent);display:flex;flex-direction:column;gap:2px}.widget-subsection b{font-size:9px;color:var(--cyan);letter-spacing:1px}.widget-subsection small{font-size:8px;color:#6b93a2}.widget-related-list{display:grid;gap:8px}.widget-related-card{border:1px solid rgba(32,234,255,.18);border-radius:5px;background:rgba(0,35,55,.18);padding:8px}.widget-related-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.widget-related-head>b{font-size:8px;color:#8fc6d4;letter-spacing:.8px}.widget-related-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 9px}.widget-related-grid>.full{grid-column:1/-1}.widget-related-grid .check-row{align-self:end;border:1px solid rgba(32,234,255,.12);padding:7px}.add-related-btn{justify-self:start}.draggable-widget{transition:opacity .15s,transform .15s,border-color .15s}.draggable-widget .drag-handle{width:17px;height:17px;vertical-align:middle;color:#769aa7;cursor:grab}.draggable-widget.dragging{opacity:.35;transform:scale(.99)}.draggable-widget.drag-target{border-color:var(--green);box-shadow:0 0 22px rgba(82,255,98,.2)}
     .kiosk-profile-card{padding:8px 14px 16px;margin-top:0}.kiosk-profile-card.kiosk-settings{border-top:1px solid rgba(32,234,255,.35)}.default-kiosk-settings{margin-top:18px}.kiosk-profile-head-actions{display:flex;align-items:center;gap:6px}.kiosk-selection-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}.selection-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.selection-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(32,234,255,.2);border-radius:999px;background:rgba(0,70,105,.08);padding:5px 8px;color:#91b8c5;font-size:8px}.selection-chip:has(input:checked){border-color:var(--green);color:var(--green);background:rgba(82,255,98,.07)}.selection-chip ha-icon{width:14px;height:14px}.selection-chip input{margin:0}.kiosk-profile-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(32,234,255,.15)}.kiosk-profile-footer code{font-size:9px;overflow:hidden;text-overflow:ellipsis}
-    .kiosk-slides{position:relative;flex:1;min-height:0}.kiosk-slide{display:none;min-height:100%;flex-direction:column;gap:10px}.kiosk-slide.active{display:flex}.kiosk-chart-grid{margin:0;align-content:start}.kiosk-summary-grid{display:grid;grid-template-columns:1.2fr 1.2fr .8fr .8fr;gap:10px;flex:1}.kiosk-summary-grid>.panel{min-height:250px}.kiosk-summary-grid .price-panel,.kiosk-summary-grid .consumers-panel{height:auto}.kiosk-slide-nav{height:30px;display:flex;align-items:center;justify-content:center;gap:12px}.kiosk-slide-nav>button{border:0;background:transparent;color:var(--cyan);padding:2px}.kiosk-slide-nav>div{display:flex;gap:7px}.kiosk-dot{width:28px;height:5px;border:0;border-radius:999px;background:#254451;padding:0}.kiosk-dot.active{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}.matrix-shell.kiosk-active{transition:filter 1s ease}.matrix-shell.kiosk-active.kiosk-night{filter:brightness(var(--night-brightness,.3));cursor:none}.matrix-shell.kiosk-active.kiosk-night:hover{cursor:default}
-    @media(max-width:1300px){.overview-widget-layout{grid-template-columns:1fr}.widget-editor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kiosk-summary-grid{grid-template-columns:1fr 1fr}}
+    .kiosk-slides{position:relative;flex:1;min-height:0}.kiosk-slide{display:none;min-height:100%;flex-direction:column;gap:10px}.kiosk-slide.active{display:flex}.kiosk-chart-grid{margin:0;align-content:start}.kiosk-summary-grid{display:grid;grid-template-columns:repeat(var(--summary-columns,4),minmax(0,1fr));gap:10px;flex:1}.kiosk-summary-grid>.panel{min-height:250px}.kiosk-summary-grid .price-panel,.kiosk-summary-grid .consumers-panel{height:auto}.kiosk-slide-nav{height:30px;display:flex;align-items:center;justify-content:center;gap:12px}.kiosk-slide-nav>button{border:0;background:transparent;color:var(--cyan);padding:2px}.kiosk-slide-nav>div{display:flex;gap:7px}.kiosk-dot{width:28px;height:5px;border:0;border-radius:999px;background:#254451;padding:0}.kiosk-dot.active{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}.matrix-shell.kiosk-active{transition:filter 1s ease}.matrix-shell.kiosk-active.kiosk-night{filter:brightness(var(--night-brightness,.3));cursor:none}.matrix-shell.kiosk-active.kiosk-night:hover{cursor:default}
+    .widget-checks.four-checks{grid-template-columns:repeat(4,minmax(0,1fr))}.reset-layout-btn{height:39px;justify-content:center}.builtin-kiosk-selection{padding-bottom:4px}.kiosk-bubble-slot{position:relative;min-width:0}.kiosk-bubble-slot>.metric-card{width:100%;margin:0}.kiosk-bubble-stage.layout-grid{display:grid}.kiosk-bubble-stage.layout-free{display:block!important;position:relative;height:var(--kiosk-bubble-stage-height,96px);min-height:var(--kiosk-bubble-stage-height,96px);margin-bottom:0;overflow:hidden}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot{position:absolute;left:var(--kiosk-x,0);top:var(--kiosk-y,0);width:var(--kiosk-w,16%);height:82px}.kiosk-bubble-stage.layout-free .kiosk-bubble-slot>.metric-card{height:100%;min-height:100%}.layout-drag-handle,.layout-resize-handle{display:none;position:absolute;z-index:40;align-items:center;justify-content:center;border:1px solid var(--orange);background:rgba(24,14,0,.94);color:var(--orange);box-shadow:0 0 12px rgba(255,177,27,.25);touch-action:none;user-select:none}.layout-drag-handle ha-icon,.layout-resize-handle ha-icon{width:15px;height:15px}.bubble-layout-handle{top:3px;right:3px;width:25px;height:25px;border-radius:7px}.layout-resize-handle{right:3px;bottom:3px;width:25px;height:25px;border-radius:7px}.flow-layout-handle{top:7px;left:50%;transform:translateX(-50%);padding:5px 9px;border-radius:999px;font-size:8px;gap:5px}.layout-editing .layout-drag-handle,.layout-editing .layout-resize-handle{display:flex}.layout-editing .kiosk-bubble-slot{outline:1px dashed rgba(255,177,27,.75);outline-offset:2px}.layout-editing .kiosk-flow-card{outline:1px dashed rgba(255,177,27,.75);outline-offset:-4px}.layout-edit-btn.active{border-color:var(--orange);color:var(--orange)}.kiosk-flow-card .flow-canvas-v4{transform:translate(var(--flow-offset-x,0),var(--flow-offset-y,0)) scale(var(--flow-scale,1));transform-origin:center center;transition:transform .15s ease}.layout-editing .kiosk-flow-card .flow-canvas-v4{transition:none}
+    .kiosk-lovelace-list{margin-top:8px}.kiosk-lovelace-editor{padding:8px}.kiosk-lovelace-slide{flex:1;min-height:0;padding:0;overflow:hidden;border-radius:12px}.kiosk-lovelace-slide iframe{display:block;width:100%;height:100%;min-height:0;border:0;background:#010914}
+    @media(max-width:1300px){.overview-widget-layout{grid-template-columns:1fr}.widget-editor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kiosk-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.widget-checks.four-checks{grid-template-columns:1fr 1fr}}
     @media(max-width:850px){.widget-editor-grid,.widget-related-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-chart-grid{grid-template-columns:1fr}.widget-checks.three-checks{grid-template-columns:1fr 1fr}.overview-widget-layout{display:block}.overview-widget-settings{margin-bottom:10px}.kiosk-header{align-items:flex-start}.kiosk-header-tools{flex-wrap:wrap;justify-content:flex-end}.kiosk-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.kiosk-flow-card .flow-canvas-v4{min-height:500px!important}.kiosk-status{justify-content:flex-start;overflow-x:auto}.kiosk-selection-grid{grid-template-columns:1fr}.kiosk-summary-grid{grid-template-columns:1fr 1fr}}
+    .display-tablet_16_9 .kiosk-summary-grid{grid-template-columns:repeat(var(--summary-columns,2),minmax(0,1fr))}.display-tablet_16_9 .kiosk-metrics .metric-card.custom-bubble{padding:var(--bubble-padding,8px);border-radius:var(--bubble-radius,10px)}.display-tablet_16_9 .kiosk-metrics .metric-card.custom-bubble .custom-bubble-copy>div>strong{font-size:var(--bubble-value-size,19px)}
     @media(max-width:560px){.widget-editor-grid,.widget-related-grid,.widget-checks,.widget-checks.three-checks,.kiosk-settings>.widget-checks{grid-template-columns:1fr}.widget-editor-grid>.full,.widget-related-grid>.full{grid-column:auto}.section-heading{align-items:flex-start}.custom-chart-head>strong{font-size:17px}.custom-chart-foot{flex-direction:column}.chart-series-legend{gap:4px 8px}.matrix-shell.kiosk-active>.content{padding:5px}.kiosk-header{flex-direction:column}.kiosk-header-tools{width:100%;justify-content:flex-start}.kiosk-clock{align-items:flex-start;margin-right:auto}.kiosk-metrics,.kiosk-summary-grid{grid-template-columns:1fr}.kiosk-status span:nth-child(n+4){display:none}.kiosk-profile-footer{align-items:flex-start;flex-direction:column}.bubble-secondary{display:none!important}.bubble-related-list{grid-template-columns:1fr}}
   `; }
 }

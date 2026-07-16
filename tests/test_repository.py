@@ -13,7 +13,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.3"
+    assert manifest["version"] == "0.6.4"
 
 
 def test_hacs_manifest() -> None:
@@ -72,6 +72,11 @@ def test_frontend_v06_features() -> None:
     assert "border_color" in frontend
     assert "value_color" in frontend
     assert "icon_color" in frontend
+    assert "toggle-kiosk-layout-edit" in frontend
+    assert "data-layout-drag=\"flow\"" in frontend
+    assert "toggle-kiosk-builtin" in frontend
+    assert "kiosk-lovelace-slide" in frontend
+    assert "auto_fullscreen" in frontend
     assert "tap_action" in frontend
 
 
@@ -99,6 +104,11 @@ def test_configuration_schema_v6() -> None:
     assert '"border_width"' in storage
     assert '"value_color"' in storage
     assert '"description_color"' in storage
+    assert '"bubble_positions"' in storage
+    assert '"show_battery_gauge": False' in storage
+    assert '"show_self_sufficiency_gauge": False' in storage
+    assert '"lovelace_views": []' in storage
+    assert '"auto_fullscreen": True' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
@@ -122,6 +132,13 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["display_preset"] == "tablet_16_9"
     assert example["kiosk"]["max_bubbles"] == 6
     assert example["kiosk"]["chart_columns"] == 2
+    assert example["kiosk"]["builtin_bubble_ids"] == ["home", "pv", "grid"]
+    assert example["kiosk"]["bubble_layout"] == "free"
+    assert example["kiosk"]["flow_offset_y"] == -30
+    assert example["kiosk"]["show_battery_gauge"] is False
+    assert example["kiosk"]["show_self_sufficiency_gauge"] is False
+    assert example["kiosk"]["auto_fullscreen"] is True
+    assert example["kiosk"]["lovelace_views"][0]["path"].startswith("/")
     assert example["overview_bubbles"][0]["border_radius"] == 16
     assert example["overview_bubbles"][0]["border_width"] == 2
     assert example["overview_bubbles"][0]["value_color"] == "#b8ff3d"
