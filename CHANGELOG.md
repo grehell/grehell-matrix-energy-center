@@ -1,5 +1,13 @@
 # Changelog
 
+## 8.0.2 — 2026-07-16
+
+- Replaced the expanded inline overview-bubble form with one Add/Edit dialog, a live preview, draft cancellation and an explicit Save bubble action.
+- Added direct emoji input for overview and flow bubbles; new configuration no longer needs a custom image URL, while old image-based flow styles remain readable for compatibility.
+- Added independent overview-bubble name, value, unit and description font sizes and bold controls to the unified editor.
+- Added a flow-tile clipboard in Settings for copying appearance and size, or the complete tile including position, between Summary, Flows and kiosk profiles.
+- Added emoji rendering to the native Lovelace flow card and runtime tests for emoji, the unified editor and cross-dashboard tile paste.
+
 ## 8.0.1 — 2026-07-16
 
 - Replaced the ambiguous Kiosk preview navigation item with a dedicated Kiosk configuration panel; the actual kiosk now opens only from a profile button or `?kiosk=...` URL.

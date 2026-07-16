@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.1"
+    assert manifest["version"] == "8.0.2"
 
 
 def test_hacs_manifest() -> None:
@@ -46,6 +46,8 @@ def test_native_lovelace_flow_card() -> None:
     assert "data-flow-action" in frontend
     assert 'callService("homeassistant", "toggle"' in frontend
     assert "flow-custom-image" in frontend
+    assert "flow-custom-emoji" in frontend
+    assert 'item.icon_type === "emoji"' in frontend
     assert "flow-extra-fields" in frontend
 
 
@@ -128,6 +130,12 @@ def test_frontend_features() -> None:
     assert "move-kiosk-lovelace-view" in frontend
     assert "name_bold" in frontend
     assert "clock_bold" in frontend
+    assert "ZAPISZ DYMEK" in frontend
+    assert "Wklej emoji" in frontend
+    assert "copy-settings-tile" in frontend
+    assert "paste-settings-tile" in frontend
+    assert "WKLEJ Z POZYCJĄ" in frontend
+    assert "flow-node-emoji" in frontend
 
 
 def test_configuration_schema_v8() -> None:
@@ -177,6 +185,8 @@ def test_configuration_schema_v8() -> None:
     assert '"clock_bold"' in storage
     assert '"scale"' in storage
     assert '"offset_x"' in storage
+    assert '"icon_type"' in storage
+    assert '"emoji"' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:

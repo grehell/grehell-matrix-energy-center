@@ -553,6 +553,10 @@ class MatrixEnergyStore:
                     ),
                     "related_entities": related_entities,
                     "icon": self._text(item.get("icon"), "mdi:information-outline", 80),
+                    "icon_type": self._choice(
+                        item.get("icon_type"), "mdi", {"mdi", "emoji"}
+                    ),
+                    "emoji": self._text(item.get("emoji"), "⚡", 24),
                     "color": self._color(item.get("color"), "#20eaff"),
                     "background_color": self._color(item.get("background_color"), "#031426"),
                     "icon_color": self._color(
@@ -576,7 +580,18 @@ class MatrixEnergyStore:
                         self._number(item.get("border_radius"), 14, 0, 40)
                     ),
                     "icon_size": int(self._number(item.get("icon_size"), 22, 12, 48)),
+                    "name_size": int(self._number(item.get("name_size"), 10, 6, 32)),
                     "value_size": int(self._number(item.get("value_size"), 24, 12, 48)),
+                    "unit_size": int(self._number(item.get("unit_size"), 9, 6, 28)),
+                    "description_size": int(
+                        self._number(item.get("description_size"), 8, 6, 24)
+                    ),
+                    "name_bold": bool(item.get("name_bold", False)),
+                    "value_bold": bool(item.get("value_bold", True)),
+                    "unit_bold": bool(item.get("unit_bold", False)),
+                    "description_bold": bool(
+                        item.get("description_bold", False)
+                    ),
                     "padding": int(self._number(item.get("padding"), 13, 4, 28)),
                     "text_align": self._choice(
                         item.get("text_align"), "left", {"left", "center", "right"}
@@ -1024,8 +1039,9 @@ class MatrixEnergyStore:
                 "unit_color": self._color(value.get("unit_color"), "#94b5c0"),
                 "border_width": int(self._number(value.get("border_width"), 1, 1, 8)),
                 "border_radius": int(self._number(value.get("border_radius"), 18, 0, 100)),
-                "icon_type": self._choice(value.get("icon_type"), "mdi", {"mdi", "image"}),
+                "icon_type": self._choice(value.get("icon_type"), "mdi", {"mdi", "image", "emoji"}),
                 "icon": self._text(value.get("icon"), "", 100),
+                "emoji": self._text(value.get("emoji"), "⚡", 24),
                 "image_url": image_url,
                 "icon_size": int(self._number(value.get("icon_size"), 32, 10, 120)),
                 "name_size": int(self._number(value.get("name_size"), 9, 6, 32)),

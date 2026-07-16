@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.0.1 technical preview**. Kiosk profiles now have a dedicated configuration panel with named native/Lovelace tabs, same-origin iframe swipe, per-tab layout controls and independently editable text weight. Monitoring, configuration, the native Lovelace card, Recorder-backed charts and the TAURON G13 engine remain available.
+> Status: **v8.0.2 technical preview**. Bubble creation and editing now use one saved-draft dialog, flow tiles can be copied between dashboard profiles, and bubbles accept pasted emoji without an image URL. Named kiosk/Lovelace tabs, swipe navigation and per-screen flow scenes remain available.
 
 ## Main features
 
@@ -22,6 +22,7 @@
 - Independent name, value, unit and status font sizes and bold weights for every flow bubble, connection label and additional entity field.
 - Configurable overview bubbles for any Home Assistant entity or entity attribute.
 - Per-bubble name, description, MDI icon, independent frame/background/icon/name/value/unit/description colors, frame width/radius, sizes, padding, alignment, unit, precision, multiplier, order and session sparkline.
+- A unified Add/Edit bubble dialog with live preview and an explicit **Save bubble** action; MDI icons or pasted emoji are supported without an image URL.
 - A secondary value and up to eight related entities inside one bubble, each with its own label, value and unit colors, size, unit, precision and multiplier.
 - Fixed or threshold-driven bubble colors, unavailable/alarm colors and visual alerts.
 - Additional line, area and grouped bar charts with up to nine related series on one shared timeline.
@@ -31,7 +32,8 @@
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
 - Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
 - Per-screen flow editor with a fixed Matrix background and a reset command scoped only to the selected screen.
-- Per-flow-bubble width, height, frame/background/text/icon colors, icon size, custom MDI or image icon and up to eight additional entity/attribute fields.
+- Per-flow-bubble width, height, frame/background/text/icon colors, icon/emoji size, custom MDI icon or pasted emoji and up to eight additional entity/attribute fields.
+- Copy a selected flow tile's complete appearance between Summary, Flows and kiosk profiles; optionally copy its size and position as well.
 - Per-flow-object tap actions on the overview, Flow dashboard and every kiosk profile: none, more-info, generic toggle, local navigation or an arbitrary Home Assistant service with JSON data.
 - Touch-friendly horizontal kiosk swipe between Matrix slides and same-origin embedded Lovelace dashboards; buttons and controls remain interactive.
 - Per-slide kiosk headers with configurable title, description, icon, height, colors, fonts and visible controls; navigation is centered in the header.
@@ -88,7 +90,7 @@ Restart Home Assistant and add the integration from the UI.
 
 ## Native Lovelace card
 
-Version 8.0.1 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
+Version 8.0.2 registers its Lovelace module automatically. After restarting Home Assistant and performing a hard browser refresh, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card
@@ -217,7 +219,7 @@ Other domains will receive dedicated adapters in later versions.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Status wersji v0.7 (PL)](docs/STATUS_PL.md)
-- [Informacje o wydaniu v8.0.1 (PL)](docs/RELEASE_8_0_1_PL.md)
+- [Informacje o wydaniu v8.0.2 (PL)](docs/RELEASE_8_0_2_PL.md)
 - [Publikacja plików na GitHub (PL)](docs/UPLOAD_GITHUB_PL.md)
 - [Example configuration](docs/example-config.json)
 

@@ -113,10 +113,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._settingsSelectedKind = "node";
     this._settingsSelectedKey = "home";
     this._settingsPointerState = null;
+    this._settingsTileClipboard = null;
     this._autoFullscreenArmed = false;
     this._dragState = null;
     this._rendered = false;
     this._picker = null;
+    this._bubbleEditor = null;
     this._pickerQuery = "";
     this._pickerShowAll = false;
     this._entityRegistry = {};
@@ -221,6 +223,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           <span class="status-message">${this._esc(this._message)}</span>
         </footer>`}
       </div>
+      ${this._renderBubbleEditor()}
       ${this._renderEntityPicker()}
     `;
     this._bindCommonEvents();
@@ -377,7 +380,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       .join("");
 
     const bubbleCards = bubbles.map((item, index) => `<article class="panel widget-editor-card draggable-widget ${item.enabled === false ? "disabled-card" : ""}" draggable="${this._isAdmin()}" data-drag-type="bubble" data-drag-index="${index}">
-      <div class="panel-title"><span><ha-icon class="drag-handle" icon="mdi:drag-vertical"></ha-icon> DYMEK ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><button class="danger-link" data-action="remove-overview-bubble" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+      <div class="panel-title"><span><ha-icon class="drag-handle" icon="mdi:drag-vertical"></ha-icon> DYMEK ${index + 1} · ${this._esc(item.name || "BEZ NAZWY")}</span><div class="widget-card-actions"><button class="secondary-btn" data-action="edit-overview-bubble" data-index="${index}" ${disabled}><ha-icon icon="mdi:pencil-outline"></ha-icon>EDYTUJ</button><button class="danger-link" data-action="remove-overview-bubble" data-index="${index}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div></div>
       <div class="widget-editor-grid">
         ${this._field(`overview_bubbles.${index}.name`, "Nazwa", item.name, "Np. Temperatura falownika", disabled)}
         ${this._field(`overview_bubbles.${index}.description`, "Opis", item.description, "Krótki opis pod wartością", disabled)}
@@ -714,7 +717,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       <label class="field"><span>Edytowany obiekt</span><select data-action="select-flow-layout-element">${options}</select></label>
       <div class="widget-subsection"><b>WYGLĄD</b><small>Ustawienia zapisują się tylko dla bieżącego pulpitu.</small></div>
       <label class="check-row"><input type="checkbox" data-path="${path}.appearance_enabled" data-live-rerender="1" ${style.appearance_enabled ? "checked" : ""}><span><b>Własny wygląd</b><small>Wyłącz, aby używać stylu domyślnego.</small></span></label>
-      ${isNode ? `<div class="two-grid">${this._field(`${path}.name`, "Własna nazwa", style.name, definition.label.replace(/^Dymek /, ""), "", true)}${this._selectField(`${path}.icon_type`, "Typ ikony", style.icon_type || "mdi", [["mdi","Ikona MDI"],["image","Własny obraz"]], "", true)}</div><div class="two-grid">${this._field(`${path}.icon`, "Ikona MDI", style.icon || definition.icon || "mdi:information-outline", "mdi:home", "", true)}${this._field(`${path}.image_url`, "Obraz spoza MDI", style.image_url, "/local/ikony/dom.svg lub https://…", "", true)}</div><div class="three-grid">${this._numberField(`${path}.width`, "Szerokość (0 = auto)", style.width || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.height`, "Wysokość (0 = auto)", style.height || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.icon_size`, "Rozmiar ikony", style.icon_size || 32, 10, 120, 1, "", true)}</div><div class="three-grid">${this._numberField(`${path}.border_width`, "Grubość ramki", style.border_width || 1, 1, 8, 1, "", true)}${this._numberField(`${path}.border_radius`, "Zaokrąglenie", style.border_radius ?? 18, 0, 100, 1, "", true)}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div><div class="three-grid">${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.icon_color`, "Kolor ikony", style.icon_color || baseColor, "")}${this._colorField(`${path}.name_color`, "Kolor nazwy", style.name_color || "#eefaff", "")}${this._colorField(`${path}.value_color`, "Kolor wartości", style.value_color || baseColor, "")}${this._colorField(`${path}.unit_color`, "Kolor jednostki", style.unit_color || "#94b5c0", "")}</div><div class="widget-subsection"><b>DODATKOWE POLA W DYMKU</b><small>Do 8 dowolnych encji lub atrybutów.</small></div><div class="layout-extra-fields">${fieldCards || `<div class="mini-empty">Brak dodatkowych pól.</div>`}<button class="secondary-btn" data-action="add-flow-extra-field" ${fields.length >= 8 ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon>DODAJ POLE (${fields.length}/8)</button></div>` : definition.kind === "label" ? `<div class="three-grid">${this._colorField(`${path}.value_color`, "Kolor tekstu", style.value_color || "#eefaff", "")}${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div>` : `<div class="two-grid">${this._colorField(`${path}.line_color`, "Kolor linii", style.line_color || baseColor, "")}${this._numberField(`${path}.line_thickness`, "Grubość linii", style.line_thickness || 3, 1, 14, 1, "", true)}</div>`}
+      ${isNode ? `<div class="two-grid">${this._field(`${path}.name`, "Własna nazwa", style.name, definition.label.replace(/^Dymek /, ""), "", true)}${this._selectField(`${path}.icon_type`, "Typ ikony", style.icon_type === "emoji" ? "emoji" : "mdi", [["mdi","Ikona MDI"],["emoji","Emoji"]], "", true)}</div><div>${style.icon_type === "emoji" ? this._field(`${path}.emoji`, "Wklej emoji", style.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", "", true) : this._field(`${path}.icon`, "Ikona MDI", style.icon || definition.icon || "mdi:information-outline", "mdi:home", "", true)}</div><div class="three-grid">${this._numberField(`${path}.width`, "Szerokość (0 = auto)", style.width || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.height`, "Wysokość (0 = auto)", style.height || 0, 0, 360, 1, "", true)}${this._numberField(`${path}.icon_size`, "Rozmiar ikony / emoji", style.icon_size || 32, 10, 120, 1, "", true)}</div><div class="three-grid">${this._numberField(`${path}.border_width`, "Grubość ramki", style.border_width || 1, 1, 8, 1, "", true)}${this._numberField(`${path}.border_radius`, "Zaokrąglenie", style.border_radius ?? 18, 0, 100, 1, "", true)}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div><div class="three-grid">${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.icon_color`, "Kolor ikony", style.icon_color || baseColor, "")}${this._colorField(`${path}.name_color`, "Kolor nazwy", style.name_color || "#eefaff", "")}${this._colorField(`${path}.value_color`, "Kolor wartości", style.value_color || baseColor, "")}${this._colorField(`${path}.unit_color`, "Kolor jednostki", style.unit_color || "#94b5c0", "")}</div><div class="widget-subsection"><b>DODATKOWE POLA W DYMKU</b><small>Do 8 dowolnych encji lub atrybutów.</small></div><div class="layout-extra-fields">${fieldCards || `<div class="mini-empty">Brak dodatkowych pól.</div>`}<button class="secondary-btn" data-action="add-flow-extra-field" ${fields.length >= 8 ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon>DODAJ POLE (${fields.length}/8)</button></div>` : definition.kind === "label" ? `<div class="three-grid">${this._colorField(`${path}.value_color`, "Kolor tekstu", style.value_color || "#eefaff", "")}${this._colorField(`${path}.background_color`, "Kolor tła", style.background_color || "#020c18", "")}${this._colorField(`${path}.border_color`, "Kolor ramki", style.border_color || baseColor, "")}</div>` : `<div class="two-grid">${this._colorField(`${path}.line_color`, "Kolor linii", style.line_color || baseColor, "")}${this._numberField(`${path}.line_thickness`, "Grubość linii", style.line_thickness || 3, 1, 14, 1, "", true)}</div>`}
       <div class="widget-subsection"><b>INTERAKCJA</b><small>Akcja wykonywana po dotknięciu obiektu poza trybem edycji.</small></div>
       ${this._selectField(`${path}.tap_action`, "Akcja", style.tap_action || "none", [["none","Brak"],["more_info","Szczegóły encji"],["toggle","Przełącz (toggle)"],["navigate","Nawigacja"],["service","Dowolna usługa HA"]], "", true)}
       <div>${this._entityField(`${path}.action_entity_id`, "Encja akcji", style.action_entity_id, "Dla szczegółów, toggle lub jako domyślna encja usługi.", "", "any")}</div>
@@ -929,6 +932,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const connection = model.connections.find(item => item.key === this._settingsSelectedKey);
     const options = `<optgroup label="Dymki">${model.nodes.map(item => `<option value="node:${this._escAttr(item.key)}" ${node?.key === item.key ? "selected" : ""}>${this._esc(item.label)}</option>`).join("")}</optgroup><optgroup label="Linie przepływu">${model.connections.map(item => `<option value="connection:${this._escAttr(item.key)}" ${connection?.key === item.key ? "selected" : ""}>${this._esc(item.label)}</option>`).join("")}</optgroup>`;
     const key = node?.key || connection?.key || "home";
+    const tileClipboard = this._readSettingsTileClipboard();
     context.profile.flow_element_styles ||= {};
     const style = context.profile.flow_element_styles[key] ||= {};
     const stylePath = `${context.path}.flow_element_styles.${key}`;
@@ -942,7 +946,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         <div class="widget-subsection"><b>TREŚĆ I WYGLĄD DYMKU</b></div>
         <label class="check-row"><input type="checkbox" data-path="${stylePath}.appearance_enabled" data-live-rerender="1" ${style.appearance_enabled ? "checked" : ""} ${disabled}><span><b>Własny wygląd</b></span></label>
         ${this._field(`${stylePath}.name`, "Własna nazwa", style.name, node.label, disabled, true)}
-        <div class="two-grid">${this._selectField(`${stylePath}.icon_type`, "Typ ikony", style.icon_type || "mdi", [["mdi","MDI"],["image","Obraz"]], disabled, true)}${this._field(`${stylePath}.icon`, "Ikona MDI", style.icon || node.icon, "mdi:home", disabled, true)}${this._field(`${stylePath}.image_url`, "Adres obrazu", style.image_url, "/local/ikony/dom.svg", disabled, true)}${this._numberField(`${stylePath}.icon_size`, "Rozmiar ikony", style.icon_size || 32, 10, 120, 1, disabled, true)}</div>
+        <div class="two-grid">${this._selectField(`${stylePath}.icon_type`, "Typ ikony", style.icon_type === "emoji" ? "emoji" : "mdi", [["mdi","MDI"],["emoji","Emoji"]], disabled, true)}${style.icon_type === "emoji" ? this._field(`${stylePath}.emoji`, "Wklej emoji", style.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", disabled, true) : this._field(`${stylePath}.icon`, "Ikona MDI", style.icon || node.icon, "mdi:home", disabled, true)}${this._numberField(`${stylePath}.icon_size`, "Rozmiar ikony / emoji", style.icon_size || 32, 10, 120, 1, disabled, true)}</div>
         <div class="widget-subsection"><b>ROZMIARY TEKSTU</b><small>Każdy rodzaj tekstu w dymku ma własny rozmiar.</small></div>
         <div class="two-grid">${this._numberField(`${stylePath}.name_size`, "Nazwa (px)", style.name_size || 9, 6, 32, 1, disabled, true)}${this._numberField(`${stylePath}.value_size`, "Wartość (px)", style.value_size || 18, 8, 56, 1, disabled, true)}${this._numberField(`${stylePath}.unit_size`, "Jednostka (px)", style.unit_size || 7, 5, 28, 1, disabled, true)}${this._numberField(`${stylePath}.status_size`, "Opis / status (px)", style.status_size || 7, 5, 28, 1, disabled, true)}</div>
         <div class="widget-checks four-checks"><label class="check-row"><input type="checkbox" data-path="${stylePath}.name_bold" data-live-rerender="1" ${style.name_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub nazwę</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.value_bold" data-live-rerender="1" ${style.value_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub wartość</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.unit_bold" data-live-rerender="1" ${style.unit_bold ? "checked" : ""} ${disabled}><span><b>Pogrub jednostkę</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.status_bold" data-live-rerender="1" ${style.status_bold ? "checked" : ""} ${disabled}><span><b>Pogrub opis/status</b></span></label></div>
@@ -964,7 +968,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       body += `<div class="widget-subsection"><b>DODATKOWE POLA W DYMKU</b><small>Do 8 dowolnych encji lub atrybutów.</small></div><div class="layout-extra-fields">${fields.map((field, index) => `<article class="layout-extra-field"><div class="widget-related-head"><b>POLE ${index + 1}</b><button class="danger-link" data-action="remove-settings-extra-field" data-index="${index}"><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>${this._field(`${stylePath}.extra_fields.${index}.name`, "Nazwa", field.name, `Pole ${index + 1}`, disabled)}<div>${this._entityField(`${stylePath}.extra_fields.${index}.entity_id`, "Encja", field.entity_id, "Dowolna encja HA.", disabled, "any")}</div><div class="two-grid">${this._field(`${stylePath}.extra_fields.${index}.attribute`, "Atrybut", field.attribute, "Opcjonalnie", disabled)}${this._field(`${stylePath}.extra_fields.${index}.unit`, "Jednostka", field.unit, "Z encji", disabled)}${this._numberField(`${stylePath}.extra_fields.${index}.decimals`, "Precyzja", field.decimals ?? 1, 0, 6, 1, disabled)}${this._numberField(`${stylePath}.extra_fields.${index}.multiplier`, "Mnożnik", field.multiplier ?? 1, -1000000, 1000000, .001, disabled)}${this._colorField(`${stylePath}.extra_fields.${index}.color`, "Kolor", field.color || "#8eb5c3", disabled)}${this._numberField(`${stylePath}.extra_fields.${index}.label_size`, "Nazwa (px)", field.label_size || 6, 5, 24, 1, disabled, true)}${this._numberField(`${stylePath}.extra_fields.${index}.value_size`, "Wartość (px)", field.value_size || 9, 6, 36, 1, disabled, true)}${this._numberField(`${stylePath}.extra_fields.${index}.unit_size`, "Jednostka (px)", field.unit_size || 6, 5, 24, 1, disabled, true)}</div><div class="widget-checks three-checks"><label class="check-row"><input type="checkbox" data-path="${stylePath}.extra_fields.${index}.label_bold" data-live-rerender="1" ${field.label_bold ? "checked" : ""} ${disabled}><span><b>Pogrub nazwę</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.extra_fields.${index}.value_bold" data-live-rerender="1" ${field.value_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub wartość</b></span></label><label class="check-row"><input type="checkbox" data-path="${stylePath}.extra_fields.${index}.unit_bold" data-live-rerender="1" ${field.unit_bold ? "checked" : ""} ${disabled}><span><b>Pogrub jednostkę</b></span></label></div></article>`).join("") || `<div class="mini-empty">Brak dodatkowych pól.</div>`}<button class="secondary-btn" data-action="add-settings-extra-field" ${fields.length >= 8 ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon>DODAJ POLE (${fields.length}/8)</button></div>`;
     }
     const interaction = `<div class="widget-subsection"><b>INTERAKCJA</b></div>${this._selectField(`${stylePath}.tap_action`, "Akcja dotknięcia", style.tap_action || "none", [["none","Brak"],["more_info","Szczegóły encji"],["toggle","Przełącz"],["navigate","Nawigacja"],["service","Usługa HA"]], disabled, true)}<div>${this._entityField(`${stylePath}.action_entity_id`, "Encja akcji", style.action_entity_id, "Encja szczegółów, toggle lub usługi.", disabled, "any")}</div>${this._field(`${stylePath}.navigation_path`, "Ścieżka", style.navigation_path, "/lovelace/energia", disabled)}${this._field(`${stylePath}.service`, "Usługa", style.service, "light.toggle", disabled)}${this._textarea(`${stylePath}.service_data`, "Dane JSON", style.service_data || "{}", "{}", disabled)}`;
-    return `<aside class="settings-inspector"><div class="panel-title"><span>EDYCJA OBIEKTU</span><ha-icon icon="mdi:tune-variant"></ha-icon></div><label class="field"><span>Wybrany obiekt</span><select data-settings-object>${options}</select></label>${body}${interaction}</aside>`;
+    const tileTools = node ? `<section class="settings-tile-clipboard"><div><b>SCHOWEK KAFELKA</b><small>${tileClipboard ? `Skopiowano: ${this._esc(tileClipboard.source_label || tileClipboard.source_target || "pulpit")} · ${this._esc(tileClipboard.source_key)}` : "Skopiuj kafelek, przełącz pulpit u góry i wklej go do zaznaczonego dymku."}</small></div><div><button class="secondary-btn" data-action="copy-settings-tile" ${disabled}><ha-icon icon="mdi:content-copy"></ha-icon>KOPIUJ</button><button class="secondary-btn" data-action="paste-settings-tile" data-paste-mode="style" ${tileClipboard ? disabled : "disabled"}><ha-icon icon="mdi:content-paste"></ha-icon>WKLEJ WYGLĄD</button><button class="secondary-btn" data-action="paste-settings-tile" data-paste-mode="all" ${tileClipboard ? disabled : "disabled"}><ha-icon icon="mdi:content-duplicate"></ha-icon>WKLEJ Z POZYCJĄ</button></div></section>` : "";
+    return `<aside class="settings-inspector"><div class="panel-title"><span>EDYCJA OBIEKTU</span><ha-icon icon="mdi:tune-variant"></ha-icon></div><label class="field"><span>Wybrany obiekt</span><select data-settings-object>${options}</select></label>${tileTools}${body}${interaction}</aside>`;
   }
 
   _renderKiosk() {
@@ -1460,6 +1465,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _flowElementIcon(profile, key, fallback) {
     const style = this._flowElementSettings(profile, key);
+    if (style.icon_type === "emoji") return `<span class="flow-node-emoji" aria-hidden="true" style="font-size:${Math.max(10, Math.min(120, Number(style.icon_size || 32)))}px">${this._esc(style.emoji || "⚡")}</span>`;
     const imageUrl = style.icon_type === "image" ? this._safeFlowImageUrl(style.image_url) : "";
     if (imageUrl) return `<img class="flow-node-custom-image" src="${this._escAttr(imageUrl)}" alt="" loading="eager">`;
     const icon = String(style.icon || fallback || "mdi:information-outline");
@@ -1715,13 +1721,17 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const borderWidth = Math.max(1, Math.min(6, Number(item.border_width || 1)));
     const borderRadius = Math.max(0, Math.min(40, Number(item.border_radius ?? 14)));
     const iconSize = Math.max(12, Math.min(48, Number(item.icon_size || 22)));
+    const nameSize = Math.max(6, Math.min(32, Number(item.name_size || 10)));
     const valueSize = Math.max(12, Math.min(48, Number(item.value_size || 24)));
+    const unitSize = Math.max(6, Math.min(28, Number(item.unit_size || 9)));
+    const descriptionSize = Math.max(6, Math.min(24, Number(item.description_size || 8)));
     const secondaryValueSize = Math.max(7, Math.min(28, Number(item.secondary_value_size || 11)));
     const padding = Math.max(4, Math.min(28, Number(item.padding || 13)));
     const textAlign = ["left", "center", "right"].includes(item.text_align) ? item.text_align : "left";
     const key = `bubble:${item.id || index}`;
-    return `<article class="metric-card custom-bubble bubble-align-${textAlign} ${presentation.alert ? "bubble-alert" : ""} ${item.tap_action && item.tap_action !== "none" ? "actionable" : ""}" style="--bubble-color:${color};--bubble-bg:${background};--bubble-border-color:${borderColor};--bubble-border-width:${borderWidth}px;--bubble-radius:${borderRadius}px;--bubble-icon-color:${iconColor};--bubble-name-color:${nameColor};--bubble-value-color:${valueColor};--bubble-unit-color:${unitColor};--bubble-description-color:${descriptionColor};--bubble-secondary-color:${secondaryColor};--bubble-secondary-label-color:${secondaryLabelColor};--bubble-secondary-unit-color:${secondaryUnitColor};--bubble-icon-size:${iconSize}px;--bubble-value-size:${valueSize}px;--bubble-secondary-value-size:${secondaryValueSize}px;--bubble-padding:${padding}px;--alert-color:${this._safeColor(item.alert_color, "#ff335f")}" data-overview-bubble="${index}" data-widget-action="bubble" data-widget-index="${index}" tabindex="${item.tap_action && item.tap_action !== "none" ? "0" : "-1"}">
-      ${item.show_icon === false ? "" : `<ha-icon icon="${this._escAttr(item.icon || "mdi:information-outline")}"></ha-icon>`}
+    const icon = item.icon_type === "emoji" ? `<span class="bubble-emoji" aria-hidden="true">${this._esc(item.emoji || "⚡")}</span>` : `<ha-icon icon="${this._escAttr(item.icon || "mdi:information-outline")}"></ha-icon>`;
+    return `<article class="metric-card custom-bubble bubble-align-${textAlign} ${presentation.alert ? "bubble-alert" : ""} ${item.tap_action && item.tap_action !== "none" ? "actionable" : ""}" style="--bubble-color:${color};--bubble-bg:${background};--bubble-border-color:${borderColor};--bubble-border-width:${borderWidth}px;--bubble-radius:${borderRadius}px;--bubble-icon-color:${iconColor};--bubble-name-color:${nameColor};--bubble-value-color:${valueColor};--bubble-unit-color:${unitColor};--bubble-description-color:${descriptionColor};--bubble-secondary-color:${secondaryColor};--bubble-secondary-label-color:${secondaryLabelColor};--bubble-secondary-unit-color:${secondaryUnitColor};--bubble-icon-size:${iconSize}px;--bubble-name-size:${nameSize}px;--bubble-value-size:${valueSize}px;--bubble-unit-size:${unitSize}px;--bubble-description-size:${descriptionSize}px;--bubble-name-weight:${item.name_bold ? 700 : 400};--bubble-value-weight:${item.value_bold === false ? 400 : 700};--bubble-unit-weight:${item.unit_bold ? 700 : 400};--bubble-description-weight:${item.description_bold ? 700 : 400};--bubble-secondary-value-size:${secondaryValueSize}px;--bubble-padding:${padding}px;--alert-color:${this._safeColor(item.alert_color, "#ff335f")}" data-overview-bubble="${index}" data-widget-action="bubble" data-widget-index="${index}" tabindex="${item.tap_action && item.tap_action !== "none" ? "0" : "-1"}">
+      ${item.show_icon === false ? "" : icon}
       <div class="custom-bubble-copy">${item.show_name === false ? "" : `<small>${this._esc(item.name || `Dymek ${index + 1}`)}</small>`}<div><strong data-overview-bubble-value="${index}">${this._esc(value.formatted)}</strong>${item.show_unit === false ? "" : `<span data-overview-bubble-unit="${index}">${this._esc(value.unit)}</span>`}</div>${secondary ? `<div class="bubble-secondary"><small>${this._esc(item.secondary_name || "Dodatkowo")}</small><b data-overview-bubble-secondary="${index}">${this._esc(secondary.formatted)}</b><span data-overview-bubble-secondary-unit="${index}">${this._esc(secondary.unit)}</span></div>` : ""}${related.length ? `<div class="bubble-related-list">${related.map(({ item: relatedItem, relatedIndex }) => { const relatedValue = this._widgetValue(relatedItem); const relatedColor = this._safeColor(relatedItem.color, color); const relatedLabelColor = this._safeColor(relatedItem.label_color, "#7195a2"); const relatedUnitColor = this._safeColor(relatedItem.unit_color, "#7898a4"); const relatedValueSize = Math.max(7, Math.min(24, Number(relatedItem.value_size || 10))); return `<div class="bubble-related-value" style="--related-color:${relatedColor};--related-label-color:${relatedLabelColor};--related-unit-color:${relatedUnitColor};--related-value-size:${relatedValueSize}px"><small>${this._esc(relatedItem.name || `Encja ${relatedIndex + 1}`)}</small><b data-overview-bubble-related="${index}:${relatedIndex}">${this._esc(relatedValue.formatted)}</b><span data-overview-bubble-related-unit="${index}:${relatedIndex}">${this._esc(relatedValue.unit)}</span></div>`; }).join("")}</div>` : ""}${item.description && item.show_description !== false ? `<p>${this._esc(item.description)}</p>` : ""}</div>
       ${presentation.alert ? `<span class="bubble-alert-label" data-overview-bubble-alert="${index}">${this._esc(item.alert_text || "ALARM")}</span>` : ""}
       ${item.show_sparkline === false ? "" : `<svg viewBox="0 0 100 30" preserveAspectRatio="none"><path data-custom-spark="${this._escAttr(key)}" class="spark" d=""></path></svg>`}
@@ -1854,12 +1864,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     </div>`;
   }
 
-  _renderBubbleRelatedEditor(item, bubbleIndex, disabled = "") {
+  _renderBubbleRelatedEditor(item, bubbleIndex, disabled = "", editorPath = "") {
     const related = Array.isArray(item.related_entities) ? item.related_entities : [];
     const cards = related.map((relatedItem, relatedIndex) => {
-      const base = `overview_bubbles.${bubbleIndex}.related_entities.${relatedIndex}`;
+      const base = editorPath ? `${editorPath}.related_entities.${relatedIndex}` : `overview_bubbles.${bubbleIndex}.related_entities.${relatedIndex}`;
       return `<article class="widget-related-card">
-        <div class="widget-related-head"><b>ENCJA POWIĄZANA ${relatedIndex + 1}</b><button class="danger-link" data-action="remove-bubble-related" data-index="${bubbleIndex}" data-related-index="${relatedIndex}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
+        <div class="widget-related-head"><b>ENCJA POWIĄZANA ${relatedIndex + 1}</b><button class="danger-link" data-action="${editorPath ? "remove-bubble-editor-related" : "remove-bubble-related"}" data-index="${bubbleIndex}" data-related-index="${relatedIndex}" ${disabled}><ha-icon icon="mdi:delete-outline"></ha-icon>USUŃ</button></div>
         <div class="widget-related-grid">
           ${this._field(`${base}.name`, "Nazwa", relatedItem.name, "Np. Prąd", disabled)}
           ${this._field(`${base}.attribute`, "Atrybut", relatedItem.attribute, "Opcjonalnie", disabled)}
@@ -1876,7 +1886,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       </article>`;
     }).join("");
     return `<div class="widget-subsection full"><b>ENCJE POWIĄZANE W DYMKU</b><small>Do 8 dodatkowych stanów w jednym dymku, każdy z własną nazwą, jednostką, kolorem i mnożnikiem.</small></div>
-      <div class="widget-related-list full">${cards || `<div class="mini-empty">Brak dodatkowych encji w tym dymku.</div>`}<button class="secondary-btn add-related-btn" data-action="add-bubble-related" data-index="${bubbleIndex}" ${related.length >= 8 ? "disabled" : disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ ENCJĘ DO DYMKU (${related.length}/8)</button></div>`;
+      <div class="widget-related-list full">${cards || `<div class="mini-empty">Brak dodatkowych encji w tym dymku.</div>`}<button class="secondary-btn add-related-btn" data-action="${editorPath ? "add-bubble-editor-related" : "add-bubble-related"}" data-index="${bubbleIndex}" ${related.length >= 8 ? "disabled" : disabled}><ha-icon icon="mdi:plus"></ha-icon>DODAJ ENCJĘ DO DYMKU (${related.length}/8)</button></div>`;
   }
 
   _renderChartSeriesEditor(item, chartIndex, disabled = "") {
@@ -1901,9 +1911,129 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       <div class="widget-related-list full">${cards || `<div class="mini-empty">Wykres zawiera tylko serię główną.</div>`}<button class="secondary-btn add-related-btn" data-action="add-chart-series" data-index="${chartIndex}" ${series.length >= 8 ? "disabled" : disabled}><ha-icon icon="mdi:chart-multiple"></ha-icon>DODAJ SERIĘ (${series.length}/8)</button></div>`;
   }
 
+  _renderBubbleEditor() {
+    const editor = this._bubbleEditor;
+    const item = editor?.draft;
+    if (!item) return "";
+    const base = "bubble_editor";
+    const iconType = item.icon_type === "emoji" ? "emoji" : "mdi";
+    return `<div class="bubble-editor-modal" data-action="cancel-bubble-editor">
+      <section class="bubble-editor-dialog" role="dialog" aria-modal="true" aria-label="${editor.isNew ? "Dodawanie" : "Edycja"} dymku">
+        <header class="bubble-editor-head">
+          <div><span class="eyebrow">WIDŻETY · DYMEK</span><h2>${editor.isNew ? "Dodaj nowy dymek" : `Edytuj: ${this._esc(item.name || "Dymek")}`}</h2><small>Zmiany pozostają w szkicu do kliknięcia ZAPISZ DYMEK.</small></div>
+          <button class="icon-close" data-action="cancel-bubble-editor" title="Anuluj"><ha-icon icon="mdi:close"></ha-icon></button>
+        </header>
+        <div class="bubble-editor-layout">
+          <aside class="bubble-editor-preview"><span>PODGLĄD NA ŻYWO</span><div class="metrics-grid dynamic">${this._overviewBubble(item, -1)}</div><small>Emoji wklejasz bezpośrednio jako tekst — bez adresu obrazu.</small></aside>
+          <div class="bubble-editor-body">
+            <div class="widget-subsection full"><b>DANE GŁÓWNE</b><small>Wybierz encję, nazwę i sposób prezentacji wartości.</small></div>
+            <div class="bubble-editor-grid">
+              ${this._field(`${base}.name`, "Nazwa", item.name, "Np. Dom", "", true)}
+              ${this._field(`${base}.description`, "Opis", item.description, "Tekst pod wartością", "", true)}
+              <div class="full">${this._entityField(`${base}.entity_id`, "Encja", item.entity_id, "Główna wartość dymku.", "", "any")}</div>
+              ${this._field(`${base}.attribute`, "Atrybut encji", item.attribute, "Opcjonalnie")}
+              ${this._field(`${base}.unit`, "Własna jednostka", item.unit, "Puste = z encji", "", true)}
+              ${this._numberField(`${base}.decimals`, "Miejsca dziesiętne", item.decimals ?? 1, 0, 6, 1)}
+              ${this._numberField(`${base}.multiplier`, "Mnożnik", item.multiplier ?? 1, -1000000, 1000000, 0.001)}
+              ${this._numberField(`${base}.order`, "Kolejność", item.order ?? 1, 0, 10000, 1)}
+            </div>
+
+            <div class="widget-subsection full"><b>IKONA LUB EMOJI</b><small>Wklej zwykłe emoji albo wybierz ikonę MDI. Link do obrazu nie jest potrzebny.</small></div>
+            <div class="bubble-editor-grid">
+              ${this._selectField(`${base}.icon_type`, "Typ", iconType, [["mdi","Ikona MDI"],["emoji","Emoji"]], "", true)}
+              ${iconType === "emoji" ? this._field(`${base}.emoji`, "Wklej emoji", item.emoji || "⚡", "Np. 🏠 🔋 ☀️ ⚡", "", true) : this._field(`${base}.icon`, "Ikona MDI", item.icon || "mdi:information-outline", "mdi:home", "", true)}
+              ${this._numberField(`${base}.icon_size`, "Rozmiar ikony / emoji (px)", item.icon_size || 22, 12, 72, 1, "", true)}
+              ${this._colorField(`${base}.icon_color`, "Kolor ikony MDI", item.icon_color || item.color)}
+            </div>
+
+            <div class="widget-subsection full"><b>RAMKA, TŁO I TEKST</b><small>Każdy parametr dotyczy tylko tego dymku.</small></div>
+            <div class="bubble-editor-grid">
+              ${this._colorField(`${base}.color`, "Kolor akcentu", item.color)}
+              ${this._colorField(`${base}.background_color`, "Kolor tła", item.background_color)}
+              ${this._colorField(`${base}.border_color`, "Kolor ramki", item.border_color || item.color)}
+              ${this._colorField(`${base}.name_color`, "Kolor nazwy", item.name_color || "#8eb5c3")}
+              ${this._colorField(`${base}.value_color`, "Kolor wartości", item.value_color || item.color)}
+              ${this._colorField(`${base}.unit_color`, "Kolor jednostki", item.unit_color || "#8eb3c0")}
+              ${this._colorField(`${base}.description_color`, "Kolor opisu", item.description_color || "#6e96a5")}
+              ${this._numberField(`${base}.border_width`, "Grubość ramki (px)", item.border_width || 1, 1, 8, 1, "", true)}
+              ${this._numberField(`${base}.border_radius`, "Zaokrąglenie (px)", item.border_radius ?? 14, 0, 80, 1, "", true)}
+              ${this._numberField(`${base}.padding`, "Odstęp wewnętrzny (px)", item.padding || 13, 4, 40, 1, "", true)}
+              ${this._selectField(`${base}.text_align`, "Wyrównanie", item.text_align || "left", [["left","Do lewej"],["center","Do środka"],["right","Do prawej"]], "", true)}
+            </div>
+
+            <div class="widget-subsection full"><b>CZCIONKI</b><small>Osobny rozmiar i pogrubienie każdego tekstu.</small></div>
+            <div class="bubble-editor-grid font-editor-grid">
+              ${this._numberField(`${base}.name_size`, "Nazwa (px)", item.name_size || 10, 6, 32, 1, "", true)}
+              <label class="check-row"><input type="checkbox" data-path="${base}.name_bold" data-live-rerender="1" ${item.name_bold ? "checked" : ""}><span><b>Pogrub nazwę</b></span></label>
+              ${this._numberField(`${base}.value_size`, "Wartość (px)", item.value_size || 24, 12, 56, 1, "", true)}
+              <label class="check-row"><input type="checkbox" data-path="${base}.value_bold" data-live-rerender="1" ${item.value_bold !== false ? "checked" : ""}><span><b>Pogrub wartość</b></span></label>
+              ${this._numberField(`${base}.unit_size`, "Jednostka (px)", item.unit_size || 9, 6, 28, 1, "", true)}
+              <label class="check-row"><input type="checkbox" data-path="${base}.unit_bold" data-live-rerender="1" ${item.unit_bold ? "checked" : ""}><span><b>Pogrub jednostkę</b></span></label>
+              ${this._numberField(`${base}.description_size`, "Opis (px)", item.description_size || 8, 6, 28, 1, "", true)}
+              <label class="check-row"><input type="checkbox" data-path="${base}.description_bold" data-live-rerender="1" ${item.description_bold ? "checked" : ""}><span><b>Pogrub opis</b></span></label>
+            </div>
+
+            <div class="widget-subsection full"><b>WARTOŚĆ POMOCNICZA</b><small>Drugi stan może pochodzić z innej encji lub atrybutu.</small></div>
+            <div class="bubble-editor-grid">
+              <label class="check-row full"><input type="checkbox" data-path="${base}.show_secondary" data-live-rerender="1" ${item.show_secondary ? "checked" : ""}><span><b>Pokaż wartość pomocniczą</b></span></label>
+              ${this._field(`${base}.secondary_name`, "Etykieta", item.secondary_name, "Np. Dzisiaj", "", true)}
+              <div class="full">${this._entityField(`${base}.secondary_entity_id`, "Druga encja", item.secondary_entity_id, "Opcjonalna druga wartość.", "", "any")}</div>
+              ${this._field(`${base}.secondary_attribute`, "Drugi atrybut", item.secondary_attribute, "Opcjonalnie")}
+              ${this._field(`${base}.secondary_unit`, "Druga jednostka", item.secondary_unit, "Puste = z encji", "", true)}
+              ${this._numberField(`${base}.secondary_decimals`, "Druga precyzja", item.secondary_decimals ?? 1, 0, 6, 1)}
+              ${this._numberField(`${base}.secondary_multiplier`, "Drugi mnożnik", item.secondary_multiplier ?? 1, -1000000, 1000000, 0.001)}
+              ${this._colorField(`${base}.secondary_color`, "Kolor drugiej wartości", item.secondary_color || item.value_color || item.color)}
+              ${this._colorField(`${base}.secondary_label_color`, "Kolor etykiety", item.secondary_label_color || "#88afbd")}
+              ${this._colorField(`${base}.secondary_unit_color`, "Kolor jednostki", item.secondary_unit_color || "#7898a4")}
+              ${this._numberField(`${base}.secondary_value_size`, "Rozmiar (px)", item.secondary_value_size || 11, 7, 28, 1, "", true)}
+            </div>
+
+            ${this._renderBubbleRelatedEditor(item, -1, "", base)}
+
+            <div class="widget-subsection full"><b>KOLOR WARUNKOWY I ALARM</b><small>Zmień kolor lub pokaż alarm po przekroczeniu progów.</small></div>
+            <div class="bubble-editor-grid">
+              ${this._selectField(`${base}.color_mode`, "Tryb koloru", item.color_mode || "fixed", [["fixed","Stały"],["threshold","Według progów"]], "", true)}
+              ${this._numberField(`${base}.low_threshold`, "Próg niski", item.low_threshold ?? 0, -1000000000, 1000000000, 0.01)}
+              ${this._numberField(`${base}.high_threshold`, "Próg wysoki", item.high_threshold ?? 100, -1000000000, 1000000000, 0.01)}
+              ${this._colorField(`${base}.low_color`, "Kolor niski", item.low_color || "#008cff")}
+              ${this._colorField(`${base}.normal_color`, "Kolor normalny", item.normal_color || item.color)}
+              ${this._colorField(`${base}.high_color`, "Kolor wysoki", item.high_color || "#ff4d6d")}
+              ${this._colorField(`${base}.unavailable_color`, "Brak danych", item.unavailable_color || "#6d7d86")}
+              <label class="check-row full"><input type="checkbox" data-path="${base}.alert_enabled" data-live-rerender="1" ${item.alert_enabled ? "checked" : ""}><span><b>Alarm wizualny</b></span></label>
+              ${this._selectField(`${base}.alert_condition`, "Warunek alarmu", item.alert_condition || "above", [["above","Powyżej"],["below","Poniżej"],["outside","Poza zakresem"]], "", true)}
+              ${this._numberField(`${base}.alert_low`, "Dolny próg alarmu", item.alert_low ?? 0, -1000000000, 1000000000, 0.01)}
+              ${this._numberField(`${base}.alert_high`, "Górny próg alarmu", item.alert_high ?? 100, -1000000000, 1000000000, 0.01)}
+              ${this._colorField(`${base}.alert_color`, "Kolor alarmu", item.alert_color || "#ff335f")}
+              ${this._field(`${base}.alert_text`, "Tekst alarmu", item.alert_text, "ALARM", "", true)}
+            </div>
+
+            <div class="widget-subsection full"><b>AKCJA PO DOTKNIĘCIU</b><small>Otwórz szczegóły, przejdź do widoku albo wykonaj usługę HA.</small></div>
+            <div class="bubble-editor-grid">
+              ${this._selectField(`${base}.tap_action`, "Akcja", item.tap_action || "more_info", [["none","Brak"],["more_info","Więcej informacji"],["navigate","Nawigacja"],["service","Usługa HA"]], "", true)}
+              ${this._field(`${base}.navigation_path`, "Ścieżka nawigacji", item.navigation_path, "/lovelace/energia")}
+              ${this._field(`${base}.service`, "Usługa", item.service, "light.toggle")}
+              ${this._textarea(`${base}.service_data`, "Dane usługi JSON", item.service_data || "{}", "{\"entity_id\":\"light.salon\"}")}
+            </div>
+
+            <div class="widget-subsection full"><b>WIDOCZNOŚĆ</b></div>
+            <div class="bubble-editor-checks">
+              <label class="check-row"><input type="checkbox" data-path="${base}.enabled" data-live-rerender="1" ${item.enabled !== false ? "checked" : ""}><span><b>Dymek widoczny</b></span></label>
+              <label class="check-row"><input type="checkbox" data-path="${base}.show_sparkline" data-live-rerender="1" ${item.show_sparkline !== false ? "checked" : ""}><span><b>Miniwykres</b></span></label>
+              <label class="check-row"><input type="checkbox" data-path="${base}.show_icon" data-live-rerender="1" ${item.show_icon !== false ? "checked" : ""}><span><b>Ikona / emoji</b></span></label>
+              <label class="check-row"><input type="checkbox" data-path="${base}.show_name" data-live-rerender="1" ${item.show_name !== false ? "checked" : ""}><span><b>Nazwa</b></span></label>
+              <label class="check-row"><input type="checkbox" data-path="${base}.show_unit" data-live-rerender="1" ${item.show_unit !== false ? "checked" : ""}><span><b>Jednostka</b></span></label>
+              <label class="check-row"><input type="checkbox" data-path="${base}.show_description" data-live-rerender="1" ${item.show_description !== false ? "checked" : ""}><span><b>Opis</b></span></label>
+            </div>
+          </div>
+        </div>
+        <footer class="bubble-editor-footer"><span>${editor.isNew ? "Nowy dymek zostanie dodany dopiero po zapisaniu." : "Anulowanie nie zmieni zapisanej konfiguracji."}</span><div><button class="secondary-btn" data-action="cancel-bubble-editor"><ha-icon icon="mdi:close"></ha-icon>ANULUJ</button><button class="primary-btn" data-action="save-bubble-editor"><ha-icon icon="mdi:content-save"></ha-icon>ZAPISZ DYMEK</button></div></footer>
+      </section>
+    </div>`;
+  }
+
   _renderEntityPicker() {
     if (!this._picker) return "";
-    const current = this._getPath(this._config, this._picker.path) || "";
+    const current = this._dataPathValue(this._picker.path) || "";
     const candidates = this._entityCandidates(this._picker.filter, this._pickerQuery, this._pickerShowAll);
     const rows = this._entityResultsHtml(candidates, current);
     return `<div class="entity-modal" data-action="close-entity-picker">
@@ -2021,6 +2151,22 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return path.split(".").reduce((value, part) => value == null ? undefined : value[/^\d+$/.test(part) ? Number(part) : part], obj);
   }
 
+  _dataPathValue(path) {
+    const prefix = "bubble_editor.";
+    return String(path || "").startsWith(prefix)
+      ? this._getPath(this._bubbleEditor?.draft, String(path).slice(prefix.length))
+      : this._getPath(this._config, path);
+  }
+
+  _setDataPath(path, value) {
+    const prefix = "bubble_editor.";
+    if (String(path || "").startsWith(prefix)) {
+      if (this._bubbleEditor?.draft) this._setPath(this._bubbleEditor.draft, String(path).slice(prefix.length), value);
+      return;
+    }
+    this._setPath(this._config, path, value);
+  }
+
   _emptyState(icon, title, description) {
     return `<div class="empty"><ha-icon icon="${icon}"></ha-icon><h3>${title}</h3><p>${description}</p></div>`;
   }
@@ -2050,16 +2196,19 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const event = el.type === "checkbox" || el.tagName === "SELECT" || el.dataset.liveRerender === "1" ? "change" : "input";
       el.addEventListener(event, () => {
         const value = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
-        this._setPath(this._config, el.dataset.path, value);
+        this._setDataPath(el.dataset.path, value);
         if (el.dataset.path === "flow.title") {
           this.shadowRoot.querySelectorAll(".flow-title>span").forEach(title => { title.textContent = value || "PRZEPŁYW ENERGII — NA ŻYWO"; });
         }
         if (el.dataset.liveRerender === "1") {
           const scroll = this.shadowRoot.querySelector(".content")?.scrollTop || 0;
+          const bubbleScroll = this.shadowRoot.querySelector(".bubble-editor-body")?.scrollTop || 0;
           requestAnimationFrame(() => {
             this._render();
             const content = this.shadowRoot.querySelector(".content");
             if (content) content.scrollTop = scroll;
+            const bubbleBody = this.shadowRoot.querySelector(".bubble-editor-body");
+            if (bubbleBody) bubbleBody.scrollTop = bubbleScroll;
           });
         }
       });
@@ -2082,6 +2231,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._render();
     });
     this.shadowRoot.querySelector(".entity-dialog")?.addEventListener("click", event => event.stopPropagation());
+    this.shadowRoot.querySelector(".bubble-editor-dialog")?.addEventListener("click", event => event.stopPropagation());
     this.shadowRoot.querySelector("[data-action='select-flow-layout-element']")?.addEventListener("change", event => {
       this._layoutSelectedElement = event.currentTarget.value;
       this._render();
@@ -2099,9 +2249,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "add-device") this._addDevice();
         if (action === "remove-device") this._removeDevice(Number(el.dataset.index));
         if (action === "add-overview-bubble") this._addOverviewBubble();
+        if (action === "edit-overview-bubble") this._editOverviewBubble(Number(el.dataset.index));
         if (action === "remove-overview-bubble") this._removeOverviewBubble(Number(el.dataset.index));
         if (action === "add-bubble-related") this._addBubbleRelated(Number(el.dataset.index));
         if (action === "remove-bubble-related") this._removeBubbleRelated(Number(el.dataset.index), Number(el.dataset.relatedIndex));
+        if (action === "add-bubble-editor-related") this._addBubbleEditorRelated();
+        if (action === "remove-bubble-editor-related") this._removeBubbleEditorRelated(Number(el.dataset.relatedIndex));
+        if (action === "cancel-bubble-editor") this._cancelBubbleEditor();
+        if (action === "save-bubble-editor") await this._saveBubbleEditor();
         if (action === "add-overview-chart") this._addOverviewChart();
         if (action === "remove-overview-chart") this._removeOverviewChart(Number(el.dataset.index));
         if (action === "add-chart-series") this._addChartSeries(Number(el.dataset.index));
@@ -2124,6 +2279,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         if (action === "remove-flow-extra-field") this._removeFlowExtraField(Number(el.dataset.index));
         if (action === "add-settings-extra-field") this._addSettingsExtraField();
         if (action === "remove-settings-extra-field") this._removeSettingsExtraField(Number(el.dataset.index));
+        if (action === "copy-settings-tile") this._copySettingsTile();
+        if (action === "paste-settings-tile") this._pasteSettingsTile(el.dataset.pasteMode || "style");
         if (action === "reset-settings-scene") this._resetSettingsScene();
         if (action === "kiosk-prev") this._advanceKiosk(-1);
         if (action === "kiosk-next") this._advanceKiosk(1);
@@ -2148,13 +2305,13 @@ class MatrixEnergyCenterPanel extends HTMLElement {
           this._render();
         }
         if (action === "select-entity") {
-          this._setPath(this._config, this._picker.path, el.dataset.entity);
+          this._setDataPath(this._picker.path, el.dataset.entity);
           this._message = `Wybrano ${el.dataset.entity}. Pamiętaj o zapisaniu zmian.`;
           this._picker = null;
           this._render();
         }
         if (action === "clear-entity") {
-          this._setPath(this._config, this._picker.path, "");
+          this._setDataPath(this._picker.path, "");
           this._message = "Wyczyszczono przypisanie encji. Pamiętaj o zapisaniu zmian.";
           this._picker = null;
           this._render();
@@ -2176,13 +2333,13 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const search = this.shadowRoot.querySelector("[data-entity-search]");
     search?.addEventListener("input", () => {
       this._pickerQuery = search.value;
-      const current = this._getPath(this._config, this._picker?.path || "") || "";
+      const current = this._dataPathValue(this._picker?.path || "") || "";
       const candidates = this._entityCandidates(this._picker?.filter || "any", this._pickerQuery, this._pickerShowAll);
       const results = this.shadowRoot.querySelector("[data-entity-results]");
       if (results) {
         results.innerHTML = this._entityResultsHtml(candidates, current) || `<div class="empty-search"><ha-icon icon="mdi:database-search-outline"></ha-icon><b>Brak wyników</b><span>Zmień zapytanie albo pokaż wszystkie encje.</span></div>`;
         results.querySelectorAll("[data-action='select-entity']").forEach(row => row.addEventListener("click", () => {
-          this._setPath(this._config, this._picker.path, row.dataset.entity);
+          this._setDataPath(this._picker.path, row.dataset.entity);
           this._message = `Wybrano ${row.dataset.entity}. Pamiętaj o zapisaniu zmian.`;
           this._picker = null;
           this._render();
@@ -2221,12 +2378,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
 
   async _saveConfig() {
-    if (!this._isAdmin()) return;
+    if (!this._isAdmin()) return false;
     const pathError = this._normalizeKioskLovelacePaths();
     if (pathError) {
       this._message = pathError;
       this._updateMessage();
-      return;
+      return false;
     }
     this._message = "Zapisywanie…";
     this._updateMessage();
@@ -2235,9 +2392,11 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._runtime = await this._hass.callWS({ type: `${DOMAIN}/runtime/get` });
       this._message = `Zapisano rewizję ${this._config.revision}`;
       this._render();
+      return true;
     } catch (err) {
       this._message = `Błąd zapisu: ${err?.message || err}`;
       this._updateMessage();
+      return false;
     }
   }
 
@@ -2344,19 +2503,75 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   _removeDevice(index) { if (this._isAdmin()) { this._config.devices.splice(index, 1); this._render(); } }
 
-  _addOverviewBubble() {
-    if (!this._isAdmin()) return;
-    const items = this._config.overview_bubbles ||= [];
-    const n = items.length + 1;
-    items.push({
+  _newOverviewBubble(n = 1) {
+    return {
       id: this._id("bubble"), name: `Dymek ${n}`, description: "", entity_id: "", attribute: "",
       show_secondary: false, secondary_name: "", secondary_entity_id: "", secondary_attribute: "", secondary_unit: "", secondary_decimals: 1, secondary_multiplier: 1,
       secondary_color: "#20eaff", secondary_label_color: "#88afbd", secondary_unit_color: "#7898a4", secondary_value_size: 11,
-      icon: "mdi:information-outline", color: "#20eaff", background_color: "#031426", border_color: "#20eaff", icon_color: "#20eaff", name_color: "#8eb5c3", value_color: "#20eaff", unit_color: "#8eb3c0", description_color: "#6e96a5", border_width: 1, border_radius: 14, icon_size: 22, value_size: 24, padding: 13, text_align: "left", show_icon: true, show_name: true, show_unit: true, show_description: true, unit: "",
+      icon_type: "mdi", icon: "mdi:information-outline", emoji: "⚡", color: "#20eaff", background_color: "#031426", border_color: "#20eaff", icon_color: "#20eaff", name_color: "#8eb5c3", value_color: "#20eaff", unit_color: "#8eb3c0", description_color: "#6e96a5", border_width: 1, border_radius: 14, icon_size: 22, name_size: 10, value_size: 24, unit_size: 9, description_size: 8, name_bold: false, value_bold: true, unit_bold: false, description_bold: false, padding: 13, text_align: "left", show_icon: true, show_name: true, show_unit: true, show_description: true, unit: "",
       color_mode: "fixed", low_threshold: 0, high_threshold: 100, low_color: "#008cff", normal_color: "#20eaff", high_color: "#ff4d6d", unavailable_color: "#6d7d86",
       alert_enabled: false, alert_condition: "above", alert_low: 0, alert_high: 100, alert_color: "#ff335f", alert_text: "ALARM",
       decimals: 1, multiplier: 1, related_entities: [], order: n, enabled: true, show_sparkline: true, tap_action: "more_info", navigation_path: "", service: "", service_data: "{}",
-    });
+    };
+  }
+
+  _addOverviewBubble() {
+    if (!this._isAdmin()) return;
+    const n = (this._config.overview_bubbles || []).length + 1;
+    this._bubbleEditor = { index: -1, isNew: true, draft: this._newOverviewBubble(n) };
+    this._render();
+  }
+
+  _editOverviewBubble(index) {
+    if (!this._isAdmin()) return;
+    const item = this._config.overview_bubbles?.[index];
+    if (!item) return;
+    this._bubbleEditor = { index, isNew: false, draft: JSON.parse(JSON.stringify(item)) };
+    this._render();
+  }
+
+  _cancelBubbleEditor() {
+    this._bubbleEditor = null;
+    this._picker = null;
+    this._render();
+  }
+
+  _addBubbleEditorRelated() {
+    const bubble = this._bubbleEditor?.draft;
+    if (!this._isAdmin() || !bubble) return;
+    const items = bubble.related_entities ||= [];
+    if (items.length >= 8) return;
+    const n = items.length + 1;
+    items.push({ id: this._id("related"), name: `Encja ${n}`, entity_id: "", attribute: "", unit: "", decimals: 1, multiplier: 1, color: bubble.color || "#20eaff", label_color: "#7195a2", unit_color: "#7898a4", value_size: 10, enabled: true });
+    this._render();
+  }
+
+  _removeBubbleEditorRelated(index) {
+    const items = this._bubbleEditor?.draft?.related_entities;
+    if (!this._isAdmin() || !Array.isArray(items) || !Number.isInteger(index)) return;
+    items.splice(index, 1);
+    this._render();
+  }
+
+  async _saveBubbleEditor() {
+    if (!this._isAdmin() || !this._bubbleEditor?.draft) return;
+    const editor = this._bubbleEditor;
+    const draft = JSON.parse(JSON.stringify(editor.draft));
+    draft.name = String(draft.name || "Dymek").trim() || "Dymek";
+    const items = this._config.overview_bubbles ||= [];
+    const previous = editor.isNew ? null : JSON.parse(JSON.stringify(items[editor.index]));
+    if (editor.isNew) items.push(draft);
+    else if (items[editor.index]) items[editor.index] = draft;
+    else return;
+    this._bubbleEditor = null;
+    this._picker = null;
+    const saved = await this._saveConfig();
+    if (saved) return;
+    if (editor.isNew) {
+      const index = items.findIndex(item => item.id === draft.id);
+      if (index >= 0) items.splice(index, 1);
+    } else if (previous) items[editor.index] = previous;
+    this._bubbleEditor = editor;
     this._render();
   }
 
@@ -2546,6 +2761,76 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     const fields = this._settingsContext()?.profile?.flow_element_styles?.[this._settingsSelectedKey]?.extra_fields;
     if (!Array.isArray(fields) || !Number.isInteger(index)) return;
     fields.splice(index, 1);
+    this._render();
+  }
+
+  _validSettingsTileClipboard(value) {
+    return Boolean(value && value.version === 1 && value.kind === "matrix_flow_tile" && value.style && typeof value.style === "object" && value.layout && typeof value.layout === "object");
+  }
+
+  _readSettingsTileClipboard() {
+    if (this._validSettingsTileClipboard(this._settingsTileClipboard)) return this._settingsTileClipboard;
+    try {
+      const stored = JSON.parse(window.localStorage?.getItem("matrix_energy_center.flow_tile_clipboard.v1") || "null");
+      if (this._validSettingsTileClipboard(stored)) {
+        this._settingsTileClipboard = stored;
+        return stored;
+      }
+    } catch (_) { /* Memory clipboard remains available when localStorage is blocked. */ }
+    return null;
+  }
+
+  _settingsTilePayload() {
+    const context = this._settingsContext();
+    if (!context || !this._settingsSelectedKey) return null;
+    const model = this._flowSceneModel(context.profile);
+    const node = model.nodes.find(item => item.key === this._settingsSelectedKey);
+    if (!node) return null;
+    const scene = this._ensureFlowScene(context.profile);
+    const layout = scene.elements[node.key] || { x: node.x, y: node.y, width: node.width, height: node.height, z_index: node.z_index, visible: node.visible !== false, locked: Boolean(node.locked) };
+    const style = context.profile.flow_element_styles?.[node.key] || {};
+    return JSON.parse(JSON.stringify({ version: 1, kind: "matrix_flow_tile", source_target: context.target, source_label: context.label, source_key: node.key, copied_at: new Date().toISOString(), style, layout }));
+  }
+
+  _applySettingsTilePayload(payload, mode = "style") {
+    if (!this._validSettingsTileClipboard(payload)) return false;
+    const context = this._settingsContext();
+    if (!context || !this._settingsSelectedKey) return false;
+    const model = this._flowSceneModel(context.profile);
+    const destination = model.nodes.find(item => item.key === this._settingsSelectedKey);
+    if (!destination) return false;
+    const clone = value => JSON.parse(JSON.stringify(value));
+    context.profile.flow_element_styles ||= {};
+    context.profile.flow_element_styles[destination.key] = clone(payload.style);
+    const scene = this._ensureFlowScene(context.profile);
+    const current = scene.elements[destination.key] || { x: destination.x, y: destination.y, width: destination.width, height: destination.height, z_index: destination.z_index, visible: destination.visible !== false, locked: Boolean(destination.locked) };
+    const copied = clone(payload.layout);
+    scene.elements[destination.key] = mode === "all"
+      ? copied
+      : { ...current, width: copied.width ?? current.width, height: copied.height ?? current.height };
+    return true;
+  }
+
+  _copySettingsTile() {
+    if (!this._isAdmin() || this._view !== "settings") return;
+    const payload = this._settingsTilePayload();
+    if (!payload) return;
+    this._settingsTileClipboard = payload;
+    try { window.localStorage?.setItem("matrix_energy_center.flow_tile_clipboard.v1", JSON.stringify(payload)); } catch (_) { /* In-memory copy still works. */ }
+    if (typeof navigator !== "undefined") navigator.clipboard?.writeText?.(JSON.stringify(payload)).catch?.(() => {});
+    this._message = `Skopiowano kafelek ${payload.source_key} z pulpitu ${payload.source_label}. Wybierz inny pulpit i wklej.`;
+    this._render();
+  }
+
+  _pasteSettingsTile(mode = "style") {
+    if (!this._isAdmin() || this._view !== "settings") return;
+    const payload = this._readSettingsTileClipboard();
+    if (!payload || !this._applySettingsTilePayload(payload, mode === "all" ? "all" : "style")) {
+      this._message = "Schowek kafelków jest pusty albo wybrany obiekt nie jest dymkiem.";
+      this._updateMessage();
+      return;
+    }
+    this._message = mode === "all" ? "Wklejono cały kafelek razem z pozycją — zapisz ustawienia." : "Wklejono wygląd i rozmiar kafelka bez zmiany pozycji — zapisz ustawienia.";
     this._render();
   }
 
@@ -3720,6 +4005,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
     /* v0.5 — configurable overview bubbles and session charts. */
     .metric-card.custom-bubble{--bubble-color:var(--cyan);--bubble-bg:#031426;height:auto;min-height:94px;padding:var(--bubble-padding,13px);border:var(--bubble-border-width,1px) solid var(--bubble-border-color,var(--bubble-color));border-radius:var(--bubble-radius,14px);background:radial-gradient(circle at 8% 12%,color-mix(in srgb,var(--bubble-color) 16%,transparent),transparent 45%),linear-gradient(145deg,color-mix(in srgb,var(--bubble-bg) 94%,#071a2a),color-mix(in srgb,var(--bubble-bg) 82%,#000));box-shadow:inset 0 0 22px color-mix(in srgb,var(--bubble-color) 6%,transparent)}.metric-card.custom-bubble>ha-icon{width:var(--bubble-icon-size,22px);height:var(--bubble-icon-size,22px);color:var(--bubble-icon-color,var(--bubble-color));filter:drop-shadow(0 0 6px color-mix(in srgb,var(--bubble-icon-color,var(--bubble-color)) 55%,transparent))}.metric-card.custom-bubble .spark{stroke:var(--bubble-color)}.custom-bubble-copy{min-width:0;z-index:1}.custom-bubble-copy>small{color:var(--bubble-name-color,#8eb5c3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-bubble-copy>div{display:flex;align-items:baseline;min-width:0}.custom-bubble-copy>div>strong{max-width:145px;color:var(--bubble-value-color,var(--bubble-color));font-size:var(--bubble-value-size,24px);filter:drop-shadow(0 0 6px color-mix(in srgb,var(--bubble-value-color,var(--bubble-color)) 55%,transparent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-bubble-copy>div>span{color:var(--bubble-unit-color,#8eb3c0)}.custom-bubble-copy p{margin:3px 0 16px;color:var(--bubble-description-color,#6e96a5);font-size:8px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.custom-bubble.bubble-align-center{justify-content:center;text-align:center}.custom-bubble.bubble-align-center .custom-bubble-copy>div{justify-content:center}.custom-bubble.bubble-align-right{justify-content:flex-end;text-align:right}.custom-bubble.bubble-align-right .custom-bubble-copy>div{justify-content:flex-end}.metrics-grid.bubble-size-compact .metric-card{min-height:76px;height:76px;padding:var(--bubble-padding,9px)}.metrics-grid.bubble-size-compact .metric-card:not(.custom-bubble) strong{font-size:20px}.metrics-grid.bubble-size-compact .custom-bubble-copy p{display:none}.metrics-grid.bubble-size-large{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}.metrics-grid.bubble-size-large .metric-card{min-height:120px;padding:var(--bubble-padding,17px)}.metrics-grid.bubble-size-large .metric-card:not(.custom-bubble) strong{font-size:29px}.metrics-grid.bubble-size-large .custom-bubble-copy p{font-size:9px;margin-top:7px}
+    .metric-card.custom-bubble>.bubble-emoji{display:grid;place-items:center;width:var(--bubble-icon-size,22px);height:var(--bubble-icon-size,22px);font-size:var(--bubble-icon-size,22px);line-height:1;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--bubble-icon-color,var(--bubble-color)) 55%,transparent))}.custom-bubble-copy>small{font-size:var(--bubble-name-size,10px);font-weight:var(--bubble-name-weight,400)}.custom-bubble-copy>div>strong{font-weight:var(--bubble-value-weight,700)}.custom-bubble-copy>div>span{font-size:var(--bubble-unit-size,9px);font-weight:var(--bubble-unit-weight,400)}.custom-bubble-copy p{font-size:var(--bubble-description-size,8px);font-weight:var(--bubble-description-weight,400)}
     .custom-chart-grid{display:grid;grid-template-columns:repeat(var(--chart-columns,2),minmax(0,1fr));gap:10px;margin-top:10px}.custom-overview-chart{--chart-color:var(--cyan);padding:11px 14px 10px;min-width:0;overflow:hidden;border-color:color-mix(in srgb,var(--chart-color) 38%,rgba(32,234,255,.18));background:radial-gradient(circle at 7% 5%,color-mix(in srgb,var(--chart-color) 10%,transparent),transparent 42%),var(--panel)}.custom-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}.custom-chart-head>div{display:flex;align-items:center;gap:9px;min-width:0}.custom-chart-head ha-icon{color:var(--chart-color);filter:drop-shadow(0 0 6px currentColor)}.custom-chart-head span{display:flex;flex-direction:column;min-width:0}.custom-chart-head b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-chart-head small{color:#638998;font-size:8px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.custom-chart-head>strong{display:flex;align-items:baseline;gap:4px;color:var(--chart-color);font:22px monospace;white-space:nowrap}.custom-chart-head>strong small{font:8px sans-serif;color:#83acba}.custom-overview-chart svg{width:100%;height:150px;margin-top:5px;overflow:visible}.custom-overview-chart.chart-small svg{height:95px}.custom-overview-chart.chart-large svg{height:230px}.custom-chart-path{fill:none;stroke:var(--chart-color);stroke-width:var(--chart-line-width,2);vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--chart-color) 65%,transparent))}.graph-area .custom-chart-path{fill:color-mix(in srgb,var(--chart-color) 17%,transparent);stroke:var(--chart-color)}.graph-bar .custom-chart-path{fill:color-mix(in srgb,var(--chart-color) 62%,transparent);stroke:var(--chart-color);stroke-width:.5}.custom-chart-foot{display:flex;justify-content:space-between;gap:10px;color:#567b8b;font-size:8px}.custom-chart-foot span{color:#739baa}.custom-chart-foot b{color:var(--chart-color);font-family:monospace}.custom-chart-foot i{font-style:normal}
     .overview-widget-layout{display:grid;grid-template-columns:minmax(360px,.6fr) minmax(560px,1.4fr);gap:10px;margin-bottom:18px}.overview-widget-settings,.overview-widget-preview{padding:8px 14px 16px;min-width:0}.overview-widget-preview>.metrics-grid{margin:0}.overview-widget-preview>.empty{padding:35px}.custom-chart-grid.preview-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}.widget-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}.overview-widget-settings>.widget-checks{grid-template-columns:1fr}.widget-checks .check-row{border:1px solid rgba(32,234,255,.13);border-radius:10px;background:rgba(0,75,110,.05);padding:9px}.widget-checks.three-checks{grid-template-columns:repeat(3,minmax(0,1fr))}.widget-add-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.widget-editor-list{display:grid;gap:10px;margin-bottom:18px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:4px 2px}.section-heading h2{margin:3px 0 0;font-size:17px}.widget-editor-card{padding:8px 14px 16px}.widget-editor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}.widget-editor-grid>.full{grid-column:1/-1}.danger-link{border:1px solid rgba(255,85,115,.35);background:rgba(255,40,75,.08);color:#ff718b;padding:5px 8px;display:flex;align-items:center;gap:5px;font-size:8px;font-weight:900}.danger-link ha-icon{width:15px;height:15px}.color-input-wrap{height:39px;border:1px solid rgba(32,234,255,.28);background:#03101e;display:grid!important;grid-template-columns:54px 1fr;align-items:center}.field .color-input-wrap input[type=color]{width:54px;height:37px;border:0;padding:4px;background:transparent}.color-input-wrap code{padding:0 10px;color:#a8d3df;font-size:10px}
     .kiosk-settings{margin-top:18px;padding-top:6px;border-top:1px solid rgba(32,234,255,.16)}.kiosk-settings>.widget-checks{grid-template-columns:1fr 1fr}.kiosk-preview-button{margin-top:12px;width:100%;justify-content:center}.matrix-shell.kiosk-active{height:100vh;height:100dvh;overflow:hidden;grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"main"}.matrix-shell.kiosk-active>.topbar,.matrix-shell.kiosk-active>.sidebar,.matrix-shell.kiosk-active>.statusbar{display:none}.matrix-shell.kiosk-active:before{inset:0}.matrix-shell.kiosk-active>.content{padding:12px;overflow:hidden;min-height:0}.kiosk-view{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}.kiosk-header{min-height:72px;border:1px solid rgba(32,234,255,.3);background:linear-gradient(90deg,rgba(3,24,45,.96),rgba(1,10,20,.94));display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 16px;box-shadow:inset 0 0 22px rgba(0,190,255,.07)}.kiosk-header h1{margin:2px 0;font-size:23px;letter-spacing:2px}.kiosk-header>div>small{color:#6e98a8}.kiosk-header-tools{display:flex;align-items:center;gap:8px}.kiosk-clock{display:flex;flex-direction:column;align-items:flex-end;min-width:105px}.kiosk-clock b{font:20px monospace;color:var(--cyan)}.kiosk-clock span{font-size:8px;color:#6792a2}.kiosk-metrics{margin:0;grid-template-columns:repeat(auto-fit,minmax(155px,1fr))}.kiosk-flow-card{flex:1;min-height:0;padding:0;overflow:hidden}.kiosk-flow-card .flow-canvas-v4{margin:0 12px 12px;min-height:560px!important}.flow-height-tall .kiosk-flow-card .flow-canvas-v4{min-height:max(650px,calc(100vh - 300px))!important}.flow-height-full .kiosk-flow-card .flow-canvas-v4{min-height:max(760px,calc(100vh - 195px))!important}.kiosk-status{min-height:36px;border:1px solid rgba(32,234,255,.25);background:rgba(2,15,29,.96);display:flex;align-items:center;justify-content:space-around;gap:18px;padding:6px 13px;color:#719baa;font-size:9px}.kiosk-status span{display:flex;align-items:center;gap:6px}.kiosk-status b{color:var(--cyan);font-family:monospace}
@@ -3744,6 +4030,14 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .settings-scene-toolbar{display:grid;grid-template-columns:repeat(8,minmax(105px,1fr));gap:8px;padding:9px 12px;border:1px solid rgba(32,234,255,.18);border-radius:12px;background:rgba(2,14,27,.92)}.settings-scene-toolbar .field{margin:0}.settings-scene-toolbar .check-row{padding:8px 2px}.settings-scene-toolbar .settings-reset{align-self:center;justify-content:center;min-height:39px}.settings-workspace{display:grid;grid-template-columns:minmax(620px,1fr) minmax(350px,430px);gap:10px;min-height:680px}.settings-live-preview{min-width:0;overflow:visible;padding-bottom:8px}.settings-preview-label{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;border-bottom:1px solid rgba(32,234,255,.14);color:#83aab9;font-size:8px}.settings-preview-label b{color:var(--cyan);font-size:10px}.settings-inspector{min-height:0;max-height:calc(100vh - 235px);overflow:auto;padding:9px 12px 18px;border:1px solid rgba(32,234,255,.3);border-radius:12px;background:rgba(2,13,27,.97)}.settings-inspector>.panel-title{position:sticky;top:-9px;z-index:5;margin:0 -12px 5px;background:#03101e;border-bottom:1px solid rgba(32,234,255,.2)}
     @media(max-width:1250px){.settings-scene-toolbar{grid-template-columns:repeat(4,minmax(110px,1fr))}.settings-workspace{grid-template-columns:minmax(500px,1fr) 360px}}
     @media(max-width:900px){.settings-workspace{grid-template-columns:1fr;min-height:0}.settings-inspector{max-height:none}.settings-scene-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.flow-scene{height:min(var(--scene-height,620px),70vh)}}
+
+    /* v8.0.2 unified bubble editor, tile clipboard and emoji controls */
+    .widget-editor-card:not(.chart-editor-card)>.widget-editor-grid,.widget-editor-card:not(.chart-editor-card)>.widget-checks{display:none}.widget-card-actions{display:flex;align-items:center;gap:7px}
+    .bubble-editor-modal{position:fixed;inset:0;z-index:13000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,4,10,.88);backdrop-filter:blur(9px)}.bubble-editor-dialog{width:min(1500px,98vw);height:min(930px,96vh);display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;border:1px solid rgba(32,234,255,.66);border-radius:20px;background:radial-gradient(circle at 35% 0,rgba(0,190,255,.14),transparent 34%),#020b16;box-shadow:0 0 75px rgba(0,190,255,.24)}.bubble-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding:14px 18px;border-bottom:1px solid rgba(32,234,255,.2)}.bubble-editor-head h2{margin:3px 0;font-size:20px}.bubble-editor-head small{color:#7199a8}.bubble-editor-layout{min-height:0;display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr)}.bubble-editor-preview{min-width:0;padding:16px;border-right:1px solid rgba(32,234,255,.18);background:rgba(0,35,55,.15)}.bubble-editor-preview>span{display:block;margin-bottom:10px;color:var(--cyan);font-size:9px;font-weight:900;letter-spacing:1px}.bubble-editor-preview>.metrics-grid{display:block;margin:0}.bubble-editor-preview .metric-card{width:100%;min-height:118px;pointer-events:none}.bubble-editor-preview>small{display:block;margin-top:12px;color:#7499a6;line-height:1.5}.bubble-editor-body{min-height:0;overflow:auto;padding:10px 16px 24px}.bubble-editor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 10px}.bubble-editor-grid>.full{grid-column:1/-1}.bubble-editor-grid .field,.bubble-editor-grid .check-row{min-width:0}.bubble-editor-checks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.bubble-editor-checks .check-row,.font-editor-grid .check-row{align-self:end;min-height:41px;padding:8px;border:1px solid rgba(32,234,255,.14);border-radius:9px;background:rgba(0,65,95,.08)}.bubble-editor-body>.widget-related-list{margin-top:7px}.bubble-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid rgba(32,234,255,.2);background:#03101e}.bubble-editor-footer>span{color:#7199a8;font-size:9px}.bubble-editor-footer>div{display:flex;gap:8px}
+    .settings-tile-clipboard{margin:9px 0;padding:10px;border:1px solid rgba(82,255,98,.28);border-radius:10px;background:rgba(82,255,98,.045);display:grid;gap:8px}.settings-tile-clipboard>div:first-child{display:flex;flex-direction:column;gap:3px}.settings-tile-clipboard b{font-size:9px;color:var(--green)}.settings-tile-clipboard small{color:#739a89;font-size:8px;line-height:1.45}.settings-tile-clipboard>div:last-child{display:flex;flex-wrap:wrap;gap:6px}.settings-tile-clipboard button{padding:7px 8px;font-size:8px}
+    .flow-node-emoji{display:grid;place-items:center;line-height:1;filter:drop-shadow(0 0 7px var(--flow-custom-icon,var(--scene-icon,var(--cyan))))}.scene-node>.flow-node-emoji{min-width:var(--scene-icon-size,30px);min-height:var(--scene-icon-size,30px);flex:0 0 auto}.flow-node>.flow-node-emoji{width:var(--flow-custom-icon-size,32px);height:var(--flow-custom-icon-size,32px)}.flow-extra-node>.flow-node-emoji{grid-column:1;grid-row:1/4;align-self:center}
+    @media(max-width:980px){.bubble-editor-layout{grid-template-columns:1fr}.bubble-editor-preview{display:none}.bubble-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bubble-editor-checks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.bubble-editor-modal{padding:0}.bubble-editor-dialog{width:100%;height:100%;max-height:none;border-radius:0}.bubble-editor-grid,.bubble-editor-checks{grid-template-columns:1fr}.bubble-editor-footer>span{display:none}}
 
     /* v0.6.6 compatibility styles retained for migrated widgets */
     .flow-panel,.large-flow,.kiosk-flow-card{overflow:visible}.display-tablet_16_9 .kiosk-slides,.display-tablet_16_9 .kiosk-slide{overflow:visible}

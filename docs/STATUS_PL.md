@@ -1,6 +1,12 @@
-# Status projektu v8.0.1
+# Status projektu v8.0.2
 
-## Najważniejsze zmiany v8.0.1
+## Najważniejsze zmiany v8.0.2
+
+- dodawanie i edycja dymku otwierają to samo okno ze szkicem, podglądem i osobnym przyciskiem **ZAPISZ DYMEK**,
+- dymki przeglądu i przepływu przyjmują wklejone emoji, np. `🏠`, `🔋`, `☀️`, bez linku do obrazu,
+- wybrany kafelek przepływu można kopiować pomiędzy Podsumowaniem, Przepływami i profilami kiosku,
+- wklejanie może przenieść sam wygląd i rozmiar albo również pozycję kafelka,
+- rozmiar i pogrubienie nazwy, wartości, jednostki i opisu są dostępne w jednym edytorze dymku,
 
 - kiosk nie ma już dolnego paska statusu ani dolnej nawigacji,
 - strzałki i wskaźniki slajdów są umieszczone na środku nagłówka,
@@ -60,7 +66,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v8.0.1
+## Świadome ograniczenia v8.0.2
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -72,7 +78,7 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v8.0.1`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v8.0.2`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.

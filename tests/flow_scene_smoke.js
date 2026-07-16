@@ -100,6 +100,41 @@ assert(html.includes("--flow-field-label-weight:700"), "extra-field label bold s
 assert(html.includes("--flow-field-value-weight:400"), "extra-field value bold setting missing");
 assert(html.includes("--label-weight:700"), "connection-label bold setting missing");
 
+panel._config.flow.flow_element_styles.home.icon_type = "emoji";
+panel._config.flow.flow_element_styles.home.emoji = "🏠";
+const emojiFlowHtml = panel._flowDiagram(true, false, panel._config.flow, true);
+assert(emojiFlowHtml.includes("flow-node-emoji"), "flow bubble emoji renderer missing");
+assert(emojiFlowHtml.includes("🏠"), "selected flow bubble emoji missing");
+
+const bubbleDraft = panel._newOverviewBubble(1);
+bubbleDraft.icon_type = "emoji";
+bubbleDraft.emoji = "🔋";
+bubbleDraft.name_bold = true;
+bubbleDraft.name_size = 14;
+const bubbleHtml = panel._overviewBubble(bubbleDraft, 0);
+assert(bubbleHtml.includes("bubble-emoji") && bubbleHtml.includes("🔋"), "overview bubble emoji renderer missing");
+assert(bubbleHtml.includes("--bubble-name-size:14px"), "overview bubble name size missing");
+assert(bubbleHtml.includes("--bubble-name-weight:700"), "overview bubble bold name missing");
+panel._bubbleEditor = { index: -1, isNew: true, draft: bubbleDraft };
+const bubbleEditorHtml = panel._renderBubbleEditor();
+assert(bubbleEditorHtml.includes("ZAPISZ DYMEK"), "unified bubble editor save action missing");
+assert(bubbleEditorHtml.includes("Wklej emoji"), "emoji text field missing from bubble editor");
+assert(!bubbleEditorHtml.includes("Adres obrazu"), "bubble editor must not require an image URL");
+panel._bubbleEditor = null;
+
+panel._settingsTarget = "flow";
+panel._settingsSelectedKey = "home";
+const tilePayload = panel._settingsTilePayload();
+assert(tilePayload?.kind === "matrix_flow_tile", "tile clipboard payload missing");
+panel._settingsTarget = "overview";
+panel._settingsSelectedKey = "home";
+const destinationX = panel._config.overview.flow_scene.elements.home.x;
+assert(panel._applySettingsTilePayload(tilePayload, "style"), "tile style paste failed");
+assert(panel._config.overview.flow_scene.elements.home.x === destinationX, "style paste must preserve destination position");
+assert(panel._config.overview.flow_element_styles.home.emoji === "🏠", "tile appearance was not copied between dashboards");
+assert(panel._applySettingsTilePayload(tilePayload, "all"), "full tile paste failed");
+assert(panel._config.overview.flow_scene.elements.home.x === tilePayload.layout.x, "full tile paste must copy position");
+
 const sameOrigin = panel._normalizeHaViewPath("https://ha.example/dashboard-energy/home?kiosk=1#top");
 assert(sameOrigin.path === "/dashboard-energy/home?kiosk=1#top" && !sameOrigin.error, "same-origin HA URL must become a local path");
 assert(panel._normalizeHaViewPath("dashboard-energy/home").path === "/dashboard-energy/home", "path without slash must be normalized");
@@ -121,4 +156,19 @@ assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not b
 const kioskConfigHtml = panel._renderKioskConfiguration();
 assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
 assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
-console.log("flow scene rules ok");
+
+(async () => {
+  const savedDraft = panel._newOverviewBubble(2);
+  savedDraft.name = "Dom 🏠";
+  savedDraft.icon_type = "emoji";
+  savedDraft.emoji = "🏠";
+  panel._bubbleEditor = { index: -1, isNew: true, draft: savedDraft };
+  panel._saveConfig = async () => true;
+  await panel._saveBubbleEditor();
+  assert(panel._config.overview_bubbles.some(item => item.name === "Dom 🏠" && item.emoji === "🏠"), "saved bubble draft missing from configuration");
+  assert(panel._bubbleEditor === null, "successful save must close bubble editor");
+  console.log("flow scene rules ok");
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
