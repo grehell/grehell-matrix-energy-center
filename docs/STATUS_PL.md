@@ -1,4 +1,4 @@
-# Status projektu v0.6.4
+# Status projektu v0.6.5
 
 ## Najważniejsze zmiany względem v0.5
 
@@ -12,6 +12,9 @@
 - dymki i wykresy obsługują szczegóły encji, nawigację i wywołanie usługi,
 - kolejność kart można zmieniać przeciąganiem,
 - można tworzyć wiele profili kiosk z własnym wyborem dymków i wykresów,
+- pozycje węzłów diagramu i górnych dymków edytuje się w ustawieniach bez przesuwania siatki,
+- każdy pulpit i profil kiosku zachowuje własny układ,
+- profil Galaxy Tab A9 16:9 mieści dolny rząd urządzeń nad nawigacją,
 - kiosk obsługuje automatyczną rotację widoków, ręczne sterowanie i przyciemnianie nocne,
 - konfiguracja jest automatycznie migrowana do schematu v6.
 
@@ -28,7 +31,7 @@
 - diagnostyka źródeł i runtime,
 - zapis tylko dla administratora oraz opcjonalny podgląd dla innych użytkowników.
 
-## Świadome ograniczenia v0.6.4
+## Świadome ograniczenia v0.6.5
 
 - dane historyczne muszą być zachowywane przez Home Assistant Recorder,
 - statystyki długoterminowe zależą od metadanych encji, w szczególności zgodnego `state_class`,
@@ -39,12 +42,12 @@
 
 ## Procedura testowa po instalacji
 
-1. Zainstalować wydanie `v0.6.4`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
+1. Zainstalować wydanie `v0.6.5`, zrestartować Home Assistant i wykonać `Ctrl+F5`.
 2. Dodać dymek z wartością pomocniczą i dwiema encjami powiązanymi.
 3. Sprawdzić kolory progowe i alarm dla wartości testowej.
 4. Dodać wykres obu stringów PV jako dwie serie.
 5. Sprawdzić zakres sesyjny, 24 h, 7 dni i 30 dni.
-6. Przeciągnąć dymki i wykresy, zapisać i odświeżyć stronę.
+6. W ustawieniach przeciągnąć osobno węzły diagramu i górne dymki, zapisać i odświeżyć stronę.
 7. Sprawdzić akcje szczegółów, nawigacji i bezpieczną usługę testową.
 8. Utworzyć dwa profile kiosk z różnymi elementami.
 9. Sprawdzić rotację, sterowanie slajdami, porę nocną i pełny ekran.

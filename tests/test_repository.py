@@ -13,7 +13,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "0.6.4"
+    assert manifest["version"] == "0.6.5"
 
 
 def test_hacs_manifest() -> None:
@@ -72,8 +72,12 @@ def test_frontend_v06_features() -> None:
     assert "border_color" in frontend
     assert "value_color" in frontend
     assert "icon_color" in frontend
-    assert "toggle-kiosk-layout-edit" in frontend
-    assert "data-layout-drag=\"flow\"" in frontend
+    assert "open-bubble-layout-editor" in frontend
+    assert "data-flow-layout-node" in frontend
+    assert "flow-layout-editing" in frontend
+    assert "layout-editor-fixed-background" in frontend
+    assert "height:calc(100% - 32px)!important" in frontend
+    assert "overflow:visible;pointer-events:none;background:transparent" in frontend
     assert "toggle-kiosk-builtin" in frontend
     assert "kiosk-lovelace-slide" in frontend
     assert "auto_fullscreen" in frontend
@@ -105,6 +109,7 @@ def test_configuration_schema_v6() -> None:
     assert '"value_color"' in storage
     assert '"description_color"' in storage
     assert '"bubble_positions"' in storage
+    assert '"flow_node_positions"' in storage
     assert '"show_battery_gauge": False' in storage
     assert '"show_self_sufficiency_gauge": False' in storage
     assert '"lovelace_views": []' in storage
@@ -120,6 +125,7 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["devices"][0]["flow_direction"] == "consumer"
     assert example["flow"]["show_pv_strings"] is True
     assert example["flow"]["show_devices"] is True
+    assert example["flow"]["flow_node_positions"] == {}
     assert len(example["overview_bubbles"]) >= 2
     assert len(example["overview_charts"]) >= 2
     assert example["overview_charts"][0]["graph_type"] in {"line", "area", "bar"}
@@ -134,6 +140,7 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["chart_columns"] == 2
     assert example["kiosk"]["builtin_bubble_ids"] == ["home", "pv", "grid"]
     assert example["kiosk"]["bubble_layout"] == "free"
+    assert example["kiosk"]["flow_node_positions"] == {}
     assert example["kiosk"]["flow_offset_y"] == -30
     assert example["kiosk"]["show_battery_gauge"] is False
     assert example["kiosk"]["show_self_sufficiency_gauge"] is False

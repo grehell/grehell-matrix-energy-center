@@ -299,14 +299,19 @@
     "hide_inactive_devices": false,
     "max_pv_strings": 6,
     "max_devices": 6,
-    "branch_gap": 12
+    "branch_gap": 12,
+    "flow_node_positions": {}
   },
   "overview": {
     "show_builtin_bubbles": true,
     "show_custom_bubbles": true,
     "show_custom_charts": true,
     "bubble_size": "medium",
-    "chart_columns": 2
+    "chart_columns": 2,
+    "bubble_layout": "grid",
+    "bubble_stage_height": 104,
+    "bubble_positions": {},
+    "flow_node_positions": {}
   },
   "kiosk": {
     "title": "PRZEPŁYW ENERGII",
@@ -318,6 +323,7 @@
     "bubble_layout": "free",
     "bubble_stage_height": 96,
     "bubble_positions": {},
+    "flow_node_positions": {},
     "flow_offset_x": 0,
     "flow_offset_y": -30,
     "flow_scale": 100,
@@ -368,6 +374,7 @@
       "bubble_layout": "free",
       "bubble_stage_height": 96,
       "bubble_positions": {},
+      "flow_node_positions": {},
       "flow_offset_x": 0,
       "flow_offset_y": -30,
       "flow_scale": 100,

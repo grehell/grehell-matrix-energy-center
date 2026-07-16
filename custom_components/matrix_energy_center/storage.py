@@ -75,6 +75,7 @@ def default_configuration() -> dict[str, Any]:
             "max_pv_strings": 6,
             "max_devices": 6,
             "branch_gap": 12,
+            "flow_node_positions": {},
         },
         "overview": {
             "show_builtin_bubbles": True,
@@ -82,6 +83,10 @@ def default_configuration() -> dict[str, Any]:
             "show_custom_charts": True,
             "bubble_size": "medium",
             "chart_columns": 2,
+            "bubble_layout": "grid",
+            "bubble_stage_height": 104,
+            "bubble_positions": {},
+            "flow_node_positions": {},
         },
         "kiosk": {
             "title": "PRZEPŁYW ENERGII",
@@ -93,6 +98,7 @@ def default_configuration() -> dict[str, Any]:
             "bubble_layout": "free",
             "bubble_stage_height": 96,
             "bubble_positions": {},
+            "flow_node_positions": {},
             "flow_offset_x": 0,
             "flow_offset_y": -30,
             "flow_scale": 100,
@@ -277,6 +283,9 @@ class MatrixEnergyStore:
                 "max_pv_strings": int(self._number(flow.get("max_pv_strings"), 6, 0, 16)),
                 "max_devices": int(self._number(flow.get("max_devices"), 6, 0, 24)),
                 "branch_gap": int(self._number(flow.get("branch_gap"), 12, 4, 40)),
+                "flow_node_positions": self._validate_flow_node_positions(
+                    flow.get("flow_node_positions", {})
+                ),
             }
         )
 
@@ -292,6 +301,18 @@ class MatrixEnergyStore:
                     overview.get("bubble_size"), "medium", {"compact", "medium", "large"}
                 ),
                 "chart_columns": int(self._number(overview.get("chart_columns"), 2, 1, 4)),
+                "bubble_layout": self._choice(
+                    overview.get("bubble_layout"), "grid", {"grid", "free"}
+                ),
+                "bubble_stage_height": int(
+                    self._number(overview.get("bubble_stage_height"), 104, 76, 720)
+                ),
+                "bubble_positions": self._validate_bubble_positions(
+                    overview.get("bubble_positions", {})
+                ),
+                "flow_node_positions": self._validate_flow_node_positions(
+                    overview.get("flow_node_positions", {})
+                ),
             }
         )
 
@@ -324,6 +345,9 @@ class MatrixEnergyStore:
                 ),
                 "bubble_positions": self._validate_bubble_positions(
                     kiosk.get("bubble_positions", {})
+                ),
+                "flow_node_positions": self._validate_flow_node_positions(
+                    kiosk.get("flow_node_positions", {})
                 ),
                 "flow_offset_x": int(
                     self._number(kiosk.get("flow_offset_x"), 0, -400, 400)
@@ -698,6 +722,9 @@ class MatrixEnergyStore:
                     "bubble_positions": self._validate_bubble_positions(
                         item.get("bubble_positions", {})
                     ),
+                    "flow_node_positions": self._validate_flow_node_positions(
+                        item.get("flow_node_positions", {})
+                    ),
                     "flow_offset_x": int(
                         self._number(item.get("flow_offset_x"), 0, -400, 400)
                     ),
@@ -766,8 +793,23 @@ class MatrixEnergyStore:
             key = self._identifier(raw_key, f"bubble_{index + 1}")
             result[key] = {
                 "x": round(self._number(value.get("x"), 0, 0, 92), 2),
-                "y": round(self._number(value.get("y"), 0, 0, 360), 2),
+                "y": round(self._number(value.get("y"), 0, 0, 720), 2),
                 "width": round(self._number(value.get("width"), 16, 8, 60), 2),
+            }
+        return result
+
+    def _validate_flow_node_positions(self, raw: Any) -> dict[str, dict[str, float]]:
+        """Validate per-dashboard offsets for individual flow diagram nodes."""
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[str, dict[str, float]] = {}
+        for index, (raw_key, value) in enumerate(raw.items()):
+            if index >= 96 or not isinstance(value, dict):
+                break
+            key = self._identifier(raw_key, f"node_{index + 1}")
+            result[key] = {
+                "x": round(self._number(value.get("x"), 0, -600, 600), 2),
+                "y": round(self._number(value.get("y"), 0, -600, 600), 2),
             }
         return result
 
