@@ -242,7 +242,13 @@ const notificationHtml = panel._renderKioskNotificationLayer();
 assert(notificationHtml.includes("mode-fullscreen"), "critical kiosk notification must render fullscreen");
 assert(notificationHtml.includes("POTWIERDŹ"), "critical kiosk notification must expose synchronized actions");
 assert(notificationHtml.includes("kiosk-notification-bell"), "active notification badge is missing");
+assert(notificationHtml.includes("blocking"), "confirmable notification must block background dismissal");
+assert(!notificationHtml.includes("data-nc-overlay-close"), "confirmable notification must not close after a background tap");
 assert(panel._notificationBlocksRotation(), "fullscreen notification must pause kiosk rotation");
+panel._notificationCurrent = { id: "info_1", level: "informacja", title: "INFO", message: "Dotknij, aby zamknąć", active: false, mode: "banner", require_confirmation: false, actions: { ack: false, snooze: false, dismiss: false } };
+const dismissibleNotificationHtml = panel._renderKioskNotificationLayer();
+assert(dismissibleNotificationHtml.includes("dismissible"), "ordinary notification must be dismissible");
+assert(dismissibleNotificationHtml.includes("data-nc-overlay-close"), "ordinary notification must close after a background tap");
 panel._notificationCurrent = null;
 panel._notificationCenter = { enabled: true, sequence: 8, active: [], events: [] };
 
@@ -286,6 +292,20 @@ assert(viewportFocused, "bubble editor must restore the active field");
   await panel._saveBubbleEditor();
   assert(panel._config.overview_bubbles.some(item => item.name === "Dom 🏠" && item.emoji === "🏠"), "saved bubble draft missing from configuration");
   assert(panel._bubbleEditor === null, "successful save must close bubble editor");
+
+  const ordinaryNotification = { id: "info_2", level: "informacja", title: "INFO 2", message: "Test", active: false, require_confirmation: false, actions: {} };
+  panel._notificationCurrent = ordinaryNotification;
+  panel._patchKioskNotificationLayer = () => {};
+  panel._startKioskRotation = () => {};
+  await panel._closeDisplayedNotification();
+  assert(panel._notificationCurrent === null, "a tap must close an ordinary notification");
+  const confirmableNotification = { ...ordinaryNotification, id: "confirm_1", require_confirmation: true, active: true, actions: { ack: true, snooze: true, dismiss: true } };
+  panel._notificationCurrent = confirmableNotification;
+  await panel._closeDisplayedNotification();
+  assert(panel._notificationCurrent === confirmableNotification, "a background tap must not close a confirmable notification");
+  panel._notificationCurrent = { ...confirmableNotification, active: false, actions: { ack: false, snooze: false, dismiss: false } };
+  await panel._closeDisplayedNotification();
+  assert(panel._notificationCurrent === null, "a handled confirmation reopened from history must close after a tap");
 
   const handledNotification = { id: "alarm_2", level: "krytyczne", title: "ALARM 2", message: "Test", last_sent_at: "2026-07-18T22:15:00+02:00", active: true, actions: { ack: true, snooze: false, dismiss: true } };
   panel._view = "kiosk";

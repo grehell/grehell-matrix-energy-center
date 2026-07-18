@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.1.2 — 2026-07-18
+
+- Added tap-anywhere dismissal for ordinary kiosk notifications, including
+  messages reopened from the notification bell history.
+- Kept confirmation-required messages fully blocking so only acknowledge,
+  snooze and dismiss action buttons can change their state.
+- Synchronized a background dismissal with Notification Center whenever the
+  displayed ordinary message is still active.
+
 ## 8.1.1 — 2026-07-18
 
 - Fixed kiosk notifications remaining visible or reappearing after acknowledge,

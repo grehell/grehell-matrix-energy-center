@@ -1367,9 +1367,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     let overlay = "";
     if (current) {
       const actions = current.actions || {};
-      const blocking = current.level === "krytyczne" || current.require_confirmation;
+      const blocking = Boolean(current.require_confirmation && current.active);
       const disabled = current._pending ? "disabled" : "";
-      overlay = `<div class="kiosk-notification-overlay mode-${this._escAttr(current.mode || "banner")} level-${this._escAttr(current.level)}"><article><div class="kiosk-notification-symbol"><ha-icon icon="${this._notificationIcon(current.level)}"></ha-icon></div><div class="kiosk-notification-copy"><small>${this._esc(current.category || current.level)}</small><h2>${this._esc(current.title)}</h2><p>${this._esc(current.message)}</p>${current._error ? `<em>${this._esc(current._error)}</em>` : ""}</div><div class="kiosk-notification-actions">${actions.ack ? `<button class="primary" data-nc-action="ack" ${disabled}>POTWIERDŹ</button>` : ""}${actions.snooze ? `<button data-nc-action="snooze" ${disabled}>ODŁÓŻ 2H</button>` : ""}${actions.dismiss ? `<button data-nc-action="dismiss" ${disabled}>ZAMKNIJ</button>` : ""}${!blocking && !actions.dismiss ? `<button data-nc-close ${disabled}>OK</button>` : ""}</div>${!blocking ? `<button class="kiosk-notification-x" data-nc-close title="Ukryj" ${disabled}><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</article></div>`;
+      overlay = `<div class="kiosk-notification-overlay mode-${this._escAttr(current.mode || "banner")} level-${this._escAttr(current.level)} ${blocking ? "blocking" : "dismissible"}" ${blocking ? "" : "data-nc-overlay-close"}><article><div class="kiosk-notification-symbol"><ha-icon icon="${this._notificationIcon(current.level)}"></ha-icon></div><div class="kiosk-notification-copy"><small>${this._esc(current.category || current.level)}</small><h2>${this._esc(current.title)}</h2><p>${this._esc(current.message)}</p>${current._error ? `<em>${this._esc(current._error)}</em>` : ""}</div><div class="kiosk-notification-actions">${actions.ack ? `<button class="primary" data-nc-action="ack" ${disabled}>POTWIERDŹ</button>` : ""}${actions.snooze ? `<button data-nc-action="snooze" ${disabled}>ODŁÓŻ 2H</button>` : ""}${actions.dismiss ? `<button data-nc-action="dismiss" ${disabled}>ZAMKNIJ</button>` : ""}${!blocking && !actions.dismiss ? `<button data-nc-close ${disabled}>OK</button>` : ""}</div>${!blocking ? `<button class="kiosk-notification-x" data-nc-close title="Ukryj" ${disabled}><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</article></div>`;
     }
     return `<section class="kiosk-notification-layer" data-kiosk-notification-layer>${bell}${drawer}${overlay}</section>`;
   }
@@ -1404,15 +1404,31 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._patchKioskNotificationLayer();
       this._startKioskRotation();
     }));
-    root?.querySelectorAll("[data-nc-close]").forEach(button => button.addEventListener("click", () => {
-      this._notificationCurrent = null;
-      clearTimeout(this._notificationTimer);
-      this._patchKioskNotificationLayer();
-      this._startKioskRotation();
+    root?.querySelectorAll("[data-nc-close]").forEach(button => button.addEventListener("click", async event => {
+      event.stopPropagation();
+      await this._closeDisplayedNotification();
     }));
+    root?.querySelector("[data-nc-overlay-close]")?.addEventListener("click", async event => {
+      if (event.target.closest?.("[data-nc-action]")) return;
+      await this._closeDisplayedNotification();
+    });
     root?.querySelectorAll("[data-nc-action]").forEach(button => button.addEventListener("click", async () => {
       await this._runNotificationAction(button.dataset.ncAction);
     }));
+  }
+
+  async _closeDisplayedNotification() {
+    const item = this._notificationCurrent;
+    if (!item || (item.require_confirmation && item.active) || item._pending) return;
+    if (item.active && item.actions?.dismiss) {
+      await this._runNotificationAction("dismiss");
+      return;
+    }
+    this._notificationCurrent = null;
+    clearTimeout(this._notificationTimer);
+    this._notificationTimer = null;
+    this._patchKioskNotificationLayer();
+    this._startKioskRotation();
   }
 
   async _runNotificationAction(action) {
@@ -4895,7 +4911,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .performance-mode .kiosk-notification-overlay>article,.performance-mode .kiosk-notification-drawer{box-shadow:none}.performance-mode .kiosk-notification-overlay.level-krytyczne>article{animation:none}.performance-mode .kiosk-notification-overlay.mode-fullscreen{backdrop-filter:none}
     @media(max-width:700px){.kiosk-notification-overlay{padding:8px 54px 8px 8px}.kiosk-notification-overlay>article{grid-template-columns:36px minmax(0,1fr);padding:10px}.kiosk-notification-symbol{width:34px;height:34px}.kiosk-notification-symbol ha-icon{width:20px;height:20px}.kiosk-notification-actions{grid-column:1/-1}.kiosk-notification-copy h2{font-size:13px}.kiosk-notification-overlay.mode-fullscreen{padding:12px}.kiosk-notification-overlay.mode-fullscreen>article{padding:22px;grid-template-columns:54px minmax(0,1fr)}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-symbol{width:52px;height:52px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-copy h2{font-size:21px}}
 
-    :host(.kiosk-host){position:fixed;inset:0;z-index:20000;width:100vw;height:100vh;height:100dvh;background:#01060d}.kiosk-slide-header .kiosk-header-tools{padding-right:50px}.kiosk-notification-actions button:disabled,.kiosk-notification-x:disabled{opacity:.55;cursor:wait}
+    :host(.kiosk-host){position:fixed;inset:0;z-index:20000;width:100vw;height:100vh;height:100dvh;background:#01060d}.kiosk-slide-header .kiosk-header-tools{padding-right:50px}.kiosk-notification-overlay.dismissible{z-index:6;pointer-events:auto;cursor:pointer}.kiosk-notification-overlay.blocking{z-index:6;pointer-events:auto}.kiosk-notification-actions button:disabled,.kiosk-notification-x:disabled{opacity:.55;cursor:wait}
 
     /* v8.0.6 — kiosk-only tablet performance profile. */
     .matrix-shell.performance-mode{background:#01060d}.matrix-shell.performance-mode:before{display:none}

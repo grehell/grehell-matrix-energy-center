@@ -207,7 +207,7 @@ Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Za
 
 ## Karta przepływów w trybie kiosk
 
-### Natywna karta Lovelace v8.1.1
+### Natywna karta Lovelace v8.1.2
 
 Po instalacji lub aktualizacji uruchom ponownie Home Assistant. Następnie:
 
@@ -268,14 +268,14 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 
 ### Komunikaty z Matrix Notification Center
 
-1. Zainstaluj osobno Matrix Notification Center 1.5.0 i dodaj integrację w Home Assistant.
+1. Zainstaluj osobno Matrix Notification Center 1.5.1 i dodaj integrację w Home Assistant.
 2. W **Centrum Powiadomień → Ustawienia → Panel kiosku** włącz most kiosku.
 3. W regule ustaw profil `*` dla wszystkich ekranów albo identyfikator, np. `salon`.
 4. W **Energy Center → Kiosk** pozostaw włączone **Komunikaty Notification Center**.
 
 Połączenie używa bieżącej, zalogowanej sesji Home Assistant. Nie wpisuje się adresu IP ani tokenu. Informacja pojawia się jako pasek, zadanie i ostrzeżenie jako karta, a alarm krytyczny zajmuje cały ekran do wykonania akcji. Potwierdzenie, odłożenie o dwie godziny lub zamknięcie synchronizuje stan z Centrum Powiadomień.
 
-## Aktualizacja do v8.1.1
+## Aktualizacja do v8.1.2
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -285,7 +285,7 @@ Połączenie używa bieżącej, zalogowanej sesji Home Assistant. Nie wpisuje si
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie otwórz osobny panel **Kiosk** i skonfiguruj zakładki profili.
 
-Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a każdy profil otrzymuje domyślnie włączony tryb wydajny oraz komunikaty Notification Center. W v8.1.1 potwierdzone komunikaty znikają natychmiast, dzwonek ma zarezerwowane miejsce obok zegara, a kiosk nie pokazuje przycisków wyjścia ani przełącznika pełnego ekranu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. W v8.1.1 prawidłowa ścieżka zaczyna się od `/matrix_energy_center_static_v8_1_1/`. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
+Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a każdy profil otrzymuje domyślnie włączony tryb wydajny oraz komunikaty Notification Center. W v8.1.2 zwykły komunikat — również otwarty ponownie z dzwonka — zamyka się po dotknięciu dowolnego miejsca, natomiast komunikat wymagający potwierdzenia reaguje wyłącznie na przyciski akcji. Dzwonek ma zarezerwowane miejsce obok zegara, a kiosk nie pokazuje przycisków wyjścia ani przełącznika pełnego ekranu. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. W v8.1.2 prawidłowa ścieżka zaczyna się od `/matrix_energy_center_static_v8_1_2/`. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
 
 ## Usuwanie
 

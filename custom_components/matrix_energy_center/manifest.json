@@ -14,5 +14,5 @@
   "integration_type": "service",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/grehell/grehell-matrix-energy-center/issues",
-  "version": "8.1.1"
+  "version": "8.1.2"
 }
