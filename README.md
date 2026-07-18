@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.1.0 technical preview**. Kiosk profiles keep the tablet performance mode and can display synchronized messages from Matrix Notification Center 1.5.0. The ordinary panel, editors and native Lovelace card keep their existing behavior.
+> Status: **v8.1.1 technical preview**. Kiosk profiles keep the tablet performance mode and can display synchronized messages from Matrix Notification Center 1.5.0. Handled messages close immediately, while the kiosk starts fullscreen without exit/fullscreen controls. The ordinary panel, editors and native Lovelace card keep their existing behavior.
 
 ## Main features
 
@@ -113,7 +113,7 @@ administrative settings remain inside Notification Center.
 
 ## Native Lovelace card
 
-Version 8.1.0 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
+Version 8.1.1 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card

@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.1.0"
+    assert manifest["version"] == "8.1.1"
 
 
 def test_hacs_manifest() -> None:

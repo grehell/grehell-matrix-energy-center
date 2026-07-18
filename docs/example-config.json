@@ -432,8 +432,8 @@
         "clock_bold": true,
         "show_clock": true,
         "show_navigation": true,
-        "show_fullscreen": true,
-        "show_exit": true
+        "show_fullscreen": false,
+        "show_exit": false
       }
     },
     "flow_offset_x": 0,

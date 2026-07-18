@@ -222,6 +222,8 @@ assert(kioskHtml.includes("--kiosk-view-scale:1.1"), "per-tab scale must be rend
 assert(kioskHtml.includes("--kiosk-view-x:12px"), "per-tab X offset must be rendered");
 assert(kioskHtml.includes("--kiosk-header-title-weight:700"), "kiosk-header bold setting must be rendered");
 assert(!kioskHtml.includes("kiosk-status"), "removed kiosk status bar must not be rendered");
+assert(!kioskHtml.includes("PEŁNY EKRAN"), "kiosk must not expose a fullscreen toggle");
+assert(!kioskHtml.includes("WYJDŹ"), "kiosk must not expose an exit control");
 const kioskConfigHtml = panel._renderKioskConfiguration();
 assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
 assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
@@ -284,6 +286,19 @@ assert(viewportFocused, "bubble editor must restore the active field");
   await panel._saveBubbleEditor();
   assert(panel._config.overview_bubbles.some(item => item.name === "Dom 🏠" && item.emoji === "🏠"), "saved bubble draft missing from configuration");
   assert(panel._bubbleEditor === null, "successful save must close bubble editor");
+
+  const handledNotification = { id: "alarm_2", level: "krytyczne", title: "ALARM 2", message: "Test", last_sent_at: "2026-07-18T22:15:00+02:00", active: true, actions: { ack: true, snooze: false, dismiss: true } };
+  panel._view = "kiosk";
+  panel._notificationCenter = { enabled: true, sequence: 9, active: [handledNotification], events: [{ ...handledNotification, sequence: 9 }] };
+  panel._notificationCurrent = handledNotification;
+  panel._patchKioskNotificationLayer = () => {};
+  panel._startKioskRotation = () => {};
+  panel._loadNotificationCenter = async () => {};
+  panel._hass.callApi = async () => ({ success: false });
+  await panel._runNotificationAction("ack");
+  assert(panel._notificationCurrent === null, "handled notification must disappear immediately");
+  assert(panel._notificationCenter.active.length === 0, "handled notification must be removed from the local active list");
+  assert(panel._notificationWasHandled(handledNotification), "a stale refresh must not restore a handled notification");
   console.log("flow scene rules ok");
 })().catch(error => {
   console.error(error);

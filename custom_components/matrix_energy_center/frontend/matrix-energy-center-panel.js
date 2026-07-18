@@ -137,6 +137,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._notificationDrawerOpen = false;
     this._notificationAvailable = false;
     this._notificationLoading = false;
+    this._notificationReloadPending = false;
+    this._notificationActionPending = false;
+    this._notificationHandled = new Set();
     this._notificationUnsub = null;
     this._notificationSubscribePending = false;
     this._notificationTimer = null;
@@ -679,7 +682,6 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       <div class="two-grid">${this._numberField(`${path}.flow_offset_x`, "Diagram lewo/prawo (px)", profile.flow_offset_x || 0, -400, 400, 1, disabled, true)}<div class="field"><span>Pozycje zapisane w profilu</span><button class="secondary-btn reset-layout-btn" data-action="reset-kiosk-layout" data-profile-index="${profileIndex}" ${disabled}><ha-icon icon="mdi:restore"></ha-icon>RESETUJ POŁOŻENIE</button></div></div>
       <div class="widget-checks three-checks">
         <label class="check-row performance-setting"><input type="checkbox" data-path="${path}.tablet_performance_mode" data-live-rerender="1" ${profile.tablet_performance_mode !== false ? "checked" : ""} ${disabled}><span><b>Tryb wydajny tabletu</b><small>Renderuje tylko aktywną zakładkę, ogranicza aktualizacje do 1/s i wyłącza najcięższe poświaty.</small></span></label>
-        <label class="check-row"><input type="checkbox" data-path="${path}.auto_fullscreen" data-live-rerender="1" ${profile.auto_fullscreen !== false ? "checked" : ""} ${disabled}><span><b>Automatyczny pełny ekran</b><small>Fullscreen przy pierwszym dotknięciu; Fully Kiosk może uruchomić go od razu.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_notification_center" data-live-rerender="1" ${profile.show_notification_center !== false ? "checked" : ""} ${disabled}><span><b>Komunikaty Notification Center</b><small>Paski, karty i alarmy nad każdym slajdem kiosku.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_builtin_bubbles" data-live-rerender="1" ${profile.show_builtin_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Standardowe dymki</b><small>Dom, PV, sieć, magazyn i EV.</small></span></label>
         <label class="check-row"><input type="checkbox" data-path="${path}.show_custom_bubbles" data-live-rerender="1" ${profile.show_custom_bubbles !== false ? "checked" : ""} ${disabled}><span><b>Własne dymki</b><small>Wybrane poniżej.</small></span></label>
@@ -1017,8 +1019,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       clock_bold: true,
       show_clock: true,
       show_navigation: true,
-      show_fullscreen: true,
-      show_exit: true,
+      show_fullscreen: false,
+      show_exit: false,
     };
   }
 
@@ -1033,7 +1035,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const config = this._kioskHeaderConfig(profile, definition, true);
       const fieldPath = `${path}.slide_headers.${definition.key}`;
       return `<details class="panel kiosk-header-editor"><summary><ha-icon icon="${this._escAttr(config.icon || definition.icon)}"></ha-icon><b>${this._esc(definition.label)}</b><span>${this._esc(config.title || "Bez tytułu")}</span><ha-icon icon="mdi:chevron-down"></ha-icon></summary><div class="kiosk-header-editor-body">
-        <div class="widget-checks four-checks"><label class="check-row"><input type="checkbox" data-path="${fieldPath}.enabled" data-live-rerender="1" ${config.enabled !== false ? "checked" : ""} ${disabled}><span><b>Pokaż nagłówek</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_icon" data-live-rerender="1" ${config.show_icon ? "checked" : ""} ${disabled}><span><b>Ikona</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_clock" data-live-rerender="1" ${config.show_clock !== false ? "checked" : ""} ${disabled}><span><b>Zegar</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_navigation" data-live-rerender="1" ${config.show_navigation !== false ? "checked" : ""} ${disabled}><span><b>Nawigacja pośrodku</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_fullscreen" data-live-rerender="1" ${config.show_fullscreen !== false ? "checked" : ""} ${disabled}><span><b>Pełny ekran</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_exit" data-live-rerender="1" ${config.show_exit !== false ? "checked" : ""} ${disabled}><span><b>Wyjście</b></span></label></div>
+        <div class="widget-checks four-checks"><label class="check-row"><input type="checkbox" data-path="${fieldPath}.enabled" data-live-rerender="1" ${config.enabled !== false ? "checked" : ""} ${disabled}><span><b>Pokaż nagłówek</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_icon" data-live-rerender="1" ${config.show_icon ? "checked" : ""} ${disabled}><span><b>Ikona</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_clock" data-live-rerender="1" ${config.show_clock !== false ? "checked" : ""} ${disabled}><span><b>Zegar</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.show_navigation" data-live-rerender="1" ${config.show_navigation !== false ? "checked" : ""} ${disabled}><span><b>Nawigacja pośrodku</b></span></label></div>
         <div class="three-grid">${this._field(`${fieldPath}.eyebrow`, "Nadtytuł", config.eyebrow, "MATRIX ENERGY CENTER", disabled, true)}${this._field(`${fieldPath}.title`, "Tytuł", config.title, definition.title, disabled, true)}${this._field(`${fieldPath}.description`, "Opis", config.description, definition.description, disabled, true)}${this._field(`${fieldPath}.icon`, "Ikona MDI", config.icon, definition.icon, disabled, true)}${this._numberField(`${fieldPath}.height`, "Wysokość nagłówka", config.height, 44, 180, 1, disabled, true)}</div>
         <div class="four-grid">${this._numberField(`${fieldPath}.eyebrow_size`, "Nadtytuł (px)", config.eyebrow_size, 6, 20, 1, disabled, true)}${this._numberField(`${fieldPath}.title_size`, "Tytuł (px)", config.title_size, 9, 42, 1, disabled, true)}${this._numberField(`${fieldPath}.description_size`, "Opis (px)", config.description_size, 6, 24, 1, disabled, true)}${this._numberField(`${fieldPath}.clock_size`, "Zegar (px)", config.clock_size, 9, 40, 1, disabled, true)}</div>
         <div class="widget-checks four-checks"><label class="check-row"><input type="checkbox" data-path="${fieldPath}.eyebrow_bold" data-live-rerender="1" ${config.eyebrow_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub nadtytuł</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.title_bold" data-live-rerender="1" ${config.title_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub tytuł</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.description_bold" data-live-rerender="1" ${config.description_bold ? "checked" : ""} ${disabled}><span><b>Pogrub opis</b></span></label><label class="check-row"><input type="checkbox" data-path="${fieldPath}.clock_bold" data-live-rerender="1" ${config.clock_bold !== false ? "checked" : ""} ${disabled}><span><b>Pogrub zegar</b></span></label></div>
@@ -1148,7 +1150,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (config.enabled === false) return "";
     const navigation = slides.length > 1 && config.show_navigation !== false ? `<div class="kiosk-header-navigation"><button data-action="kiosk-prev" title="Poprzedni ekran"><ha-icon icon="mdi:chevron-left"></ha-icon></button><div>${slides.map((item, index) => `<button class="kiosk-tab-button ${index === slideIndex ? "active" : ""}" data-action="kiosk-slide" data-slide-index="${index}" title="${this._escAttr(item.label)}"><span>${this._esc(item.label)}</span></button>`).join("")}</div><button data-action="kiosk-next" title="Następny ekran"><ha-icon icon="mdi:chevron-right"></ha-icon></button></div>` : "";
     const style = `--kiosk-header-height:${Math.max(44, Math.min(180, Number(config.height || 64)))}px;--kiosk-header-bg:${this._safeColor(config.background_color, "#03182d")};--kiosk-header-border:${this._safeColor(config.border_color, "#20eaff")};--kiosk-header-accent:${this._safeColor(config.accent_color, "#20eaff")};--kiosk-header-title:${this._safeColor(config.title_color, "#eefaff")};--kiosk-header-description:${this._safeColor(config.description_color, "#6e98a8")};--kiosk-header-eyebrow-size:${Math.max(6, Math.min(20, Number(config.eyebrow_size || 8)))}px;--kiosk-header-title-size:${Math.max(9, Math.min(42, Number(config.title_size || 18)))}px;--kiosk-header-description-size:${Math.max(6, Math.min(24, Number(config.description_size || 8)))}px;--kiosk-header-clock-size:${Math.max(9, Math.min(40, Number(config.clock_size || 17)))}px;--kiosk-header-eyebrow-weight:${config.eyebrow_bold === false ? 400 : 700};--kiosk-header-title-weight:${config.title_bold === false ? 400 : 700};--kiosk-header-description-weight:${config.description_bold ? 700 : 400};--kiosk-header-clock-weight:${config.clock_bold === false ? 400 : 700}`;
-    return `<header class="kiosk-header kiosk-slide-header" style="${style}"><div class="kiosk-header-identity">${config.show_icon ? `<ha-icon icon="${this._escAttr(config.icon || definition.icon)}"></ha-icon>` : ""}<div>${config.eyebrow ? `<span class="eyebrow">${this._esc(config.eyebrow)}</span>` : ""}${config.title ? `<h1>${this._esc(config.title)}</h1>` : ""}${config.description ? `<small>${this._esc(config.description)}</small>` : ""}</div></div>${navigation}<div class="kiosk-header-tools">${config.show_clock === false ? "" : `<div class="kiosk-clock"><b data-kiosk-clock>--:--:--</b><span data-kiosk-date>--</span></div>`}${config.show_fullscreen === false ? "" : `<button class="secondary-btn" data-action="toggle-fullscreen"><ha-icon icon="mdi:fullscreen"></ha-icon>PEŁNY EKRAN</button>`}${config.show_exit === false ? "" : `<button class="secondary-btn" data-view="overview"><ha-icon icon="mdi:close"></ha-icon>WYJDŹ</button>`}</div></header>`;
+    return `<header class="kiosk-header kiosk-slide-header" style="${style}"><div class="kiosk-header-identity">${config.show_icon ? `<ha-icon icon="${this._escAttr(config.icon || definition.icon)}"></ha-icon>` : ""}<div>${config.eyebrow ? `<span class="eyebrow">${this._esc(config.eyebrow)}</span>` : ""}${config.title ? `<h1>${this._esc(config.title)}</h1>` : ""}${config.description ? `<small>${this._esc(config.description)}</small>` : ""}</div></div>${navigation}<div class="kiosk-header-tools">${config.show_clock === false ? "" : `<div class="kiosk-clock"><b data-kiosk-clock>--:--:--</b><span data-kiosk-date>--</span></div>`}</div></header>`;
   }
 
   _kioskBubbleSlot(item, index, count, kiosk) {
@@ -1197,6 +1199,21 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return Number(item?.sequence || 0) > 0
       ? `event:${item.sequence}`
       : `active:${item?.id || "unknown"}:${item?.last_sent_at || item?.created_at || ""}`;
+  }
+
+  _notificationInstanceKey(item) {
+    return `${item?.id || "unknown"}:${item?.last_sent_at || item?.created_at || ""}`;
+  }
+
+  _notificationWasHandled(item) {
+    return this._notificationHandled.has(this._notificationInstanceKey(item));
+  }
+
+  _rememberHandledNotification(item) {
+    this._notificationHandled.add(this._notificationInstanceKey(item));
+    if (this._notificationHandled.size > 100) {
+      this._notificationHandled.delete(this._notificationHandled.values().next().value);
+    }
   }
 
   _markNotificationSeen(item) {
@@ -1249,12 +1266,17 @@ class MatrixEnergyCenterPanel extends HTMLElement {
   }
 
   async _loadNotificationCenter(initial = false) {
-    if (!this._notificationEnabled() || this._notificationLoading || !this._hass) return;
+    if (!this._notificationEnabled() || !this._hass) return;
+    if (this._notificationLoading) {
+      this._notificationReloadPending = true;
+      return;
+    }
     this._notificationLoading = true;
     try {
       const profile = encodeURIComponent(this._notificationProfileId());
       const snapshot = await this._hass.callApi("GET", `matrix_notification_center/kiosk?profile=${profile}`);
-      const active = Array.isArray(snapshot?.active) ? snapshot.active : [];
+      const active = (Array.isArray(snapshot?.active) ? snapshot.active : [])
+        .filter(item => !this._notificationWasHandled(item));
       const activeIds = new Set(active.map(item => item.id));
       const events = (Array.isArray(snapshot?.events) ? snapshot.events : []).map(item => ({
         ...item,
@@ -1273,7 +1295,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
         .filter(item => item.level === "krytyczne")
         .sort((a, b) => String(b.last_sent_at || "").localeCompare(String(a.last_sent_at || "")))[0];
       const unseen = events
-        .filter(item => Number(item.sequence || 0) > 0 && !this._notificationSeen.has(this._notificationKey(item)))
+        .filter(item => Number(item.sequence || 0) > 0 && !this._notificationWasHandled(item) && !this._notificationSeen.has(this._notificationKey(item)))
         .sort((a, b) => this._notificationRank(b) - this._notificationRank(a) || Number(b.sequence || 0) - Number(a.sequence || 0));
       const candidate = blocking || unseen[0] || null;
       if (candidate && (!current || blocking || this._notificationRank(candidate) >= this._notificationRank(current))) {
@@ -1290,6 +1312,10 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       if (!initial) this._patchKioskNotificationLayer();
     } finally {
       this._notificationLoading = false;
+      if (this._notificationReloadPending) {
+        this._notificationReloadPending = false;
+        setTimeout(() => this._loadNotificationCenter(false), 0);
+      }
     }
   }
 
@@ -1342,7 +1368,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     if (current) {
       const actions = current.actions || {};
       const blocking = current.level === "krytyczne" || current.require_confirmation;
-      overlay = `<div class="kiosk-notification-overlay mode-${this._escAttr(current.mode || "banner")} level-${this._escAttr(current.level)}"><article><div class="kiosk-notification-symbol"><ha-icon icon="${this._notificationIcon(current.level)}"></ha-icon></div><div class="kiosk-notification-copy"><small>${this._esc(current.category || current.level)}</small><h2>${this._esc(current.title)}</h2><p>${this._esc(current.message)}</p>${current._error ? `<em>${this._esc(current._error)}</em>` : ""}</div><div class="kiosk-notification-actions">${actions.ack ? `<button class="primary" data-nc-action="ack">POTWIERDŹ</button>` : ""}${actions.snooze ? `<button data-nc-action="snooze">ODŁÓŻ 2H</button>` : ""}${actions.dismiss ? `<button data-nc-action="dismiss">ZAMKNIJ</button>` : ""}${!blocking && !actions.dismiss ? `<button data-nc-close>OK</button>` : ""}</div>${!blocking ? `<button class="kiosk-notification-x" data-nc-close title="Ukryj"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</article></div>`;
+      const disabled = current._pending ? "disabled" : "";
+      overlay = `<div class="kiosk-notification-overlay mode-${this._escAttr(current.mode || "banner")} level-${this._escAttr(current.level)}"><article><div class="kiosk-notification-symbol"><ha-icon icon="${this._notificationIcon(current.level)}"></ha-icon></div><div class="kiosk-notification-copy"><small>${this._esc(current.category || current.level)}</small><h2>${this._esc(current.title)}</h2><p>${this._esc(current.message)}</p>${current._error ? `<em>${this._esc(current._error)}</em>` : ""}</div><div class="kiosk-notification-actions">${actions.ack ? `<button class="primary" data-nc-action="ack" ${disabled}>POTWIERDŹ</button>` : ""}${actions.snooze ? `<button data-nc-action="snooze" ${disabled}>ODŁÓŻ 2H</button>` : ""}${actions.dismiss ? `<button data-nc-action="dismiss" ${disabled}>ZAMKNIJ</button>` : ""}${!blocking && !actions.dismiss ? `<button data-nc-close ${disabled}>OK</button>` : ""}</div>${!blocking ? `<button class="kiosk-notification-x" data-nc-close title="Ukryj" ${disabled}><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</article></div>`;
     }
     return `<section class="kiosk-notification-layer" data-kiosk-notification-layer>${bell}${drawer}${overlay}</section>`;
   }
@@ -1390,16 +1417,34 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   async _runNotificationAction(action) {
     const item = this._notificationCurrent;
-    if (!item?.id || !["ack", "snooze", "dismiss"].includes(action)) return;
+    if (!item?.id || this._notificationActionPending || !["ack", "snooze", "dismiss"].includes(action)) return;
+    this._notificationActionPending = true;
+    this._notificationCurrent = { ...item, _pending: true, _error: "" };
+    this._patchKioskNotificationLayer();
     try {
       const body = action === "snooze" ? { minutes: 120 } : {};
-      const result = await this._hass.callApi("POST", `matrix_notification_center/active/${encodeURIComponent(item.id)}/${action}`, body);
-      if (!result?.success) throw new Error("Powiadomienie nie jest już aktywne");
+      await this._hass.callApi("POST", `matrix_notification_center/active/${encodeURIComponent(item.id)}/${action}`, body);
+      this._rememberHandledNotification(item);
+      const instanceKey = this._notificationInstanceKey(item);
+      const center = this._notificationCenter || { active: [], events: [] };
+      this._notificationCenter = {
+        ...center,
+        active: (center.active || []).filter(candidate => this._notificationInstanceKey(candidate) !== instanceKey),
+        events: (center.events || []).map(candidate => this._notificationInstanceKey(candidate) === instanceKey
+          ? { ...candidate, active: false, actions: { ack: false, snooze: false, dismiss: false } }
+          : candidate),
+      };
       this._notificationCurrent = null;
+      clearTimeout(this._notificationTimer);
+      this._notificationTimer = null;
+      this._patchKioskNotificationLayer();
+      this._startKioskRotation();
       await this._loadNotificationCenter(false);
     } catch (error) {
-      this._notificationCurrent = { ...item, _error: error?.message || "Nie udało się wykonać akcji" };
+      this._notificationCurrent = { ...item, _pending: false, _error: error?.message || "Nie udało się wykonać akcji" };
       this._patchKioskNotificationLayer();
+    } finally {
+      this._notificationActionPending = false;
     }
   }
 
@@ -3853,8 +3898,12 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     }
   }
 
-  _armKioskFullscreen(profile = this._activeKioskProfile()) {
-    if (profile?.auto_fullscreen === false || document.fullscreenElement || this._autoFullscreenArmed || !this.shadowRoot) return;
+  _armKioskFullscreen(_profile = this._activeKioskProfile()) {
+    if (document.fullscreenElement || this._autoFullscreenArmed || !this.shadowRoot) return;
+    try {
+      const attempt = this.requestFullscreen();
+      attempt?.catch?.(() => { /* A normal browser may require the first touch. */ });
+    } catch (_) { /* Fully Kiosk or the browser controls fullscreen policy. */ }
     this._autoFullscreenArmed = true;
     const activate = async () => {
       this.shadowRoot?.removeEventListener("pointerdown", activate, true);
@@ -4845,6 +4894,8 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     .level-informacja{--nc:#20eaff}.level-zadanie{--nc:#35ff9a}.level-ostrzezenie{--nc:#ff9f1c}.level-krytyczne{--nc:#ff315c}.kiosk-notification-overlay.level-krytyczne{background:rgba(16,0,7,.9);pointer-events:auto}.kiosk-notification-overlay.level-krytyczne>article{animation:kiosk-critical-pulse 1.8s ease-in-out infinite}@keyframes kiosk-critical-pulse{50%{box-shadow:0 0 55px color-mix(in srgb,var(--nc) 42%,transparent)}}
     .performance-mode .kiosk-notification-overlay>article,.performance-mode .kiosk-notification-drawer{box-shadow:none}.performance-mode .kiosk-notification-overlay.level-krytyczne>article{animation:none}.performance-mode .kiosk-notification-overlay.mode-fullscreen{backdrop-filter:none}
     @media(max-width:700px){.kiosk-notification-overlay{padding:8px 54px 8px 8px}.kiosk-notification-overlay>article{grid-template-columns:36px minmax(0,1fr);padding:10px}.kiosk-notification-symbol{width:34px;height:34px}.kiosk-notification-symbol ha-icon{width:20px;height:20px}.kiosk-notification-actions{grid-column:1/-1}.kiosk-notification-copy h2{font-size:13px}.kiosk-notification-overlay.mode-fullscreen{padding:12px}.kiosk-notification-overlay.mode-fullscreen>article{padding:22px;grid-template-columns:54px minmax(0,1fr)}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-symbol{width:52px;height:52px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-copy h2{font-size:21px}}
+
+    :host(.kiosk-host){position:fixed;inset:0;z-index:20000;width:100vw;height:100vh;height:100dvh;background:#01060d}.kiosk-slide-header .kiosk-header-tools{padding-right:50px}.kiosk-notification-actions button:disabled,.kiosk-notification-x:disabled{opacity:.55;cursor:wait}
 
     /* v8.0.6 — kiosk-only tablet performance profile. */
     .matrix-shell.performance-mode{background:#01060d}.matrix-shell.performance-mode:before{display:none}

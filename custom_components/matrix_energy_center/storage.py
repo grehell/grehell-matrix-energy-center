@@ -409,7 +409,7 @@ class MatrixEnergyStore:
                 "tablet_performance_mode": bool(
                     kiosk.get("tablet_performance_mode", True)
                 ),
-                "auto_fullscreen": bool(kiosk.get("auto_fullscreen", True)),
+                "auto_fullscreen": True,
                 "show_notification_center": bool(
                     kiosk.get("show_notification_center", True)
                 ),
@@ -817,7 +817,7 @@ class MatrixEnergyStore:
                     "tablet_performance_mode": bool(
                         item.get("tablet_performance_mode", True)
                     ),
-                    "auto_fullscreen": bool(item.get("auto_fullscreen", True)),
+                    "auto_fullscreen": True,
                     "show_notification_center": bool(
                         item.get("show_notification_center", True)
                     ),
@@ -1129,8 +1129,8 @@ class MatrixEnergyStore:
                 "clock_bold": bool(value.get("clock_bold", True)),
                 "show_clock": bool(value.get("show_clock", True)),
                 "show_navigation": bool(value.get("show_navigation", True)),
-                "show_fullscreen": bool(value.get("show_fullscreen", True)),
-                "show_exit": bool(value.get("show_exit", True)),
+                "show_fullscreen": False,
+                "show_exit": False,
             }
         return result
 

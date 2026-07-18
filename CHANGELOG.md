@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.1.1 — 2026-07-18
+
+- Fixed kiosk notifications remaining visible or reappearing after acknowledge,
+  snooze or dismiss when an event refresh overlapped the action request.
+- Removed the kiosk exit and fullscreen-toggle controls; kiosk mode now always
+  attempts fullscreen automatically and retains the first-touch browser fallback.
+- Kept the notification bell in the header and reserved space beside the clock so
+  the controls no longer overlap.
+
 ## 8.1.0 — 2026-07-18
 
 - Added automatic integration with Matrix Notification Center 1.5.0 through an
