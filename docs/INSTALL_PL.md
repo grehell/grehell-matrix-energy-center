@@ -207,7 +207,7 @@ Zakres **Sesja** przechowuje próbki tylko w bieżącej karcie przeglądarki. Za
 
 ## Karta przepływów w trybie kiosk
 
-### Natywna karta Lovelace v8.0.6
+### Natywna karta Lovelace v8.1.0
 
 Po instalacji lub aktualizacji uruchom ponownie Home Assistant. Następnie:
 
@@ -245,11 +245,12 @@ W osobnym panelu **Kiosk** można ustawić konfigurację domyślną oraz osobne 
 - nazwane zakładki w górnym nagłówku i zmianę ekranu gestem w poziomie,
 - kolejność, skalę, przesunięcie, margines, tło i ramkę każdego osadzonego pulpitu Lovelace,
 - tryb wydajny tabletu, który utrzymuje tylko aktywny slajd, ogranicza odświeżanie i upraszcza ciężkie efekty wyłącznie w kiosku,
+- komunikaty Matrix Notification Center nad każdym slajdem, z alarmem krytycznym zatrzymującym rotację,
 - harmonogram nocny i jasność nocną.
 
 Przycisk **Otwórz kartę kiosk** przełącza panel na widok monitoringu bez głównego menu, bocznego paska, dolnego paska statusu i pasków przewijania. Nawigacja slajdów znajduje się w edytowalnym nagłówku. Przycisk **Pełny ekran** uruchamia przeglądarkowy tryb pełnoekranowy. **Wyjdź** wraca do podsumowania i opuszcza pełny ekran. Widok kiosk korzysta z tej samej konfiguracji stringów PV, urządzeń, kolorów i przepływów co główny panel.
 
-Do profilu kiosku można dodać inne strony z tego samego Home Assistanta. W panelu **Kiosk**, w wybranym profilu, kliknij **Dodaj zakładkę do tego kiosku**. W polu adresu wpisz na przykład `/dashboard-jsbd/deye-kiosk` albo pełny adres `https://grehell.ovh/dashboard-jsbd/deye-kiosk`, włącz zakładkę i zapisz. Pełny adres zostanie zapisany jako ścieżka lokalna. Adres z innej domeny jest celowo odrzucany, ponieważ sesja Home Assistant i osadzanie strony nie byłyby bezpieczne ani niezawodne.
+Do profilu kiosku można dodać inne strony z tego samego Home Assistanta. W panelu **Kiosk**, w wybranym profilu, kliknij **Dodaj zakładkę do tego kiosku**. W polu adresu wpisz na przykład `/dashboard-jsbd/deye-kiosk` albo pełny adres własnego Home Assistanta, włącz zakładkę i zapisz. Pełny adres zostanie zapisany jako ścieżka lokalna. Adres z innej domeny jest celowo odrzucany, ponieważ sesja Home Assistant i osadzanie strony nie byłyby bezpieczne ani niezawodne.
 
 Na stałym ekranie można otworzyć kiosk bezpośrednio adresem:
 
@@ -263,9 +264,18 @@ Tryb wydajny jest domyślnie włączony dla istniejących i nowych profili kiosk
 /matrix-energy-center?kiosk=salon&performance=0
 ```
 
-Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia.
+Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uruchomieniu lub restarcie urządzenia. Aplikacja Fully Kiosk może wymusić pełny ekran od razu.
 
-## Aktualizacja do v8.0.6
+### Komunikaty z Matrix Notification Center
+
+1. Zainstaluj osobno Matrix Notification Center 1.5.0 i dodaj integrację w Home Assistant.
+2. W **Centrum Powiadomień → Ustawienia → Panel kiosku** włącz most kiosku.
+3. W regule ustaw profil `*` dla wszystkich ekranów albo identyfikator, np. `salon`.
+4. W **Energy Center → Kiosk** pozostaw włączone **Komunikaty Notification Center**.
+
+Połączenie używa bieżącej, zalogowanej sesji Home Assistant. Nie wpisuje się adresu IP ani tokenu. Informacja pojawia się jako pasek, zadanie i ostrzeżenie jako karta, a alarm krytyczny zajmuje cały ekran do wykonania akcji. Potwierdzenie, odłożenie o dwie godziny lub zamknięcie synchronizuje stan z Centrum Powiadomień.
+
+## Aktualizacja do v8.1.0
 
 1. Zrób eksport konfiguracji JSON z panelu.
 2. Podmień katalog integracji albo wykonaj aktualizację przez HACS.
@@ -275,7 +285,7 @@ Przeglądarka nadal wymaga jednego kliknięcia przycisku **Pełny ekran** po uru
 6. W zakładce **Urządzenia** wybierz dodatkowe źródła i odbiorniki widoczne w przepływie.
 7. Otwórz **Widżety**, sprawdź dymki i wykresy, a następnie otwórz osobny panel **Kiosk** i skonfiguruj zakładki profili.
 
-Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a każdy profil otrzymuje domyślnie włączony tryb wydajny. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. W v8.0.6 prawidłowa ścieżka zaczyna się od `/matrix_energy_center_static_v8_0_6/`. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
+Dane z wcześniejszych wersji są automatycznie uzupełniane do schematu v8. Dotychczasowe encje, dymki, wykresy i profile kiosku zachowują konfigurację, a każdy profil otrzymuje domyślnie włączony tryb wydajny oraz komunikaty Notification Center. Nie usuwaj pliku `.storage/matrix_energy_center`. Po aktualizacji wykonaj pełny restart Home Assistant. Panel i karta Lovelace mają wersję bezpośrednio w ścieżce URL, a integracja nie ustawia dla nich długiego cache. W v8.1.0 prawidłowa ścieżka zaczyna się od `/matrix_energy_center_static_v8_1_0/`. Jeżeli wcześniej ręcznie dodano zasób `/matrix_energy_center_static/matrix-energy-flow-card.js`, usuń go z zasobów Lovelace — integracja rejestruje aktualny moduł automatycznie.
 
 ## Usuwanie
 

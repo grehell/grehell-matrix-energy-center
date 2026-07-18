@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.0.6 technical preview**. Kiosk profiles use a tablet performance mode by default: only the active slide is mounted, live updates are throttled and expensive visual effects are reduced. The ordinary panel, editors and native Lovelace card keep their existing behavior.
+> Status: **v8.1.0 technical preview**. Kiosk profiles keep the tablet performance mode and can display synchronized messages from Matrix Notification Center 1.5.0. The ordinary panel, editors and native Lovelace card keep their existing behavior.
 
 ## Main features
 
@@ -34,6 +34,9 @@
 - Dedicated **Widgets** editor with live preview and optional hiding of the standard overview bubbles.
 - Full-screen **Kiosk** dashboards with optional clock/status, selectable bubbles/charts, named screen profiles, automatic slide rotation, night dimming, three flow-diagram heights and a Samsung Galaxy Tab A9 landscape 16:9 preset.
 - Kiosk-only tablet performance mode with lazy slide mounting, relevant-entity state filtering, a one-second live-update ceiling, deferred Recorder queries and lighter glow/animation effects.
+- Automatic authenticated Matrix Notification Center bridge with banners,
+  task/warning cards, blocking critical alarms, a notification drawer and
+  synchronized acknowledge, snooze and dismiss actions.
 - Per-screen flow editor with a fixed Matrix background and a reset command scoped only to the selected screen.
 - Per-flow-bubble width, height, frame/background/text/icon colors, icon/emoji size, custom MDI icon or pasted emoji and up to eight additional entity/attribute fields.
 - Copy a selected flow tile's complete appearance between Summary, Flows and kiosk profiles; optionally copy its size and position as well.
@@ -91,9 +94,26 @@ to:
 
 Restart Home Assistant and add the integration from the UI.
 
+## Matrix Notification Center on the kiosk
+
+Install Matrix Notification Center 1.5.0 or newer as a second integration.
+Energy Center discovers it automatically and subscribes to its local Home
+Assistant event stream. No token, IP address, Browser Mod or duplicated
+configuration is required.
+
+Open **Energy Center → Kiosk** and leave **Komunikaty Notification Center**
+enabled for the selected profile. Notifications targeted to `*` or that
+profile ID are displayed above every Matrix and embedded Lovelace slide.
+Critical full-screen messages pause automatic slide rotation and resume it
+after acknowledgement, snooze or dismissal.
+
+The kiosk endpoint requires an authenticated Home Assistant session and only
+contains presentation fields. Recipient data, source entities and
+administrative settings remain inside Notification Center.
+
 ## Native Lovelace card
 
-Version 8.0.6 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
+Version 8.1.0 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card

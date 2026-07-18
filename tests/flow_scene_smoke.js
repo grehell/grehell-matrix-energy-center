@@ -226,6 +226,23 @@ const kioskConfigHtml = panel._renderKioskConfiguration();
 assert(kioskConfigHtml.includes("DODAJ ZAKŁADKĘ DO TEGO KIOSKU"), "dedicated kiosk tab configuration is missing");
 assert(kioskConfigHtml.includes("/dashboard-home/lights"), "configured kiosk dashboard is missing from kiosk configuration");
 assert(kioskConfigHtml.includes("Tryb wydajny tabletu"), "tablet performance setting is missing");
+assert(kioskConfigHtml.includes("Komunikaty Notification Center"), "notification-center kiosk setting is missing");
+
+panel._notificationAvailable = true;
+panel._notificationCenter = {
+  enabled: true,
+  sequence: 7,
+  active: [{ id: "alarm_1", level: "krytyczne", title: "ALARM", message: "Wykryto zagrożenie", category: "Bezpieczeństwo", active: true, mode: "fullscreen", require_confirmation: true, actions: { ack: true, snooze: true, dismiss: true } }],
+  events: [],
+};
+panel._notificationCurrent = panel._notificationCenter.active[0];
+const notificationHtml = panel._renderKioskNotificationLayer();
+assert(notificationHtml.includes("mode-fullscreen"), "critical kiosk notification must render fullscreen");
+assert(notificationHtml.includes("POTWIERDŹ"), "critical kiosk notification must expose synchronized actions");
+assert(notificationHtml.includes("kiosk-notification-bell"), "active notification badge is missing");
+assert(panel._notificationBlocksRotation(), "fullscreen notification must pause kiosk rotation");
+panel._notificationCurrent = null;
+panel._notificationCenter = { enabled: true, sequence: 8, active: [], events: [] };
 
 panel._view = "kiosk";
 panel._config.kiosk.tablet_performance_mode = true;

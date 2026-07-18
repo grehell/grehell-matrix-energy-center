@@ -445,6 +445,7 @@
     "show_self_sufficiency_gauge": false,
     "tablet_performance_mode": true,
     "auto_fullscreen": true,
+    "show_notification_center": true,
     "lovelace_views": [
       {
         "id": "deye",
@@ -520,6 +521,7 @@
       "show_self_sufficiency_gauge": false,
       "tablet_performance_mode": true,
       "auto_fullscreen": true,
+      "show_notification_center": true,
       "lovelace_views": [],
       "show_clock": true,
       "show_builtin_bubbles": true,

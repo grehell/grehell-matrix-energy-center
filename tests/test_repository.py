@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.0.6"
+    assert manifest["version"] == "8.1.0"
 
 
 def test_hacs_manifest() -> None:
@@ -157,6 +157,12 @@ def test_frontend_features() -> None:
     assert "tablet-performance" in frontend
     assert "_hasRelevantStateChange" in frontend
     assert "loading=\"lazy\"" in frontend
+    assert "matrix_notification_center_updated" in frontend
+    assert "matrix_notification_center/kiosk" in frontend
+    assert "_renderKioskNotificationLayer" in frontend
+    assert "_runNotificationAction" in frontend
+    assert "kiosk-notification-overlay" in frontend
+    assert "show_notification_center" in frontend
 
 
 def test_configuration_schema_v8() -> None:
@@ -211,6 +217,7 @@ def test_configuration_schema_v8() -> None:
     assert '"routing_clearance"' in storage
     assert '"routing_spacing"' in storage
     assert '"tablet_performance_mode": True' in storage
+    assert '"show_notification_center": True' in storage
 
 
 def test_example_contains_flows_widgets_and_kiosk() -> None:
@@ -255,6 +262,7 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk"]["show_self_sufficiency_gauge"] is False
     assert example["kiosk"]["auto_fullscreen"] is True
     assert example["kiosk"]["tablet_performance_mode"] is True
+    assert example["kiosk"]["show_notification_center"] is True
     assert example["kiosk"]["show_status"] is False
     assert "flow" in example["kiosk"]["slide_headers"]
     assert example["kiosk"]["slide_headers"]["flow"]["show_navigation"] is True
@@ -271,6 +279,7 @@ def test_example_contains_flows_widgets_and_kiosk() -> None:
     assert example["kiosk_profiles"][0]["id"] == "salon"
     assert example["kiosk_profiles"][0]["show_status"] is False
     assert example["kiosk_profiles"][0]["tablet_performance_mode"] is True
+    assert example["kiosk_profiles"][0]["show_notification_center"] is True
 
 
 def test_flow_scene_runtime_rules() -> None:

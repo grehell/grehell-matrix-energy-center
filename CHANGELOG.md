@@ -1,5 +1,19 @@
 # Changelog
 
+## 8.1.0 — 2026-07-18
+
+- Added automatic integration with Matrix Notification Center 1.5.0 through an
+  authenticated local Home Assistant API and event subscription.
+- Added lightweight kiosk banners, cards, full-screen critical alarms, an
+  active-notification badge and a notification drawer above every slide.
+- Added synchronized acknowledge, two-hour snooze and dismiss actions.
+- Paused kiosk slide rotation for full-screen messages and resumed it after the
+  message is handled.
+- Added a per-kiosk-profile switch while retaining tablet performance mode,
+  active-slide mounting and the one-second live update ceiling.
+- Kept Notification Center optional; Energy Center works unchanged when the
+  second integration is not installed.
+
 ## 8.0.6 — 2026-07-16
 
 - Added a kiosk-only tablet performance mode, enabled by default for the default kiosk and every named kiosk profile.

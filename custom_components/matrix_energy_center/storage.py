@@ -133,6 +133,7 @@ def default_configuration() -> dict[str, Any]:
             "show_self_sufficiency_gauge": False,
             "tablet_performance_mode": True,
             "auto_fullscreen": True,
+            "show_notification_center": True,
             "lovelace_views": [],
             "show_clock": True,
             "show_builtin_bubbles": True,
@@ -409,6 +410,9 @@ class MatrixEnergyStore:
                     kiosk.get("tablet_performance_mode", True)
                 ),
                 "auto_fullscreen": bool(kiosk.get("auto_fullscreen", True)),
+                "show_notification_center": bool(
+                    kiosk.get("show_notification_center", True)
+                ),
                 "lovelace_views": self._validate_kiosk_lovelace_views(
                     kiosk.get("lovelace_views", [])
                 ),
@@ -814,6 +818,9 @@ class MatrixEnergyStore:
                         item.get("tablet_performance_mode", True)
                     ),
                     "auto_fullscreen": bool(item.get("auto_fullscreen", True)),
+                    "show_notification_center": bool(
+                        item.get("show_notification_center", True)
+                    ),
                     "lovelace_views": self._validate_kiosk_lovelace_views(
                         item.get("lovelace_views", [])
                     ),
