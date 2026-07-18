@@ -3,10 +3,17 @@ const fs = require("fs");
 const vm = require("vm");
 
 let Panel;
+const storage = {
+  data: new Map(),
+  getItem(key) { return this.data.has(key) ? this.data.get(key) : null; },
+  setItem(key, value) { this.data.set(key, String(value)); },
+};
 const context = {
   HTMLElement: class { attachShadow() { this.shadowRoot = {}; } },
   customElements: { define: (_name, cls) => { Panel = cls; } },
-  window: { location: { search: "", origin: "https://ha.example", pathname: "/matrix-energy-center" }, history: { pushState: () => {} }, dispatchEvent: () => {} },
+  window: { location: { search: "", origin: "https://ha.example", pathname: "/matrix-energy-center" }, history: { pushState: () => {} }, dispatchEvent: () => {}, confirm: () => true },
+  localStorage: storage,
+  sessionStorage: storage,
   URLSearchParams,
   URL,
   console,
@@ -238,10 +245,12 @@ panel._notificationCenter = {
   events: [],
 };
 panel._notificationCurrent = panel._notificationCenter.active[0];
+panel._notificationDrawerOpen = true;
 const notificationHtml = panel._renderKioskNotificationLayer();
 assert(notificationHtml.includes("mode-fullscreen"), "critical kiosk notification must render fullscreen");
 assert(notificationHtml.includes("POTWIERDŹ"), "critical kiosk notification must expose synchronized actions");
 assert(notificationHtml.includes("kiosk-notification-bell"), "active notification badge is missing");
+assert(notificationHtml.includes("data-nc-clear-list"), "notification drawer clear button is missing");
 assert(notificationHtml.includes("blocking"), "confirmable notification must block background dismissal");
 assert(!notificationHtml.includes("data-nc-overlay-close"), "confirmable notification must not close after a background tap");
 assert(panel._notificationBlocksRotation(), "fullscreen notification must pause kiosk rotation");
@@ -319,6 +328,21 @@ assert(viewportFocused, "bubble editor must restore the active field");
   assert(panel._notificationCurrent === null, "handled notification must disappear immediately");
   assert(panel._notificationCenter.active.length === 0, "handled notification must be removed from the local active list");
   assert(panel._notificationWasHandled(handledNotification), "a stale refresh must not restore a handled notification");
+
+  const clearOrdinary = { id: "info_clear", level: "informacja", title: "DO USUNIĘCIA", message: "Test", last_sent_at: "2026-07-19T10:00:00+02:00", active: true, require_confirmation: false, actions: { ack: false, snooze: false, dismiss: true } };
+  const clearProtected = { id: "alarm_keep", level: "krytyczne", title: "ZOSTAJE", message: "Test", last_sent_at: "2026-07-19T10:01:00+02:00", active: true, require_confirmation: true, actions: { ack: true, snooze: true, dismiss: true } };
+  const clearEvent = { ...clearOrdinary, sequence: 12, active: false, actions: { ack: false, snooze: false, dismiss: false } };
+  panel._notificationCenter = { enabled: true, sequence: 12, active: [clearOrdinary, clearProtected], events: [clearEvent] };
+  panel._notificationCurrent = clearOrdinary;
+  const clearCalls = [];
+  panel._hass.callApi = async (method, path) => { clearCalls.push([method, path]); return { success: true }; };
+  await panel._clearKioskNotificationList();
+  assert(clearCalls.some(([, path]) => path.includes("info_clear/dismiss")), "ordinary active notification must be dismissed through Notification Center");
+  assert(panel._notificationCenter.active.length === 1 && panel._notificationCenter.active[0].id === "alarm_keep", "confirmation-required notification must remain after clearing the list");
+  assert(panel._notificationCenter.events.length === 0, "cleared notification history must disappear from the drawer");
+  assert(panel._notificationCurrent === null, "cleared ordinary notification must close immediately");
+  assert(panel._notificationWasCleared(clearEvent), "cleared kiosk history must be remembered per profile");
+  assert(!panel._notificationWasCleared(clearProtected), "confirmation-required notification must not be marked as cleared");
   console.log("flow scene rules ok");
 })().catch(error => {
   console.error(error);

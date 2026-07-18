@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.1.3 — 2026-07-19
+
+- Added an `USUŃ POWIADOMIENIA Z LISTY` button at the bottom of the kiosk
+  notification drawer.
+- Persisted the cleared drawer state per kiosk profile so old messages do not
+  return after a page reload.
+- Dismissed ordinary active messages through Notification Center while keeping
+  confirmation-required messages on the list until an explicit action is used.
+
 ## 8.1.2 — 2026-07-18
 
 - Added tap-anywhere dismissal for ordinary kiosk notifications, including

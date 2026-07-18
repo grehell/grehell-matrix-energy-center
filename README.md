@@ -4,7 +4,7 @@
 
 **Matrix Energy Center** is a local, multi-user energy management panel for Home Assistant. It provides a Matrix Blue interface, live power flows, normalized energy sensors and a complete configuration editor for grid, photovoltaic strings, battery storage, EV charging, tariffs and arbitrary appliances.
 
-> Status: **v8.1.2 technical preview**. Kiosk profiles keep the tablet performance mode and can display synchronized messages from Matrix Notification Center 1.5.1. Ordinary messages close after a tap anywhere, while confirmation-required messages accept only their action buttons. The kiosk starts fullscreen without exit/fullscreen controls. The ordinary panel, editors and native Lovelace card keep their existing behavior.
+> Status: **v8.1.3 technical preview**. Kiosk profiles keep the tablet performance mode and can display synchronized messages from Matrix Notification Center 1.5.1. Ordinary messages close after a tap anywhere, and the bell drawer now has a persistent clear-list action. Confirmation-required messages accept only their action buttons. The kiosk starts fullscreen without exit/fullscreen controls. The ordinary panel, editors and native Lovelace card keep their existing behavior.
 
 ## Main features
 
@@ -37,6 +37,9 @@
 - Automatic authenticated Matrix Notification Center bridge with banners,
   task/warning cards, blocking critical alarms, a notification drawer and
   synchronized acknowledge, snooze and dismiss actions.
+- A clear-list button at the bottom of the kiosk notification drawer; cleared
+  entries stay hidden per kiosk profile while confirmation-required messages
+  remain until an explicit action is used.
 - Per-screen flow editor with a fixed Matrix background and a reset command scoped only to the selected screen.
 - Per-flow-bubble width, height, frame/background/text/icon colors, icon/emoji size, custom MDI icon or pasted emoji and up to eight additional entity/attribute fields.
 - Copy a selected flow tile's complete appearance between Summary, Flows and kiosk profiles; optionally copy its size and position as well.
@@ -113,7 +116,7 @@ administrative settings remain inside Notification Center.
 
 ## Native Lovelace card
 
-Version 8.1.2 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
+Version 8.1.3 registers its Lovelace module automatically under a release-specific URL. After restarting Home Assistant, add a **Manual** card:
 
 ```yaml
 type: custom:matrix-energy-flow-card

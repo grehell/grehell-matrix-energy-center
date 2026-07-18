@@ -144,6 +144,9 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     this._notificationSubscribePending = false;
     this._notificationTimer = null;
     this._notificationSeen = new Set();
+    this._notificationCleared = new Set();
+    this._notificationClearedProfile = null;
+    this._notificationClearPending = false;
   }
 
   set hass(value) {
@@ -1201,6 +1204,36 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       : `active:${item?.id || "unknown"}:${item?.last_sent_at || item?.created_at || ""}`;
   }
 
+  _loadNotificationCleared() {
+    const profile = this._notificationProfileId();
+    if (this._notificationClearedProfile === profile) return;
+    this._notificationClearedProfile = profile;
+    this._notificationCleared = new Set();
+    try {
+      const saved = JSON.parse(localStorage.getItem(`matrix_energy_center_notification_cleared_${profile}`) || "[]");
+      if (Array.isArray(saved)) saved.slice(-300).forEach(value => this._notificationCleared.add(String(value)));
+    } catch (_) { /* Local storage is optional in embedded browsers. */ }
+  }
+
+  _notificationWasCleared(item) {
+    this._loadNotificationCleared();
+    return this._notificationCleared.has(this._notificationKey(item));
+  }
+
+  _rememberClearedNotifications(items) {
+    this._loadNotificationCleared();
+    (items || []).forEach(item => this._notificationCleared.add(this._notificationKey(item)));
+    if (this._notificationCleared.size > 300) {
+      this._notificationCleared = new Set([...this._notificationCleared].slice(-300));
+    }
+    try {
+      localStorage.setItem(
+        `matrix_energy_center_notification_cleared_${this._notificationProfileId()}`,
+        JSON.stringify([...this._notificationCleared]),
+      );
+    } catch (_) { /* Local storage is optional in embedded browsers. */ }
+  }
+
   _notificationInstanceKey(item) {
     return `${item?.id || "unknown"}:${item?.last_sent_at || item?.created_at || ""}`;
   }
@@ -1267,6 +1300,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
   async _loadNotificationCenter(initial = false) {
     if (!this._notificationEnabled() || !this._hass) return;
+    this._loadNotificationCleared();
     if (this._notificationLoading) {
       this._notificationReloadPending = true;
       return;
@@ -1276,13 +1310,16 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       const profile = encodeURIComponent(this._notificationProfileId());
       const snapshot = await this._hass.callApi("GET", `matrix_notification_center/kiosk?profile=${profile}`);
       const active = (Array.isArray(snapshot?.active) ? snapshot.active : [])
-        .filter(item => !this._notificationWasHandled(item));
+        .filter(item => !this._notificationWasHandled(item))
+        .filter(item => (item.require_confirmation && item.active) || !this._notificationWasCleared(item));
       const activeIds = new Set(active.map(item => item.id));
-      const events = (Array.isArray(snapshot?.events) ? snapshot.events : []).map(item => ({
-        ...item,
-        active: activeIds.has(item.id),
-        actions: activeIds.has(item.id) ? item.actions : { ack: false, snooze: false, dismiss: false },
-      }));
+      const events = (Array.isArray(snapshot?.events) ? snapshot.events : [])
+        .filter(item => !this._notificationWasCleared(item))
+        .map(item => ({
+          ...item,
+          active: activeIds.has(item.id),
+          actions: activeIds.has(item.id) ? item.actions : { ack: false, snooze: false, dismiss: false },
+        }));
       this._notificationCenter = { ...snapshot, active, events };
       this._notificationAvailable = true;
 
@@ -1355,15 +1392,25 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
   }
 
+  _kioskNotificationHistory() {
+    const center = this._notificationCenter || { active: [], events: [] };
+    const active = Array.isArray(center.active) ? center.active : [];
+    const events = Array.isArray(center.events) ? center.events : [];
+    const activeIds = new Set(active.map(item => item.id));
+    return [...active, ...events.filter(item => !activeIds.has(item.id))]
+      .filter(item => (item.require_confirmation && item.active) || !this._notificationWasCleared(item))
+      .slice(0, 12);
+  }
+
   _renderKioskNotificationLayer() {
     const center = this._notificationCenter || { active: [], events: [] };
     const active = Array.isArray(center.active) ? center.active : [];
     const events = Array.isArray(center.events) ? center.events : [];
     const current = this._notificationCurrent;
-    const activeIds = new Set(active.map(item => item.id));
-    const history = [...active, ...events.filter(item => !activeIds.has(item.id))].slice(0, 12);
+    const history = this._kioskNotificationHistory();
+    const protectedCount = history.filter(item => item.require_confirmation && item.active).length;
     const bell = this._notificationAvailable ? `<button class="kiosk-notification-bell ${active.length ? "has-items" : ""}" data-nc-bell title="Centrum powiadomień"><ha-icon icon="mdi:bell-outline"></ha-icon>${active.length ? `<b>${active.length}</b>` : ""}</button>` : "";
-    const drawer = this._notificationDrawerOpen ? `<aside class="kiosk-notification-drawer"><header><div><small>MATRIX BRIDGE</small><b>POWIADOMIENIA</b></div><button data-nc-drawer-close><ha-icon icon="mdi:close"></ha-icon></button></header><div>${history.length ? history.map((item, index) => `<button class="kiosk-notification-row level-${this._escAttr(item.level)}" data-nc-open="${index}"><ha-icon icon="${this._notificationIcon(item.level)}"></ha-icon><span><b>${this._esc(item.title)}</b><small>${this._esc(item.category || item.level)} · ${this._esc(this._notificationTime(item))}</small></span>${item.active ? `<i></i>` : ""}</button>`).join("") : `<div class="kiosk-notification-empty"><ha-icon icon="mdi:bell-sleep-outline"></ha-icon><b>Brak aktywnych komunikatów</b></div>`}</div></aside>` : "";
+    const drawer = this._notificationDrawerOpen ? `<aside class="kiosk-notification-drawer"><header><div><small>MATRIX BRIDGE</small><b>POWIADOMIENIA</b></div><button data-nc-drawer-close><ha-icon icon="mdi:close"></ha-icon></button></header><div>${history.length ? history.map((item, index) => `<button class="kiosk-notification-row level-${this._escAttr(item.level)}" data-nc-open="${index}"><ha-icon icon="${this._notificationIcon(item.level)}"></ha-icon><span><b>${this._esc(item.title)}</b><small>${this._esc(item.category || item.level)} · ${this._esc(this._notificationTime(item))}</small></span>${item.active ? `<i></i>` : ""}</button>`).join("") : `<div class="kiosk-notification-empty"><ha-icon icon="mdi:bell-sleep-outline"></ha-icon><b>Lista powiadomień jest pusta</b></div>`}</div>${history.length ? `<footer><button class="kiosk-notification-clear" data-nc-clear-list ${this._notificationClearPending ? "disabled" : ""}><ha-icon icon="mdi:delete-sweep-outline"></ha-icon>${this._notificationClearPending ? "USUWANIE…" : "USUŃ POWIADOMIENIA Z LISTY"}</button>${protectedCount ? `<small>${protectedCount} wymagające potwierdzenia pozostaną na liście.</small>` : ""}</footer>` : ""}</aside>` : "";
     let overlay = "";
     if (current) {
       const actions = current.actions || {};
@@ -1391,10 +1438,11 @@ class MatrixEnergyCenterPanel extends HTMLElement {
       this._notificationDrawerOpen = false;
       this._patchKioskNotificationLayer();
     });
+    root?.querySelector("[data-nc-clear-list]")?.addEventListener("click", async () => {
+      await this._clearKioskNotificationList();
+    });
     root?.querySelectorAll("[data-nc-open]").forEach(button => button.addEventListener("click", () => {
-      const active = this._notificationCenter?.active || [];
-      const activeIds = new Set(active.map(item => item.id));
-      const history = [...active, ...(this._notificationCenter?.events || []).filter(item => !activeIds.has(item.id))].slice(0, 12);
+      const history = this._kioskNotificationHistory();
       const item = history[Number(button.dataset.ncOpen)];
       if (!item) return;
       this._notificationCurrent = item;
@@ -1415,6 +1463,54 @@ class MatrixEnergyCenterPanel extends HTMLElement {
     root?.querySelectorAll("[data-nc-action]").forEach(button => button.addEventListener("click", async () => {
       await this._runNotificationAction(button.dataset.ncAction);
     }));
+  }
+
+  async _clearKioskNotificationList() {
+    if (this._notificationClearPending) return;
+    const center = this._notificationCenter || { active: [], events: [] };
+    const active = Array.isArray(center.active) ? center.active : [];
+    const events = Array.isArray(center.events) ? center.events : [];
+    const protectedActive = active.filter(item => item.require_confirmation && item.active);
+    const dismissibleActive = active.filter(item => !(item.require_confirmation && item.active) && item.actions?.dismiss);
+    const localOnlyActive = active.filter(item => !(item.require_confirmation && item.active) && !item.actions?.dismiss);
+    if (!active.length && !events.length) return;
+
+    const warning = protectedActive.length
+      ? `Usunąć odczytane i zamykalne powiadomienia z listy?\n\n${protectedActive.length} wymagające potwierdzenia pozostaną na liście.`
+      : "Usunąć wszystkie powiadomienia z listy kiosku?";
+    if (typeof window?.confirm === "function" && !window.confirm(warning)) return;
+
+    this._notificationClearPending = true;
+    this._patchKioskNotificationLayer();
+    const dismissed = [];
+    const failed = [];
+    for (const item of dismissibleActive) {
+      try {
+        await this._hass.callApi("POST", `matrix_notification_center/active/${encodeURIComponent(item.id)}/dismiss`, {});
+        this._rememberHandledNotification(item);
+        dismissed.push(item);
+      } catch (_) {
+        failed.push(item);
+      }
+    }
+
+    this._rememberClearedNotifications([...events, ...localOnlyActive, ...dismissed]);
+    const failedKeys = new Set(failed.map(item => this._notificationInstanceKey(item)));
+    this._notificationCenter = {
+      ...center,
+      active: active.filter(item => (item.require_confirmation && item.active) || failedKeys.has(this._notificationInstanceKey(item))),
+      events: events.filter(item => !this._notificationWasCleared(item)),
+    };
+    if (this._notificationCurrent && !(this._notificationCurrent.require_confirmation && this._notificationCurrent.active)) {
+      const currentFailed = failedKeys.has(this._notificationInstanceKey(this._notificationCurrent));
+      if (!currentFailed) this._notificationCurrent = null;
+    }
+    clearTimeout(this._notificationTimer);
+    this._notificationTimer = null;
+    this._notificationClearPending = false;
+    this._patchKioskNotificationLayer();
+    this._startKioskRotation();
+    await this._loadNotificationCenter(false);
   }
 
   async _closeDisplayedNotification() {
@@ -4904,7 +5000,7 @@ class MatrixEnergyCenterPanel extends HTMLElement {
 
     /* v8.1 — authenticated Matrix Notification Center bridge for kiosk screens. */
     .kiosk-notification-layer{position:fixed;inset:0;z-index:12500;pointer-events:none;font-family:Arial,sans-serif}.kiosk-notification-bell{position:absolute;top:12px;right:12px;z-index:4;width:42px;height:42px;border:1px solid rgba(32,234,255,.5);border-radius:50%;background:rgba(2,12,24,.94);color:var(--cyan);display:grid;place-items:center;pointer-events:auto}.kiosk-notification-bell ha-icon{width:22px;height:22px}.kiosk-notification-bell.has-items{border-color:var(--orange);color:var(--orange)}.kiosk-notification-bell>b{position:absolute;right:-3px;top:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#ff315c;color:white;font:10px/18px monospace;text-align:center}
-    .kiosk-notification-drawer{position:absolute;z-index:5;top:8px;right:8px;width:min(390px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:hidden;border:1px solid rgba(32,234,255,.55);border-radius:16px;background:rgba(2,11,22,.98);box-shadow:0 18px 70px rgba(0,0,0,.68);pointer-events:auto}.kiosk-notification-drawer>header{display:flex;justify-content:space-between;align-items:center;padding:14px 15px;border-bottom:1px solid rgba(32,234,255,.18)}.kiosk-notification-drawer>header small,.kiosk-notification-drawer>header b{display:block}.kiosk-notification-drawer>header small{color:var(--cyan);font-size:7px;letter-spacing:1.5px}.kiosk-notification-drawer>header b{margin-top:3px;font-size:13px;letter-spacing:1px}.kiosk-notification-drawer>header button{display:grid;place-items:center;border:0;background:transparent;color:#8db3c1}.kiosk-notification-drawer>div{max-height:calc(100vh - 78px);overflow:auto;padding:7px}.kiosk-notification-row{--nc:#20eaff;width:100%;display:grid;grid-template-columns:30px minmax(0,1fr) 8px;align-items:center;gap:9px;margin:4px 0;padding:10px;border:1px solid color-mix(in srgb,var(--nc) 25%,transparent);border-radius:11px;background:color-mix(in srgb,var(--nc) 5%,#06101c);color:white;text-align:left}.kiosk-notification-row>ha-icon{color:var(--nc)}.kiosk-notification-row>span{min-width:0}.kiosk-notification-row b,.kiosk-notification-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kiosk-notification-row b{font-size:10px}.kiosk-notification-row small{margin-top:3px;color:#789da9;font-size:7px}.kiosk-notification-row>i{width:7px;height:7px;border-radius:50%;background:var(--nc);box-shadow:0 0 8px var(--nc)}.kiosk-notification-empty{min-height:180px;display:grid;place-items:center;align-content:center;gap:8px;color:#668b98}.kiosk-notification-empty ha-icon{width:44px;height:44px}
+    .kiosk-notification-drawer{position:absolute;z-index:5;top:8px;right:8px;width:min(390px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:hidden;border:1px solid rgba(32,234,255,.55);border-radius:16px;background:rgba(2,11,22,.98);box-shadow:0 18px 70px rgba(0,0,0,.68);pointer-events:auto}.kiosk-notification-drawer>header{display:flex;justify-content:space-between;align-items:center;padding:14px 15px;border-bottom:1px solid rgba(32,234,255,.18)}.kiosk-notification-drawer>header small,.kiosk-notification-drawer>header b{display:block}.kiosk-notification-drawer>header small{color:var(--cyan);font-size:7px;letter-spacing:1.5px}.kiosk-notification-drawer>header b{margin-top:3px;font-size:13px;letter-spacing:1px}.kiosk-notification-drawer>header button{display:grid;place-items:center;border:0;background:transparent;color:#8db3c1}.kiosk-notification-drawer>div{max-height:calc(100vh - 150px);overflow:auto;padding:7px}.kiosk-notification-drawer>footer{display:grid;gap:6px;padding:9px;border-top:1px solid rgba(32,234,255,.18);background:rgba(1,8,17,.96)}.kiosk-notification-drawer>footer small{color:#ffb66f;font-size:7px;text-align:center}.kiosk-notification-clear{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border:1px solid rgba(255,49,92,.48);border-radius:10px;background:rgba(75,5,26,.68);color:#ff9caf;font-size:9px;font-weight:900;letter-spacing:.5px}.kiosk-notification-clear ha-icon{width:18px;height:18px}.kiosk-notification-clear:disabled{opacity:.55}.kiosk-notification-row{--nc:#20eaff;width:100%;display:grid;grid-template-columns:30px minmax(0,1fr) 8px;align-items:center;gap:9px;margin:4px 0;padding:10px;border:1px solid color-mix(in srgb,var(--nc) 25%,transparent);border-radius:11px;background:color-mix(in srgb,var(--nc) 5%,#06101c);color:white;text-align:left}.kiosk-notification-row>ha-icon{color:var(--nc)}.kiosk-notification-row>span{min-width:0}.kiosk-notification-row b,.kiosk-notification-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kiosk-notification-row b{font-size:10px}.kiosk-notification-row small{margin-top:3px;color:#789da9;font-size:7px}.kiosk-notification-row>i{width:7px;height:7px;border-radius:50%;background:var(--nc);box-shadow:0 0 8px var(--nc)}.kiosk-notification-empty{min-height:180px;display:grid;place-items:center;align-content:center;gap:8px;color:#668b98}.kiosk-notification-empty ha-icon{width:44px;height:44px}
     .kiosk-notification-overlay{--nc:#20eaff;position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:14px 64px 14px 14px;pointer-events:none}.kiosk-notification-overlay>article{position:relative;width:min(820px,100%);display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:13px;align-items:center;padding:13px 16px;border:1px solid var(--nc);border-radius:15px;background:color-mix(in srgb,var(--nc) 9%,rgba(2,10,20,.98));box-shadow:0 12px 45px rgba(0,0,0,.55),0 0 24px color-mix(in srgb,var(--nc) 18%,transparent);pointer-events:auto}.kiosk-notification-symbol{display:grid;place-items:center;width:44px;height:44px;border:1px solid color-mix(in srgb,var(--nc) 45%,transparent);border-radius:50%;color:var(--nc);background:color-mix(in srgb,var(--nc) 8%,transparent)}.kiosk-notification-symbol ha-icon{width:26px;height:26px}.kiosk-notification-copy{min-width:0}.kiosk-notification-copy>small{color:var(--nc);font-size:7px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}.kiosk-notification-copy h2{margin:3px 0;color:#fff;font-size:16px;line-height:1.2}.kiosk-notification-copy p{margin:3px 0 0;max-height:9em;overflow:auto;color:#b7d0d8;font-size:10px;line-height:1.45;white-space:pre-line}.kiosk-notification-copy em{display:block;margin-top:6px;color:#ff8298;font-size:8px}.kiosk-notification-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}.kiosk-notification-actions button{min-height:34px;padding:7px 10px;border:1px solid color-mix(in srgb,var(--nc) 42%,transparent);border-radius:8px;background:color-mix(in srgb,var(--nc) 8%,#07111e);color:#dffaff;font-size:8px;font-weight:900}.kiosk-notification-actions button.primary{background:var(--nc);color:#03101b}.kiosk-notification-x{position:absolute;right:-8px;top:-8px;width:25px;height:25px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--nc) 45%,transparent);border-radius:50%;background:#06111f;color:var(--nc)}.kiosk-notification-x ha-icon{width:15px;height:15px}
     .kiosk-notification-overlay.mode-card{align-items:center;padding:24px}.kiosk-notification-overlay.mode-card>article{width:min(620px,94vw);grid-template-columns:58px minmax(0,1fr);padding:24px}.kiosk-notification-overlay.mode-card .kiosk-notification-symbol{width:56px;height:56px}.kiosk-notification-overlay.mode-card .kiosk-notification-actions{grid-column:1/-1}.kiosk-notification-overlay.mode-fullscreen{align-items:center;padding:28px;background:rgba(0,2,8,.88);backdrop-filter:blur(7px);pointer-events:auto}.kiosk-notification-overlay.mode-fullscreen>article{width:min(760px,94vw);min-height:min(420px,78vh);grid-template-columns:76px minmax(0,1fr);align-content:center;padding:38px;border-width:2px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-symbol{width:72px;height:72px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-symbol ha-icon{width:44px;height:44px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-copy h2{font-size:27px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-copy p{font-size:13px}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-actions{grid-column:1/-1;margin-top:18px;justify-content:center}.kiosk-notification-overlay.mode-fullscreen .kiosk-notification-actions button{min-height:46px;padding:10px 18px;font-size:10px}
     .level-informacja{--nc:#20eaff}.level-zadanie{--nc:#35ff9a}.level-ostrzezenie{--nc:#ff9f1c}.level-krytyczne{--nc:#ff315c}.kiosk-notification-overlay.level-krytyczne{background:rgba(16,0,7,.9);pointer-events:auto}.kiosk-notification-overlay.level-krytyczne>article{animation:kiosk-critical-pulse 1.8s ease-in-out infinite}@keyframes kiosk-critical-pulse{50%{box-shadow:0 0 55px color-mix(in srgb,var(--nc) 42%,transparent)}}

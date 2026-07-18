@@ -17,7 +17,7 @@ def test_manifest() -> None:
     manifest = json.loads((COMPONENT / "manifest.json").read_text())
     assert manifest["domain"] == "matrix_energy_center"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "8.1.2"
+    assert manifest["version"] == "8.1.3"
 
 
 def test_hacs_manifest() -> None:
@@ -162,6 +162,8 @@ def test_frontend_features() -> None:
     assert "_renderKioskNotificationLayer" in frontend
     assert "_runNotificationAction" in frontend
     assert "kiosk-notification-overlay" in frontend
+    assert "data-nc-clear-list" in frontend
+    assert "_clearKioskNotificationList" in frontend
     assert "show_notification_center" in frontend
 
 
